@@ -1,128 +1,164 @@
 # BrianE-Dev Documentation
 
-## Project overview
+## Product overview
 
-BrianE-Dev is planned as a learning platform for software engineers and technical leaders who want to improve their use of agentic workflows and AI-assisted programming. The supplied design direction combines technical minimalism, terminal and IDE visual language, and focused instructional reading spaces.
+BrianE-Dev is a React learning application for **AI-powered developer productivity for software engineers**. Its course teaches software developers to use AI effectively throughout the software development lifecycle, including reasoning, planning, code understanding, debugging, refactoring, documentation, testing, architecture, and delivery.
 
-The repository currently contains a React 19 and Vite application scaffold. The product screens described in the design notes have not yet been implemented in `src/App.jsx`; it still renders the default Vite starter interface and counter. Treat screen descriptions and design tokens below as the intended product/design specification, not as a claim about current runtime functionality.
+The course is about using AI to improve software development work, not learning programming from scratch. Code is the working context for lessons, examples, demonstrations, and workflows. Learners study the material and apply it in their own development workflows.
 
-## Design concepts supplied
+## Approved course
 
-The `UI From Stitch` folder contains design briefs and screen references for:
+**AI-Powered Developer Productivity for Software Engineers**
 
-- **Homepage** (`homepage DESIGN.md` and `homepage-mobile screen DESIGN.md`): the product landing and entry point, with desktop and mobile layouts.
-- **Courses** (`courses DESIGN.md`): a course discovery or course selection screen.
-- **Curriculum** (`curriculum DESIGN.md`): a structured learning path and lesson navigation view.
-- **Learning platform** (`leaning platform - mobile screenDESIGN.md`): a mobile learning experience focused on lesson content and learning tools.
-- **Super admin** (`super admin DESIGN.md`): an administrative view for platform management.
-- **Syntactic Elevation** (`syntactic elevation.md`): the shared brand, design system, component, and responsive layout specification.
+The authoritative course data is [`src/data/curriculum.js`](src/data/curriculum.js). It contains the course title and description, all approved sections and chapters, and the learning formats. Section numbers, globally sequential chapter numbers, and the total chapter count are generated from this data. The course has **8 sections and 43 chapters**.
 
-PNG screen references are stored alongside the briefs. The descriptions establish an intended visual language and component behavior; detailed product workflows, permissions, backend behavior, and data models are not specified in the supplied files.
+Update `src/data/curriculum.js` when approved course content changes. Do not maintain a separate curriculum list or count in a page or component. The homepage section cards, expandable chapter lists, course-format cards, chapter counts in access plans, browser title, and meta description consume this source.
 
-## Brand and visual direction
+### Section 01 — Modern AI Developer Workflow (5 chapters)
 
-The intended interface is a high-density, authoritative workspace for technical learning. It should feel precise, fast, and engineered, drawing on command surfaces, modern IDEs, and telemetry dashboards while leaving long-form lessons easy to read. Avoid decorative clutter and consumer-app styling. Use cyan, emerald, and amber as functional accents for focus, success, and warning or milestone states.
+Purpose: Establish the mental models and practical foundations for using AI effectively as a software developer.
 
-### Color palette
+1. How AI Changes the Modern Developer Workflow
+2. Choosing the Right AI Tool for the Task
+3. Prompting for Better Development Results
+4. Understanding AI Strengths and Limitations
+5. Knowing When NOT to Use AI
 
-The design notes include both a named Syntactic Elevation token palette and more detailed implementation color guidance. For component examples and surface tiers, the detailed values below are the clearest guidance; preserve the semantic roles if the palette is reconciled during implementation.
+### Section 02 — ChatGPT for Developers (6 chapters)
 
-| Role | Color | Intended use |
-| --- | --- | --- |
-| Canvas | `#070b12` | Root page background |
-| Workspace shell | `#090d16` | Ambient shells, inputs, and reading surfaces |
-| Primary panel | `#0f172a` | Lesson modules, cards, code chrome |
-| Elevated surface | `#1e293b` | Dialogs, popovers, hover states |
-| Primary accent | `#06b6d4` | Focus, active navigation, tabs, telemetry, execution traces |
-| Success accent | `#10b981` | Passing assertions and completed modules |
-| Warning accent | `#f59e0b` | Warnings, challenge milestones, runtime alerts |
-| Structural divider | `#334155` | Borders and grid lines, usually with reduced opacity |
+Purpose: Teach practical ways developers can use ChatGPT throughout everyday software development work.
 
-The token header in the supplied design files additionally names a deep blue surface family (`#0b1326`, `#131b2e`, `#171f33`, `#222a3d`, `#2d3449`) and a brighter cyan token (`#4cd7f6`). These values can be used where the tokenized Syntactic Elevation palette is preferred.
+1. Using ChatGPT to Understand and Explain Code
+2. Debugging Errors with ChatGPT
+3. Refactoring and Improving Existing Code
+4. Working with Frameworks, APIs, and Documentation
+5. Using ChatGPT for SQL and Database Tasks
+6. Architecture, Planning, and Technical Problem Solving
 
-### Typography
+### Section 03 — GitHub Copilot (6 chapters)
 
-- Use **Geist** for display and headline text, **Inter** for prose and interface text, and **JetBrains Mono** for code and technical labels.
-- Long-form instructional prose uses a generous line height around `1.75` and a readable measure of approximately 68–75 characters.
-- Use uppercase monospace labels for telemetry, lesson timestamps, statuses, and diff summaries.
-- Inline and block code should have explicit line heights and clear distinction from prose.
-- Key type sizes from the token specification: hero `3.5rem` desktop / `2.25rem` mobile; headline XL `2.25rem` / `1.75rem`; body large `1.125rem`; body medium `0.9375rem`; body small `0.8125rem`.
+Purpose: Teach developers how to use GitHub Copilot as an AI coding assistant inside their development workflow.
 
-### Layout and responsive behavior
+1. Getting Started with GitHub Copilot
+2. AI Autocomplete and Code Suggestions
+3. Generating Code with Copilot
+4. Generating and Improving Tests
+5. Refactoring with Copilot
+6. Using Copilot as an AI Pair Programmer
 
-- **Desktop (1280px and wider):** Use a 12-column engineering grid. Navigation may be a 64px rail or a 240px collapsible tree. The lesson reading column occupies about eight columns (up to 768px), with a contextual rail for a code sandbox, terminal output, or outline.
-- **Tablet (768–1279px):** Move contextual tools into persistent bottom drawers or segmented panels; reduce gutters to about `1rem`.
-- **Mobile (under 768px):** Use a fluid four-column layout, `0.75rem` gutters, and `1rem` outer margins. Code panels may scroll horizontally while keeping line numbers pinned.
-- The spacing system is based on 4px increments. Common tokens include `0.125rem`, `0.25rem`, `0.5rem`, `0.75rem`, `1.25rem`, `2rem`, and `3rem`.
+### Section 04 — Codex (6 chapters)
 
-### Elevation, shapes, and focus
+Purpose: Teach developers how to use Codex for larger development tasks, codebase work, and AI-assisted engineering workflows.
 
-Prefer surface luminance and fine borders over heavy shadows. The supplied surface tiers are: canvas `#070b12`; base content `#090d16` with a `#1e293b` border; active panels `#0f172a` with a `#334155` border; and overlays `#1e293b` with a cyan-tinted border. Elevated components can use a subtle inset top highlight and restrained ambient shadow. Keyboard focus should be clearly visible with a tight cyan outline or glow.
+1. What Codex Is and Where It Fits
+2. Generating and Editing Code with Codex
+3. Making Multi-File Changes
+4. Asking Codex to Explain Existing Code
+5. Using Codex for Larger Development Tasks
+6. ChatGPT vs GitHub Copilot vs Codex
 
-Use restrained corner radii: `4px` for controls, badges, and code markers; `8px` for lesson containers and split views; `12px` for modal sheets and command palettes. Full rounding is reserved for circular progress indicators, status dots, and avatar heads.
+### Section 05 — Building a Full Project with AI (8 chapters)
 
-## Component guidance
+Purpose: Apply AI productivity methods to a realistic project from planning through implementation and verification.
 
-- **Primary buttons:** Cyan fill (`#06b6d4`), dark foreground, compact padding, and a simple brighter hover state without vertical movement.
-- **Secondary buttons:** Dark surface with a slate border; hover by lightening the surface and border.
-- **Ghost/tool buttons:** No border; muted text that brightens on hover with a subtle background.
-- **Status chips:** Compact uppercase monospace labels. Use emerald for completed, amber for warnings or experimental states, and cyan for AI or architecture labels.
-- **Navigation trees:** Show hierarchy with fine vertical guide lines. Mark the active lesson with a 2px cyan left indicator; row hover spans the available width.
-- **Checkboxes and radios:** 14px controls. Unchecked controls use a slate outline on a dark surface; checked controls use cyan with a dark glyph.
-- **Inputs and command palettes:** Dark shell, slate border, light text, and a cyan border on focus. Prefix symbols such as `>` or `$` may use muted monospace styling.
-- **Code panels:** Use a distinct header for tabs, runtime state, and copy actions. Keep the code body near the canvas color, with subdued line numbers and a translucent cyan selection.
-- **Inline text-to-speech player:** Place below a lesson title or persist it near the viewport bottom. Use a 2px scrub track and speed controls for `1x`, `1.25x`, `1.5x`, and `2x`.
-- **Progress meters:** Use thin (2–4px) tracks, slate backgrounds, emerald completion, and segmented milestones where useful.
+1. Planning the Project with ChatGPT
+2. Defining Requirements and Technical Specifications
+3. Designing the Project Architecture
+4. Breaking the Project into Development Tasks
+5. Implementing Features with AI Assistance
+6. Reviewing and Refining AI-Generated Code
+7. Debugging and Improving the Application
+8. Preparing the Project for Delivery
 
-## Current application setup
+### Section 06 — Debugging with AI (4 chapters)
 
-### Requirements
+Purpose: Develop a systematic workflow for using AI to investigate, understand, and resolve software problems.
 
-- Node.js and npm compatible with the installed Vite version.
-- Install dependencies from the project root with `npm install`.
+1. Understanding Errors and Stack Traces
+2. Giving AI the Right Debugging Context
+3. Investigating Bugs Systematically
+4. Verifying AI-Suggested Fixes
 
-### Commands
+### Section 07 — Documentation & Testing (3 chapters)
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the local Vite development server with hot module replacement. |
-| `npm run build` | Create a production build in `dist/`. |
-| `npm run preview` | Preview the production build locally. |
-| `npm run lint` | Run ESLint over the project. |
+Purpose: Show how AI can reduce the time and effort required for documentation and software testing.
 
-### Project structure
+1. Using AI to Write and Improve Documentation
+2. Using AI to Generate and Improve Tests
+3. Reviewing Documentation and Tests with AI
+
+### Section 08 — Security & Best Practices (5 chapters)
+
+Purpose: Teach responsible and effective AI usage while protecting code, data, credentials, and software quality.
+
+1. Protecting Sensitive Information When Using AI
+2. Reviewing AI-Generated Code for Security Risks
+3. Avoiding Blind Trust in AI Output
+4. Verifying and Validating AI-Generated Work
+5. Building a Responsible AI-Assisted Development Workflow
+
+**Total: 8 sections, 43 chapters.** Chapter numbers shown in the application are sequential across the complete course.
+
+## Course content format
+
+The approved course formats are written lessons, code examples, real-world development scenarios, AI prompts and workflows, explanations, practical demonstrations, and TTS audio narration.
+
+The application does not currently provide interactive coding sandboxes, browser coding playgrounds, automated coding challenges, lesson checkpoints, quizzes, in-platform coding assignments, or automated skill assessments. Avoid describing these as product features unless they are implemented in a future version.
+
+## Current application
+
+The current frontend is a responsive React 19 application built with Vite. It contains a homepage with:
+
+- Hero section and product positioning
+- Feature cards for written lessons and code examples, AI-powered workflows, and TTS narration
+- Eight expandable curriculum cards with chapter titles
+- Course-format overview
+- Access-plan cards, FAQs, and navigation anchors
+- Light and dark themes; the saved preference is stored in local storage, with the operating-system theme used on first visit
+- A hero entrance animation that replays when the hero re-enters the viewport and respects reduced-motion preferences
+
+This repository currently has no separate course, section, or lesson routes; course navigation beyond the homepage; student dashboard; admin interface; progress tracking; backend API; database; or seed data. The app's chapter list is a curriculum overview, not a lesson player or progress system.
+
+The files in `UI From Stitch/` are design references. Older curriculum descriptions and mock interface elements in those references are not authoritative product content. Use `src/data/curriculum.js` for approved course information.
+
+## Project structure
 
 ```text
 .
-├── public/                 # Static public assets
+├── public/                 # Static public assets, including favicon and SVG symbols
 ├── src/
-│   ├── assets/             # Imported images and starter assets
-│   ├── App.jsx             # Current root React component (Vite starter)
-│   ├── App.css             # Starter component styles
-│   ├── index.css           # Global styles and theme variables
-│   └── main.jsx            # React application entry point
-├── UI From Stitch/         # Supplied design briefs and image references
-├── index.html              # HTML shell and page title
-├── package.json            # Scripts and dependencies
-└── vite.config.js          # Vite configuration
+│   ├── components/         # Shared React UI components
+│   ├── data/
+│   │   ├── curriculum.js   # Single source of truth for title, sections, chapters, and formats
+│   │   └── homepage.js     # Homepage features, FAQs, and access-plan descriptions
+│   ├── App.jsx             # Homepage composition and interactions
+│   ├── App.css             # Component and responsive styles
+│   ├── index.css            # Global styles and theme tokens
+│   └── main.jsx             # React application entry point
+├── UI From Stitch/         # Supplied design references and imagery
+├── documentation.md
+├── index.html
+├── package.json
+└── vite.config.js
 ```
 
-The current direct dependencies are React and React DOM. Development tooling includes Vite, the React Vite plugin, and ESLint. There is no application backend, database, authentication, routing, or external API configuration documented in the current source tree.
+Shared UI components include `Brand`, `Icon`, `SectionHeading`, `FeatureCard`, `CurriculumCard`, `PricingCard`, and `FaqList` in `src/components/`.
 
-## Implementation notes
+## Development
 
-- Start implementation from the supplied screen briefs and PNG references in `UI From Stitch/`.
-- `src/App.jsx`, `src/App.css`, and `src/index.css` are still starter files and should be replaced or extended as the product screens are built.
-- The design notes repeat the shared visual system across multiple screen files; this document consolidates the repeated guidance.
-- Some design descriptions mention capabilities such as lesson execution, telemetry, audio playback, quizzes, and administration as visual component concepts. The current source does not implement those capabilities.
+Requirements: Node.js and npm compatible with the versions declared by the project dependencies.
 
-## Source documents
+Install dependencies in the project root:
 
-- `UI From Stitch/syntactic elevation.md`
-- `UI From Stitch/homepage DESIGN.md`
-- `UI From Stitch/homepage-mobile screen DESIGN.md`
-- `UI From Stitch/courses DESIGN.md`
-- `UI From Stitch/curriculum DESIGN.md`
-- `UI From Stitch/leaning platform - mobile screenDESIGN.md`
-- `UI From Stitch/super admin DESIGN.md`
+```sh
+npm install
+```
 
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server. |
+| `npm run build` | Create the production build in `dist/`. |
+| `npm run preview` | Preview the production build locally. |
+| `npm run lint` | Run ESLint. |
+
+Direct runtime dependencies are React, React DOM, and Lucide React. Vite, the React plugin, and ESLint are development dependencies.
