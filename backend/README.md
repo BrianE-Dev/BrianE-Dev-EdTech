@@ -69,4 +69,25 @@ After checkout, the React return handler sends the reference to `/api/brianedev/
 - Promote the first Super Admin through a trusted database/operations process. Never add admin role assignment to public registration.
 - Configure Cloudflare/Vercel or another trusted reverse proxy to overwrite country headers before forwarding them. Do not accept browser-supplied country values for pricing. Unknown visitors use international USD.
 
+## Vercel + Render deployment
+
+The repository includes a Vercel config for the React app and a Render Blueprint for the API. Import the repository into Vercel with the repository root as the project root. Vercel uses `npm run build`, outputs `dist`, forwards `/api/*` to `https://briane-dev-api.onrender.com/api/*`, and rewrites other paths to the SPA entry point. The API client defaults to `/api` in production, so browser requests and HTTP-only cookies remain same-origin. If you rename the Render service, update the destination in `vercel.json` to match its `onrender.com` hostname.
+
+Create the Render service from `render.yaml`. It runs `npm ci --omit=dev`, `npm run server:start`, and uses `/api/health` as its health check. It binds to Render's `PORT` on `0.0.0.0`. The blueprint begins with `APP_ENV=development` (Paystack TEST mode) and `NODE_ENV=production` (HTTPS-secure deployed cookies). Enter the requested secret values in Render; do not add them to `render.yaml` or Git.
+
+Set Render variables:
+
+- `CLIENT_URL`: the exact deployed Vercel origin, such as `https://your-project.vercel.app` (comma-separate additional approved origins).
+- `MONGODB_URI`: the production/staging Atlas connection URI, and configure Atlas network access for the Render service.
+- `JWT_SECRET`: use the Blueprint-generated value.
+- `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_SECRET_KEY`: TEST keys for the initial deployment.
+- `PAYSTACK_WEBHOOK_SECRET`: use the same TEST Paystack secret key for Paystack's HMAC signature validation; keep it as a separate environment setting so it can be replaced during the LIVE switch.
+- `PAYSTACK_BASE_URL`: the blueprint sets `https://api.paystack.co`.
+
+Set `CLIENT_URL` after the Vercel deployment exists, then redeploy the Render API. Set the TEST webhook URL in the Paystack dashboard to `https://briane-dev-api.onrender.com/api/brianedev/payments/paystack/webhook`. Run `npm run seed` from a trusted workstation with `MONGODB_URI` pointed at the intended Atlas database. Do not set `SEED_ADMIN_*` unless intentionally creating the first admin; remove those temporary values after seeding.
+
+In Vercel, keep the project root at the repository root. The checked-in rewrite points at the default Render service name; if it changes, update `vercel.json` and redeploy the frontend. No Paystack or MongoDB secrets belong in Vercel. The only frontend-facing API path is `/api` on the same Vercel origin.
+
+For LIVE mode later, update Render to `APP_ENV=production`, replace both Paystack keys and the webhook secret with their LIVE values, configure the LIVE webhook in Paystack, and confirm the production Atlas URI. The Render service remains on `NODE_ENV=production`; frontend code and payment routes do not need rewriting.
+
 The React project currently contains a public curriculum overview, not lesson bodies or a student dashboard. The API provides protected lesson, access, progress, and certificate operations; the lesson content/editor and learner UI require authored lesson data and can be added without trusting client-side completion state.

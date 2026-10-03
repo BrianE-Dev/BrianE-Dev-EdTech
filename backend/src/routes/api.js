@@ -10,7 +10,8 @@ import { getPaystackConfig } from '../config/paystack.js'
 import { initializeTransaction, verifyTransaction } from '../services/paystack.js'
 
 const router = Router()
-const sessionCookie = { httpOnly: true, secure: process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: 7 * 86400000 }
+const isSecureCookie = process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production'
+const sessionCookie = { httpOnly: true, secure: isSecureCookie, sameSite: isSecureCookie ? 'none' : 'strict', path: '/', maxAge: 7 * 86400000 }
 const COURSE_SLUG = 'ai-powered-developer-productivity'
 const COURSE_PRODUCT_ID = COURSE_SLUG
 
