@@ -1,10 +1,10 @@
-const baseUrl = 'https://api.paystack.co'
+import { getPaystackConfig } from '../config/paystack.js'
 
 async function request(path, options = {}) {
-  if (!process.env.PAYSTACK_SECRET_KEY) throw Object.assign(new Error('Paystack is not configured'), { status: 503 })
-  const response = await fetch(`${baseUrl}${path}`, {
+  const config = getPaystackConfig()
+  const response = await fetch(`${config.baseUrl}${path}`, {
     ...options,
-    headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json', ...options.headers },
+    headers: { Authorization: `Bearer ${config.secretKey}`, 'Content-Type': 'application/json', ...options.headers },
   })
   const payload = await response.json()
   if (!response.ok || !payload.status) throw Object.assign(new Error(payload.message || 'Paystack request failed'), { status: 502 })

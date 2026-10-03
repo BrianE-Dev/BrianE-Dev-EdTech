@@ -3,7 +3,7 @@ import { api } from '../services/api.js'
 
 const labels = { NG: 'Nigeria', INTL: 'International' }
 
-export default function CommerceAdmin({ onClose }) {
+export default function CommerceAdmin({ onClose, standalone = false }) {
   const [items, setItems] = useState([])
   const [tab, setTab] = useState('pricing')
   const [notice, setNotice] = useState('')
@@ -31,9 +31,9 @@ export default function CommerceAdmin({ onClose }) {
     setBusy(true); setItems([]); setNotice(''); setTab(next)
   }
 
-  return <div className="commerce-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <section className="commerce-panel" role="dialog" aria-modal="true" aria-labelledby="commerce-title">
-      <header><div><span className="eyebrow">SUPER ADMIN / COMMERCE</span><h2 id="commerce-title">Commerce management</h2></div><button className="button button-secondary" onClick={onClose}>Close</button></header>
+  return <div className={standalone ? 'commerce-page' : 'commerce-overlay'} role={standalone ? undefined : 'presentation'} onMouseDown={(event) => { if (!standalone && event.target === event.currentTarget) onClose?.() }}>
+    <section className={`commerce-panel ${standalone ? 'commerce-panel-standalone' : ''}`} role={standalone ? 'region' : 'dialog'} aria-modal={standalone ? undefined : true} aria-labelledby="commerce-title">
+      <header><div><span className="eyebrow">SUPER ADMIN / COMMERCE</span><h2 id="commerce-title">Commerce management</h2></div>{!standalone && <button className="button button-secondary" onClick={onClose}>Close</button>}</header>
       <nav aria-label="Commerce sections">{['pricing', 'transactions', 'purchases', 'certificates'].map((name) => <button key={name} className={tab === name ? 'is-active' : ''} onClick={() => switchTab(name)}>{name}</button>)}</nav>
       {notice && <p className="commerce-notice" role="status">{notice}</p>}
       {busy ? <p>Loading…</p> : tab === 'pricing' ? <div className="commerce-pricing-grid">{items.map((item) => <form key={item.region} onSubmit={(event) => { event.preventDefault(); save(item.region, new FormData(event.currentTarget)) }}>

@@ -5,22 +5,38 @@ Node.js, Express, Mongoose REST API for persistent course commerce and learning 
 ## Setup
 
 1. Install project packages with `npm install`.
-2. Copy `backend/.env.example` to `backend/.env` and configure MongoDB, `CLIENT_URL`, a random 32+ character `JWT_SECRET`, and the existing DevPortix Paystack test credentials (`PAYSTACK_SECRET_KEY`). Keep all secrets server-side. `PAYSTACK_PUBLIC_KEY` is documented for shared configuration, but the current checkout uses the authorization URL, so React does not need it.
+2. Copy `backend/.env.example` to `backend/.env` and configure MongoDB, `CLIENT_URL`, a random 32+ character `JWT_SECRET`, and the existing DevPortix Paystack TEST credentials. Keep all credentials server-side. The Paystack public key is required in backend configuration but is not needed by the current authorization-URL checkout and is never returned to React.
 3. Set `MONGODB_URI` to a reachable local MongoDB URI or Atlas `mongodb+srv://...` URI. The example leaves it blank intentionally. Configure Atlas network access and the database user before seeding.
 4. Run `npm run seed` to upsert the published course and initial regional prices.
 5. Run `npm run dev:all` from the root to start Vite and the API, or `npm run server:start` for the API alone.
 
-Both the API and seed load `backend/.env` by its file location, regardless of the current working directory. The API connects to MongoDB before listening; startup fails if MongoDB cannot be reached. Connection logs never include the URI. The seed command disconnects in a `finally` block and reports the seeded course section/chapter counts and regional pricing count on success. A MongoDB connection is required to verify seed persistence; frontend build/lint checks alone do not establish that database contents were written.
+Both the API and seed load `backend/.env` by its file location, regardless of the current working directory. The API validates Paystack configuration and connects to MongoDB before listening; startup fails with an actionable error if either configuration or MongoDB is invalid/unavailable. Logs never include credential values or the MongoDB URI. The seed command does not require Paystack credentials, disconnects in a `finally` block, and reports the seeded course section/chapter counts and regional pricing count on success. A MongoDB connection is required to verify seed persistence; frontend build/lint checks alone do not establish that database contents were written.
 
 Seed prices are configurable setup defaults: International is USD 15 with a 40% percentage discount (USD 9); Nigeria is independently set to NGN 15,000 with a 40% discount (NGN 9,000). The Nigerian value is not exchange-rate-derived. Discounts and dates are calculated by the API; React only displays the returned amount. Edit the regional configurations in the admin panel after creating an administrator.
 
 ## Super Admin
 
-There is no default or publicly accessible admin account. To create one for development, set `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (use a unique strong password), and optionally `SEED_ADMIN_NAME` in `backend/.env`, run `npm run seed`, then remove those variables. Registration always assigns the `user` role. Admin APIs check the persisted role.
+There is no default or publicly accessible admin account. To create one for development, set `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (use a unique strong password), and optionally `SEED_ADMIN_NAME` in `backend/.env`, run `npm run seed`, then remove those variables. Registration always assigns the `user` role. Admin APIs check the persisted role. Use the React `/login` page to sign in; only a persisted `super_admin` account can open `/admin`, the commerce dashboard. Configure production static hosting to route these paths to the React app entry point.
 
 ## Paystack
 
-Use the existing DevPortix Paystack business and its server-side credentials; BrianE-Dev does not require a separate Paystack business. Every BrianE-Dev transaction has a unique `BDE-YYYYMMDD-RANDOM` reference, `application: brianedev` metadata, product/pricing/user/region identifiers, and custom fields for Paystack dashboard identification. DevPortix and BrianE-Dev records remain separated by reference namespace and the `application` field. Configure the secret key only in backend environment variables. Set the webhook URL to `https://YOUR_API_HOST/api/brianedev/payments/paystack/webhook`; webhook signatures use `PAYSTACK_WEBHOOK_SECRET` when configured, otherwise the Paystack API secret key. The webhook re-verifies the transaction with Paystack before confirming it. Checkout uses a server-created authorization URL; the public key is not used by the current React flow. The callback URL is a return path only: course access is granted only after authenticated server-side Paystack verification or the signed webhook.
+Use the existing DevPortix Paystack business and its credentials; BrianE-Dev does not require a separate Paystack business. Select environment through `APP_ENV=development` (TEST keys) or `APP_ENV=production` (LIVE keys). No credentials are hard-coded. On startup, the backend requires `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_SECRET`, and `PAYSTACK_BASE_URL`. Known `pk_test_`/`sk_test_` and `pk_live_`/`sk_live_` prefixes are checked against `APP_ENV`; unknown future key formats are not rejected solely by prefix. `PAYSTACK_BASE_URL` must be `https://api.paystack.co` for either environment. Error messages identify variable names but never print key or secret values.
+
+Every BrianE-Dev transaction has a unique `BDE-YYYYMMDD-RANDOM` reference, `application: brianedev` metadata, product/pricing/user/region/environment identifiers, and Paystack custom fields. Payment records retain `provider: paystack` and `environment`; payment lookup, admin views, and course access are scoped to the active environment so TEST transactions cannot grant LIVE course access. Set the Paystack webhook URL to `https://YOUR_API_HOST/api/brianedev/payments/paystack/webhook`. HMAC validation uses `PAYSTACK_WEBHOOK_SECRET`; use the corresponding TEST webhook secret in development and LIVE webhook secret in production. The webhook re-verifies the transaction with Paystack before confirming it. Checkout uses a server-created authorization URL. The public key is never sent to React because the current flow does not need it. The callback URL is only a return path: access is granted only after authenticated server-side verification or the signed webhook.
+
+Local TEST setup in `backend/.env`:
+
+```env
+APP_ENV=development
+PAYSTACK_PUBLIC_KEY=pk_test_...
+PAYSTACK_SECRET_KEY=sk_test_...
+PAYSTACK_WEBHOOK_SECRET=<test-webhook-secret>
+PAYSTACK_BASE_URL=https://api.paystack.co
+```
+
+Start local services with `npm run seed` (MongoDB must be reachable) and `npm run dev:all`. Use Paystack TEST checkout and a TEST webhook configured to reach the local API through your approved tunnel. Do not use real financial transactions during development.
+
+Production deployment should set `APP_ENV=production`, `NODE_ENV=production`, production `MONGODB_URI`, `CLIENT_URL`, `JWT_SECRET`, `PAYSTACK_PUBLIC_KEY=pk_live_...`, `PAYSTACK_SECRET_KEY=sk_live_...`, `PAYSTACK_WEBHOOK_SECRET=<live-webhook-secret>`, `PAYSTACK_BASE_URL=https://api.paystack.co`, and `PORT`. Replace credentials and webhook configuration in the deployment secret manager; no controller, model, service, or React changes are required for the environment switch. Run approved production smoke checks without embedding secrets in source or frontend configuration.
 
 ## API
 
@@ -35,7 +51,7 @@ Use the existing DevPortix Paystack business and its server-side credentials; Br
 - `GET /api/certificates/verify/:certificateId`
 - Super Admin: `GET /api/admin/pricing`, `PUT /api/admin/pricing/:region`, `GET /api/admin/transactions`, `GET /api/admin/purchases`, `GET /api/admin/certificates`
 
-Authentication uses an HTTP-only, same-site cookie. Production must use HTTPS. Configure the exact frontend origin in `CLIENT_URL`; multiple origins may be comma-separated. Sensitive routes have rate limits and request validation. Payments are immutable through the admin API. Pricing writes create audit records. Mongoose uses unique indexes for emails, course slugs, pricing regions, payment references, Paystack references, and certificate IDs; compound indexes support payment administration and one-progress/one-certificate-per-user/course lookups.
+Authentication uses an HTTP-only, same-site cookie. Production must use HTTPS. Configure the exact frontend origin in `CLIENT_URL`; multiple origins may be comma-separated. Sensitive routes have rate limits and request validation. Payments are immutable through the admin API. Pricing writes create audit records. Mongoose uses unique indexes for emails, course slugs, pricing regions, payment references, Paystack references, and certificate IDs; compound indexes support environment-isolated payment administration and one-progress/one-certificate-per-user/course lookups.
 
 ## Payment and completion rules
 

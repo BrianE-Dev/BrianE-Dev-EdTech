@@ -6,10 +6,11 @@ import { z } from 'zod'
 import { AuditLog, Certificate, Course, Payment, Pricing, Progress, User } from '../models/index.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
 import { getFinalPrice } from '../utils/pricing.js'
+import { getPaystackConfig } from '../config/paystack.js'
 import { initializeTransaction, verifyTransaction } from '../services/paystack.js'
 
 const router = Router()
-const sessionCookie = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: 7 * 86400000 }
+const sessionCookie = { httpOnly: true, secure: process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: 7 * 86400000 }
 const COURSE_SLUG = 'ai-powered-developer-productivity'
 const COURSE_PRODUCT_ID = COURSE_SLUG
 
@@ -20,6 +21,7 @@ function pricingRegion(req) {
 
 async function completePayment(payment, transaction) {
   if (payment.application !== 'brianedev' || payment.productId !== COURSE_PRODUCT_ID || payment.productType !== 'course') throw Object.assign(new Error('Payment does not belong to a BrianE-Dev course'), { status: 409 })
+  if (payment.provider !== 'paystack' || payment.environment !== getPaystackConfig().appEnvironment) throw Object.assign(new Error('Payment environment does not match this backend'), { status: 409 })
   if (transaction.status !== 'success' || transaction.reference !== payment.paystackReference || transaction.reference !== payment.reference || transaction.amount !== Math.round(payment.amount * 100) || transaction.currency !== payment.currency) {
     if (!['paid', 'successful'].includes(payment.status)) {
       payment.status = 'failed'
@@ -78,11 +80,12 @@ router.get('/courses/:slug', async (req, res) => {
 })
 
 async function initializeCoursePayment(req, res) {
+  const { appEnvironment } = getPaystackConfig()
   const productId = z.string().min(1).parse(req.body.productId ?? req.body.courseSlug)
   if (productId !== COURSE_PRODUCT_ID) return res.status(404).json({ error: 'Product not found' })
   const course = await Course.findOne({ slug: COURSE_SLUG, published: true })
   if (!course) return res.status(404).json({ error: 'Course not found' })
-  const hasAccess = await Payment.exists({ user: req.user.id, course: course.id, status: { $in: ['paid', 'successful'] }, application: 'brianedev' })
+  const hasAccess = await Payment.exists({ user: req.user.id, course: course.id, status: { $in: ['paid', 'successful'] }, application: 'brianedev', environment: appEnvironment })
   if (hasAccess) return res.status(409).json({ error: 'Course already purchased' })
   const region = pricingRegion(req)
   const config = await Pricing.findOne({ region })
@@ -95,10 +98,10 @@ async function initializeCoursePayment(req, res) {
   const metadata = {
     application: 'brianedev', application_name: 'BrianE-Dev', product_type: 'course', product_id: COURSE_PRODUCT_ID,
     product_name: course.title, user_id: req.user.id, region: regionName, currency: price.currency,
-    pricing_id: String(config._id), environment: process.env.NODE_ENV || 'development', source: 'brianedev_web',
+    pricing_id: String(config._id), environment: appEnvironment, source: 'brianedev_web',
   }
   const payment = await Payment.create({
-    application: 'brianedev', productType: 'course', productId: COURSE_PRODUCT_ID, productName: course.title,
+    application: 'brianedev', environment: appEnvironment, provider: 'paystack', productType: 'course', productId: COURSE_PRODUCT_ID, productName: course.title,
     user: req.user.id, course: course.id, reference, paystackReference: reference, amount: price.currentPrice,
     currency: price.currency, originalPrice: price.originalPrice, originalAmount: price.originalPrice, discount: price.discount,
     discountAmount: price.discount, discountType: price.discountType, discountValue: price.discountValue,
@@ -128,7 +131,7 @@ router.post('/brianedev/payments/initialize', authenticate, initializeCoursePaym
 
 async function verifyCoursePayment(req, res) {
   const reference = z.string().min(6).max(100).parse(req.body.reference)
-  const filter = { reference, application: 'brianedev' }
+  const filter = { reference, application: 'brianedev', environment: getPaystackConfig().appEnvironment }
   if (req.user) filter.user = req.user.id
   const payment = await Payment.findOne(filter)
   if (!payment) return res.status(404).json({ error: 'Payment not found' })
@@ -141,13 +144,12 @@ router.post('/brianedev/payments/verify', authenticate, verifyCoursePayment)
 
 async function paystackWebhook(req, res) {
   const signature = req.get('x-paystack-signature')
-  if (!process.env.PAYSTACK_WEBHOOK_SECRET && !process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ error: 'Webhook is not configured' })
-  const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_SECRET_KEY
+  const { webhookSecret, appEnvironment } = getPaystackConfig()
   const expected = crypto.createHmac('sha512', webhookSecret).update(req.rawBody).digest('hex')
   if (!signature || Buffer.byteLength(signature) !== Buffer.byteLength(expected) || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return res.status(401).json({ error: 'Invalid webhook signature' })
   if (req.body.event !== 'charge.success') return res.sendStatus(200)
   const reference = req.body.data?.reference
-  const payment = await Payment.findOne({ reference, application: 'brianedev', productId: COURSE_PRODUCT_ID })
+  const payment = await Payment.findOne({ reference, application: 'brianedev', environment: appEnvironment, provider: 'paystack', productId: COURSE_PRODUCT_ID })
   if (!payment) return res.status(404).json({ error: 'Payment reference not found' })
   const transaction = await verifyTransaction(reference)
   await completePayment(payment, transaction)
@@ -156,11 +158,11 @@ async function paystackWebhook(req, res) {
 router.post('/payments/paystack/webhook', paystackWebhook)
 router.post('/brianedev/payments/paystack/webhook', paystackWebhook)
 
-router.get('/me/purchases', authenticate, async (req, res) => res.json(await Payment.find({ user: req.user.id, application: 'brianedev', status: { $in: ['paid', 'successful'] } }).populate('course', 'title slug')))
+router.get('/me/purchases', authenticate, async (req, res) => res.json(await Payment.find({ user: req.user.id, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } }).populate('course', 'title slug')))
 router.get('/courses/:courseId/lessons/:chapterId', authenticate, async (req, res) => {
   const course = await Course.findById(req.params.courseId)
   if (!course) return res.status(404).json({ error: 'Course not found' })
-  const access = await Payment.exists({ user: req.user.id, course: course.id, application: 'brianedev', status: { $in: ['paid', 'successful'] } })
+  const access = await Payment.exists({ user: req.user.id, course: course.id, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } })
   if (!access) return res.status(403).json({ error: 'Course purchase required' })
   const chapter = course.sections.flatMap((section, sectionIndex) => section.chapters.map((item, chapterIndex) => ({ item, sectionIndex, chapterIndex, id: `${sectionIndex}-${chapterIndex}` }))).find(({ id }) => id === req.params.chapterId)
   if (!chapter) return res.status(404).json({ error: 'Lesson not found' })
@@ -170,7 +172,7 @@ router.get('/courses/:courseId/lessons/:chapterId', authenticate, async (req, re
 router.post('/courses/:courseId/progress/:chapterId', authenticate, async (req, res) => {
   const course = await Course.findById(req.params.courseId)
   if (!course) return res.status(404).json({ error: 'Course not found' })
-  const purchased = await Payment.exists({ user: req.user.id, course: course.id, application: 'brianedev', status: { $in: ['paid', 'successful'] } })
+  const purchased = await Payment.exists({ user: req.user.id, course: course.id, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } })
   if (!purchased) return res.status(403).json({ error: 'Course purchase required' })
   const allChapters = course.sections.flatMap((section, sectionIndex) => section.chapters.map((_chapter, chapterIndex) => `${sectionIndex}-${chapterIndex}`))
   if (!allChapters.includes(req.params.chapterId)) return res.status(404).json({ error: 'Chapter not found' })
@@ -185,7 +187,7 @@ router.post('/courses/:courseId/progress/:chapterId', authenticate, async (req, 
 })
 
 router.get('/me/progress/:courseId', authenticate, async (req, res) => {
-  const purchased = await Payment.exists({ user: req.user.id, course: req.params.courseId, application: 'brianedev', status: { $in: ['paid', 'successful'] } })
+  const purchased = await Payment.exists({ user: req.user.id, course: req.params.courseId, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } })
   if (!purchased) return res.status(403).json({ error: 'Course purchase required' })
   res.json(await Progress.findOne({ user: req.user.id, course: req.params.courseId }))
 })
@@ -215,8 +217,8 @@ router.put('/admin/pricing/:region', authenticate, requireAdmin, async (req, res
   await AuditLog.create({ admin: req.user.id, action: 'pricing.updated', resource: region, previousValue, newValue: previous.toObject() })
   res.json(previous)
 })
-router.get('/admin/transactions', authenticate, requireAdmin, async (_req, res) => res.json(await Payment.find({ application: 'brianedev' }).sort({ createdAt: -1 }).limit(500).populate('user', 'name email').populate('course', 'title')))
-router.get('/admin/purchases', authenticate, requireAdmin, async (_req, res) => res.json(await Payment.find({ application: 'brianedev' }).sort({ createdAt: -1 }).populate('user', 'name email').populate('course', 'title').lean()))
+router.get('/admin/transactions', authenticate, requireAdmin, async (_req, res) => res.json(await Payment.find({ application: 'brianedev', environment: getPaystackConfig().appEnvironment }).sort({ createdAt: -1 }).limit(500).populate('user', 'name email').populate('course', 'title')))
+router.get('/admin/purchases', authenticate, requireAdmin, async (_req, res) => res.json(await Payment.find({ application: 'brianedev', environment: getPaystackConfig().appEnvironment }).sort({ createdAt: -1 }).populate('user', 'name email').populate('course', 'title').lean()))
 router.get('/admin/certificates', authenticate, requireAdmin, async (_req, res) => res.json(await Certificate.find().sort({ issueDate: -1 }).populate('user', 'name email').populate('course', 'title')))
 
 export default router

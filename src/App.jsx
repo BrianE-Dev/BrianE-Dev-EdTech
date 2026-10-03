@@ -10,10 +10,11 @@ import SectionHeading from './components/SectionHeading.jsx'
 import { features, plans, questions } from './data/homepage.js'
 import { curriculum, totalChapters } from './data/curriculum.js'
 import { api } from './services/api.js'
-import CommerceAdmin from './components/CommerceAdmin.jsx'
+import AdminLogin from './components/AdminLogin.jsx'
+import AdminDashboard from './components/AdminDashboard.jsx'
 import './App.css'
 
-function App() {
+function LandingPage() {
   const sampleSection = curriculum.sections[1]
   const sampleChapter = sampleSection.chapters[0]
   const [theme, setTheme] = useState(() => {
@@ -29,7 +30,6 @@ function App() {
   const [pricingError, setPricingError] = useState('')
   const [paymentMessage, setPaymentMessage] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
-  const [showCommerce, setShowCommerce] = useState(false)
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
 
@@ -97,8 +97,8 @@ function App() {
           <a href="#faq" onClick={closeMenu}>FAQs</a>
         </nav>
         <div className="nav-actions">
-          {isAdmin && <button className="sign-in admin-open" onClick={() => setShowCommerce(true)}>Commerce</button>}
-          <a className="sign-in" href="#pricing">Sign in</a>
+          {isAdmin && <a className="sign-in" href="/admin">Dashboard</a>}
+          <a className="sign-in" href="/login">Sign in</a>
           <button className="theme-toggle" type="button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15}/><span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button>
           <a className="button button-small button-primary" href="#pricing">Enroll Now <Icon name="arrow" size={14}/></a>
         </div>
@@ -158,9 +158,15 @@ function App() {
 
       <footer className="site-footer section-wrap"><Brand/><span>ENGINEERING EDUCATION / BUILT FOR THE SOFTWARE LIFECYCLE</span><div><a href="#curriculum">CURRICULUM</a><a href="#courses">COURSES</a><a href="#pricing">ACCESS</a><a href="#faq">SUPPORT</a></div><span>Â© 2026 BRIANE-DEV</span></footer>
       <nav className="mobile-dock" aria-label="Quick navigation"><a href="#top"><Icon name="grid" size={17}/><span>HOME</span></a><a href="#curriculum"><Icon name="book" size={17}/><span>CURRICULUM</span></a><a href="#courses"><Icon name="code" size={17}/><span>COURSE</span></a><a href="#pricing"><Icon name="lock" size={17}/><span>ACCESS</span></a></nav>
-      {showCommerce && <CommerceAdmin onClose={() => { setShowCommerce(false); api('/pricing').then(setPricing).catch(() => {}) }}/>}
     </div>
   )
+}
+
+function App() {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  if (path === '/login') return <AdminLogin />
+  if (path === '/admin' || path.startsWith('/admin/')) return <AdminDashboard />
+  return <LandingPage />
 }
 
 export default App

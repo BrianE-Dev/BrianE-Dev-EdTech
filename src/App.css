@@ -185,3 +185,36 @@ h1,h2,h3 { font-family: var(--display); }
 .commerce-table-wrap th,.commerce-table-wrap td { padding: 10px 8px; border-bottom: 1px solid #26374c; white-space: nowrap; }
 .commerce-table-wrap th { color: #67cede; font-family: var(--mono); font-size: 9px; text-transform: uppercase; }
 @media(max-width:700px) { .commerce-panel { padding: 18px 14px 75px; }.commerce-pricing-grid { grid-template-columns: 1fr; }.commerce-panel nav { overflow: auto; }.commerce-panel nav button { flex: 0 0 auto; font-size: 10px; } }
+
+/* Super Admin login and dashboard routes */
+.admin-auth-page,.admin-dashboard-page,.admin-loading { min-height: 100vh; color: #dfe8f3; background: radial-gradient(ellipse at 50% -25%,rgba(36,105,131,.2),transparent 56%),#080f1b; }
+.admin-auth-page { display: flex; flex-direction: column; align-items: center; padding: 25px 20px; }
+.admin-auth-page > header { width: min(100%,1060px); display: flex; align-items: center; justify-content: space-between; }
+.admin-auth-page > header a,.admin-dashboard-header > a { text-decoration: none; }
+.admin-auth-card { width: min(100%,430px); margin: auto; padding: 34px; border: 1px solid #2b4057; border-radius: 6px; background: linear-gradient(145deg,#111e30,#0b1524); box-shadow: 0 24px 70px #0005; }
+.admin-auth-card h1,.admin-dashboard-intro h1 { margin: 10px 0; color: #edf4fb; font: 600 29px var(--display); letter-spacing: -.04em; }
+.admin-auth-card > p,.admin-dashboard-intro p { color: #98a9bd; font-size: 13px; line-height: 1.65; }
+.admin-auth-card form { display: grid; gap: 16px; margin-top: 25px; }
+.admin-auth-card form > label { display: grid; gap: 7px; color: #b5c3d3; font-size: 11px; }
+.admin-auth-card input { width: 100%; padding: 12px; border: 1px solid #31445c; border-radius: 3px; outline: 0; background: #091321; color: #e5edf6; }
+.admin-auth-card input:focus { border-color: #43d5ed; box-shadow: 0 0 0 2px rgba(67,213,237,.12); }
+.admin-auth-card .button { justify-content: center; margin-top: 3px; }
+.admin-form-error { padding: 10px 12px; border: 1px solid rgba(239,119,119,.35); border-radius: 3px; color: #ffb4b4!important; font-size: 12px!important; }
+.admin-back-link { display: block; margin-top: 22px; color: #8fa2b9; font-size: 11px; text-align: center; text-decoration: none; }
+.admin-back-link:hover { color: var(--cyan); }
+.admin-auth-page > footer { color: #687b91; font: 8px var(--mono); letter-spacing: .08em; text-align: center; }
+.admin-dashboard-page { padding: 0 0 55px; }
+.admin-dashboard-header { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px max(24px,calc((100vw - 1120px)/2)); border-bottom: 1px solid #26384e; background: rgba(9,17,30,.91); }
+.admin-dashboard-header > div { display: flex; align-items: center; gap: 18px; }
+.admin-user-label { color: #93a5ba; font: 8px var(--mono); }
+.admin-dashboard-intro { width: min(100% - 40px,1120px); margin: 42px auto 24px; }
+.admin-dashboard-intro h1 { font-size: 34px; }
+.admin-summary-grid { width: min(100% - 40px,1120px); display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 0 auto 23px; }
+.admin-summary-grid article { display: grid; gap: 7px; padding: 16px 18px; border: 1px solid #293d54; border-radius: 4px; background: linear-gradient(140deg,#101d2e,#0b1625); }
+.admin-summary-grid article > span { color: #8194aa; font: 8px var(--mono); }
+.admin-summary-grid article > strong { color: #e7f0f8; font: 600 25px var(--display); }
+.admin-summary-grid article > small { color: #8d9fb4; font-size: 10px; }
+.admin-dashboard-page .commerce-page { width: min(100% - 40px,1120px); margin: 0 auto; }
+.admin-dashboard-page .commerce-panel-standalone { width: 100%; height: auto; overflow: visible; padding: 22px; border: 1px solid #2b4057; border-radius: 5px; background: #0b1525; color: #dfe8f3; box-shadow: 0 18px 50px #0003; }
+.admin-loading { display: grid; align-content: center; justify-items: center; gap: 15px; padding: 20px; color: #a4b4c6; }
+@media(max-width:700px) { .admin-auth-card { padding: 24px 19px; }.admin-dashboard-header { padding-inline: 15px; }.admin-dashboard-intro { margin-top: 29px; }.admin-dashboard-intro h1 { font-size: 28px; }.admin-summary-grid { grid-template-columns: 1fr; }.admin-user-label { display: none; }.admin-dashboard-page .commerce-panel-standalone { padding: 17px 12px; } }

@@ -34,12 +34,14 @@ const paymentSchema = new Schema({
   reference: { type: String, required: true, unique: true }, paystackReference: { type: String, unique: true, sparse: true }, transactionId: String, paystackTransactionId: String, amount: { type: Number, required: true },
   currency: { type: String, required: true, enum: ['NGN', 'USD'] }, originalPrice: Number, originalAmount: Number, discount: Number, discountAmount: Number,
   discountType: { type: String, enum: ['percentage', 'fixed'] }, discountValue: Number, pricingId: { type: Schema.Types.ObjectId, ref: 'Pricing' },
+  environment: { type: String, enum: ['development', 'production'], default: 'development', required: true },
   region: String, status: { type: String, enum: ['pending', 'processing', 'paid', 'successful', 'failed', 'cancelled', 'abandoned', 'refunded'], default: 'pending' },
   provider: { type: String, default: 'paystack' }, paidAt: Date, metadata: Schema.Types.Mixed,
 }, timestamps)
 paymentSchema.index({ application: 1, user: 1, status: 1, createdAt: -1 })
 paymentSchema.index({ application: 1, status: 1, createdAt: -1 })
 paymentSchema.index({ application: 1, productId: 1 })
+paymentSchema.index({ application: 1, environment: 1, user: 1, status: 1, createdAt: -1 })
 
 const progressSchema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
