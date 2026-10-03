@@ -156,3 +156,32 @@ h1,h2,h3 { font-family: var(--display); }
 :root[data-theme='light'] .chapter-list li { color: #52657d; }
 :root[data-theme='light'] .path-footer button { color: #3c526b; }
 :root[data-theme='light'] .path-footer button:hover { color: #087f9a; }
+
+/* Commerce administration and server-priced enrollment */
+.admin-open { border: 0; background: none; cursor: pointer; font: inherit; }
+.price-amount del { color: #8293a8; font-size: 14px; }
+.pricing-discount { margin: -7px 0 0; color: var(--green); font: 9px var(--mono); }
+.pricing-error,.payment-message { grid-column: 1/-1; padding: 10px 12px; border: 1px solid rgba(239,119,119,.35); border-radius: 4px; color: #ffb4b4; font-size: 12px; }
+.payment-message { border-color: rgba(86,205,156,.35); color: #87e4b9; text-align: center; }
+.price-button:disabled { cursor: wait; opacity: .72; }
+.commerce-overlay { position: fixed; z-index: 50; inset: 0; display: grid; justify-items: end; background: rgba(2,8,17,.76); backdrop-filter: blur(5px); }
+.commerce-panel { width: min(920px,100%); height: 100%; overflow: auto; padding: 28px; border-left: 1px solid #30435c; background: #0b1525; color: #dfe8f3; box-shadow: -20px 0 60px #0006; }
+.commerce-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.commerce-panel h2 { margin: 8px 0 22px; font-size: 25px; }
+.commerce-panel nav { display: flex; gap: 7px; padding-bottom: 18px; border-bottom: 1px solid #293c53; }
+.commerce-panel nav button { padding: 8px 11px; border: 1px solid #2b3c52; border-radius: 3px; background: #101d2e; color: #9aabc0; text-transform: capitalize; cursor: pointer; }
+.commerce-panel nav button.is-active { border-color: #34879b; color: #73deee; }
+.commerce-pricing-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px; padding-top: 18px; }
+.commerce-pricing-grid form { display: grid; align-content: start; gap: 12px; padding: 18px; border: 1px solid #2b3d53; border-radius: 5px; background: #101c2d; }
+.commerce-pricing-grid h3 { margin: 0; }
+.commerce-pricing-grid form > label { display: grid; gap: 5px; color: #a4b3c5; font-size: 11px; }
+.commerce-pricing-grid input:not([type=checkbox]),.commerce-pricing-grid select { width: 100%; padding: 9px; border: 1px solid #30435b; border-radius: 3px; background: #08111e; color: #e1e9f3; }
+.commerce-checks { display: grid; gap: 7px; color: #a4b3c5; font-size: 11px; }
+.commerce-pricing-grid form > p { color: #a4b3c5; font-size: 12px; }
+.commerce-pricing-grid form > p strong { color: #7de3b4; }
+.commerce-notice { padding: 10px 12px; border: 1px solid #327b62; border-radius: 3px; color: #9ce7c2; font-size: 12px; }
+.commerce-table-wrap { overflow: auto; margin-top: 20px; }
+.commerce-table-wrap table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; }
+.commerce-table-wrap th,.commerce-table-wrap td { padding: 10px 8px; border-bottom: 1px solid #26374c; white-space: nowrap; }
+.commerce-table-wrap th { color: #67cede; font-family: var(--mono); font-size: 9px; text-transform: uppercase; }
+@media(max-width:700px) { .commerce-panel { padding: 18px 14px 75px; }.commerce-pricing-grid { grid-template-columns: 1fr; }.commerce-panel nav { overflow: auto; }.commerce-panel nav button { flex: 0 0 auto; font-size: 10px; } }
