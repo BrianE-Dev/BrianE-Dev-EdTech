@@ -6,8 +6,11 @@ Node.js, Express, Mongoose REST API for persistent course commerce and learning 
 
 1. Install project packages with `npm install`.
 2. Copy `backend/.env.example` to `backend/.env` and configure MongoDB, `CLIENT_URL`, a random 32+ character `JWT_SECRET`, and the existing DevPortix Paystack test credentials (`PAYSTACK_SECRET_KEY`). Keep all secrets server-side. `PAYSTACK_PUBLIC_KEY` is documented for shared configuration, but the current checkout uses the authorization URL, so React does not need it.
-3. Run `npm run seed` to upsert the published course and initial regional prices.
-4. Run `npm run dev:all` from the root to start Vite and the API, or `npm run server:start` for the API alone.
+3. Set `MONGODB_URI` to a reachable local MongoDB URI or Atlas `mongodb+srv://...` URI. The example leaves it blank intentionally. Configure Atlas network access and the database user before seeding.
+4. Run `npm run seed` to upsert the published course and initial regional prices.
+5. Run `npm run dev:all` from the root to start Vite and the API, or `npm run server:start` for the API alone.
+
+Both the API and seed load `backend/.env` by its file location, regardless of the current working directory. The API connects to MongoDB before listening; startup fails if MongoDB cannot be reached. Connection logs never include the URI. The seed command disconnects in a `finally` block and reports the seeded course section/chapter counts and regional pricing count on success. A MongoDB connection is required to verify seed persistence; frontend build/lint checks alone do not establish that database contents were written.
 
 Seed prices are configurable setup defaults: International is USD 15 with a 40% percentage discount (USD 9); Nigeria is independently set to NGN 15,000 with a 40% discount (NGN 9,000). The Nigerian value is not exchange-rate-derived. Discounts and dates are calculated by the API; React only displays the returned amount. Edit the regional configurations in the admin panel after creating an administrator.
 
@@ -32,7 +35,7 @@ Use the existing DevPortix Paystack business and its server-side credentials; Br
 - `GET /api/certificates/verify/:certificateId`
 - Super Admin: `GET /api/admin/pricing`, `PUT /api/admin/pricing/:region`, `GET /api/admin/transactions`, `GET /api/admin/purchases`, `GET /api/admin/certificates`
 
-Authentication uses an HTTP-only, same-site cookie. Production must use HTTPS. Configure the exact frontend origin in `CLIENT_URL`; multiple origins may be comma-separated. Sensitive routes have rate limits and request validation. Payments are immutable through the admin API. Pricing writes create audit records.
+Authentication uses an HTTP-only, same-site cookie. Production must use HTTPS. Configure the exact frontend origin in `CLIENT_URL`; multiple origins may be comma-separated. Sensitive routes have rate limits and request validation. Payments are immutable through the admin API. Pricing writes create audit records. Mongoose uses unique indexes for emails, course slugs, pricing regions, payment references, Paystack references, and certificate IDs; compound indexes support payment administration and one-progress/one-certificate-per-user/course lookups.
 
 ## Payment and completion rules
 

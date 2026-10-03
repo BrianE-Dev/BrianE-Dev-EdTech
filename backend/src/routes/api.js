@@ -174,7 +174,7 @@ router.post('/courses/:courseId/progress/:chapterId', authenticate, async (req, 
   if (!purchased) return res.status(403).json({ error: 'Course purchase required' })
   const allChapters = course.sections.flatMap((section, sectionIndex) => section.chapters.map((_chapter, chapterIndex) => `${sectionIndex}-${chapterIndex}`))
   if (!allChapters.includes(req.params.chapterId)) return res.status(404).json({ error: 'Chapter not found' })
-  const progress = await Progress.findOneAndUpdate({ user: req.user.id, course: course.id }, { $addToSet: { completedChapters: req.params.chapterId }, $set: { lastAccessedAt: new Date() } }, { upsert: true, new: true })
+  const progress = await Progress.findOneAndUpdate({ user: req.user.id, course: course.id }, { $addToSet: { completedChapters: req.params.chapterId }, $set: { lastAccessedChapter: req.params.chapterId, lastAccessedAt: new Date() } }, { upsert: true, new: true })
   progress.completionPercentage = allChapters.length ? Math.round(progress.completedChapters.length / allChapters.length * 10000) / 100 : 0
   if (progress.completionPercentage === 100 && course.certificateEligible) {
     progress.completedAt ||= new Date()

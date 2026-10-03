@@ -25,6 +25,7 @@ const pricingSchema = new Schema({
   discountValue: { type: Number, default: 0, min: 0 }, discountEnabled: { type: Boolean, default: false }, active: { type: Boolean, default: true },
   startDate: Date, endDate: Date, updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
 }, timestamps)
+pricingSchema.index({ active: 1, currency: 1 })
 
 const paymentSchema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
@@ -36,10 +37,13 @@ const paymentSchema = new Schema({
   region: String, status: { type: String, enum: ['pending', 'processing', 'paid', 'successful', 'failed', 'cancelled', 'abandoned', 'refunded'], default: 'pending' },
   provider: { type: String, default: 'paystack' }, paidAt: Date, metadata: Schema.Types.Mixed,
 }, timestamps)
+paymentSchema.index({ application: 1, user: 1, status: 1, createdAt: -1 })
+paymentSchema.index({ application: 1, status: 1, createdAt: -1 })
+paymentSchema.index({ application: 1, productId: 1 })
 
 const progressSchema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
-  completedChapters: [{ type: String }], completionPercentage: { type: Number, default: 0, min: 0, max: 100 }, completedAt: Date, lastAccessedAt: Date,
+  completedChapters: [{ type: String }], completionPercentage: { type: Number, default: 0, min: 0, max: 100 }, lastAccessedChapter: String, completedAt: Date, lastAccessedAt: Date,
 }, timestamps)
 progressSchema.index({ user: 1, course: 1 }, { unique: true })
 
@@ -48,6 +52,7 @@ const certificateSchema = new Schema({
   course: { type: Schema.Types.ObjectId, ref: 'Course', required: true }, recipientName: String, courseTitle: String,
   issueDate: Date, completionDate: Date, verificationStatus: { type: String, enum: ['valid', 'revoked'], default: 'valid' },
 }, timestamps)
+certificateSchema.index({ user: 1, course: 1 }, { unique: true })
 
 const auditSchema = new Schema({ admin: { type: Schema.Types.ObjectId, ref: 'User', required: true }, action: String, resource: String, previousValue: Schema.Types.Mixed, newValue: Schema.Types.Mixed }, timestamps)
 
@@ -55,6 +60,6 @@ export const User = model('User', userSchema)
 export const Course = model('Course', courseSchema)
 export const Pricing = model('Pricing', pricingSchema)
 export const Payment = model('Payment', paymentSchema)
-export const Progress = model('Progress', progressSchema)
+export const Progress = model('CourseProgress', progressSchema)
 export const Certificate = model('Certificate', certificateSchema)
 export const AuditLog = model('AuditLog', auditSchema)

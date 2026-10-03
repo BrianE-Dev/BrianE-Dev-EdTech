@@ -117,7 +117,7 @@ The current frontend is a responsive React 19 application built with Vite. It co
 - Light and dark themes; the saved preference is stored in local storage, with the operating-system theme used on first visit
 - A hero entrance animation that replays when the hero re-enters the viewport and respects reduced-motion preferences
 
-This repository currently has no separate course, section, or lesson routes; course navigation beyond the homepage; student dashboard; admin interface; progress tracking; backend API; database; or seed data. The app's chapter list is a curriculum overview, not a lesson player or progress system.
+The React frontend is a public marketing and curriculum overview; it does not yet include a sign-in screen, student dashboard, lesson player, or authored lesson bodies. A separate Express/Mongoose API now provides persisted users, courses, regional pricing, payment records, purchase-protected lesson access, progress, certificates, Super Admin pricing/transaction/certificate endpoints, and audit records. The app's chapter list remains a curriculum overview, not a lesson player or progress system. See [`backend/README.md`](backend/README.md) for backend setup and API details.
 
 The files in `UI From Stitch/` are design references. Older curriculum descriptions and mock interface elements in those references are not authoritative product content. Use `src/data/curriculum.js` for approved course information.
 
@@ -126,6 +126,7 @@ The files in `UI From Stitch/` are design references. Older curriculum descripti
 ```text
 .
 ├── public/                 # Static public assets, including favicon and SVG symbols
+├── backend/                # Express/Mongoose API, models, routes, services, and seed
 ├── src/
 │   ├── components/         # Shared React UI components
 │   ├── data/
@@ -161,4 +162,47 @@ npm install
 | `npm run preview` | Preview the production build locally. |
 | `npm run lint` | Run ESLint. |
 
-Direct runtime dependencies are React, React DOM, and Lucide React. Vite, the React plugin, and ESLint are development dependencies.
+Runtime dependencies include React, React DOM, and Lucide React for the frontend, plus Express, Mongoose, JWT, password hashing, validation, and security middleware for the backend. Vite, the React plugin, ESLint, and concurrently are development dependencies.
+
+## Backend and commerce
+
+### Local setup
+
+Copy `backend/.env.example` to `backend/.env`, then set `MONGODB_URI`, a random `JWT_SECRET` with at least 32 characters, `CLIENT_URL`, and the server-only Paystack configuration. Install dependencies and initialize the course and prices:
+
+```sh
+npm install
+npm run seed
+npm run dev:all
+```
+
+`npm run dev:all` starts the Vite frontend and Express API. `npm run server:dev` starts only the watched API; `npm run server:start` starts the API for production. Set `VITE_API_URL` in the frontend environment when the API is deployed separately.
+
+Set `MONGODB_URI` to a reachable local MongoDB instance or Atlas `mongodb+srv://...` URI; the example leaves it blank. Configure Atlas network access and database credentials outside source control. Both the API and seed load `backend/.env` relative to their source files. The API connects before it accepts requests and fails startup clearly if the connection fails; logs redact the URI. The root `.gitignore` ignores `.env` files, including `backend/.env`.
+
+### Database and initial data
+
+MongoDB is the source of truth for users, the published course structure, pricing, payments, progress, certificates, and audit logs. The seed command upserts the approved course and regional pricing defaults:
+
+- International: USD 15 original price with a 40% promotion (USD 9).
+- Nigeria: independently configurable NGN 15,000 original price with a 40% promotion (NGN 9,000). This is not converted from USD.
+
+The seed command does not create a Super Admin unless temporary `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` values are supplied. Remove those values after the development account is created. Public registration always assigns the normal `user` role. Seeding validates the approved 8-section/43-chapter curriculum, upserts by stable course slug and pricing region, preserves the optional admin mechanism, and disconnects from MongoDB even on failure.
+
+### Regional pricing and Paystack
+
+BrianE-Dev uses the existing DevPortix Paystack business and server credentials; it does not need a separate Paystack business. The public React app fetches current prices from `GET /api/pricing`. The backend selects NGN or USD from a saved server-side country or trusted Cloudflare/Vercel edge location headers, with international USD as fallback. Browser-supplied amount, currency, discount, and country values do not determine charges.
+
+Payment initialization uses `POST /api/brianedev/payments/initialize` with the course product ID only. The backend computes the amount and creates a pending record before requesting Paystack checkout. BrianE-Dev references use the unique `BDE-YYYYMMDD-RANDOM` namespace and include `application: brianedev`, course, user, region, currency, pricing record, environment, and source metadata. Dashboard custom fields identify BrianE-Dev transactions alongside DevPortix transactions in the shared Paystack account.
+
+After Paystack returns the user, React submits the reference to `POST /api/brianedev/payments/verify`; the authenticated API checks the transaction directly with Paystack. The signed webhook endpoint is `POST /api/brianedev/payments/paystack/webhook`. Both paths validate the saved application/product/payment record, reference, amount in minor currency units, and currency before setting the payment to `paid`. Only confirmed paid records grant course access. Duplicate references are prevented by a unique database index, and payment state updates are idempotent. The callback URL alone does not grant access.
+
+Keep `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_SECRET`, `JWT_SECRET`, and `MONGODB_URI` in the backend environment or deployment secret manager. Never put server secrets in Vite variables or React code. Use HTTPS, configure Paystack to send webhooks to the deployed API URL, and configure a trusted edge proxy to overwrite location headers. Full setup, endpoints, and production notes are in [`backend/README.md`](backend/README.md).
+
+### Access, progress, and certificates
+
+Paid purchase records control lesson and progress API access. Chapter completion is stored per user and course; completion percentage is calculated from chapters in MongoDB. A certificate is issued once only after all chapters of a certificate-eligible course are complete. Public certificate verification is available by certificate ID. The backend APIs are present, but the repository still needs authored lesson bodies and learner-facing login, course, progress, and certificate screens to provide the complete learning experience.
+
+### Admin commerce
+
+Super Admin APIs and the existing visual-language commerce panel support pricing changes, transactions, purchases, and issued certificates. Pricing writes are validated server-side and audited with previous and new values. Admin role authorization uses the persisted user record; no browser-supplied role can grant access. Payment records are not editable through the admin API.
