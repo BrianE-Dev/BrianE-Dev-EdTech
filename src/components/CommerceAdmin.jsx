@@ -17,7 +17,7 @@ export default function CommerceAdmin({ onClose }) {
     setNotice('')
     try {
       const saved = await api(`/admin/pricing/${region}`, { method: 'PUT', body: JSON.stringify({
-        originalPrice: Number(form.get('originalPrice')), discountType: form.get('discountType'), discountValue: Number(form.get('discountValue')),
+        region, currency: form.get('currency'), originalPrice: Number(form.get('originalPrice')), discountType: form.get('discountType'), discountValue: Number(form.get('discountValue')),
         discountEnabled: form.get('discountEnabled') === 'on', active: form.get('active') === 'on',
         startDate: form.get('startDate') ? new Date(form.get('startDate')).toISOString() : null,
         endDate: form.get('endDate') ? new Date(`${form.get('endDate')}T23:59:59`).toISOString() : null,
@@ -37,7 +37,9 @@ export default function CommerceAdmin({ onClose }) {
       <nav aria-label="Commerce sections">{['pricing', 'transactions', 'purchases', 'certificates'].map((name) => <button key={name} className={tab === name ? 'is-active' : ''} onClick={() => switchTab(name)}>{name}</button>)}</nav>
       {notice && <p className="commerce-notice" role="status">{notice}</p>}
       {busy ? <p>Loading…</p> : tab === 'pricing' ? <div className="commerce-pricing-grid">{items.map((item) => <form key={item.region} onSubmit={(event) => { event.preventDefault(); save(item.region, new FormData(event.currentTarget)) }}>
-        <span className="eyebrow">{labels[item.region]} / {item.currency}</span><h3>Regional price</h3>
+        <span className="eyebrow">{labels[item.region]}</span><h3>Regional price</h3>
+        <label>Region<select name="region" value={item.region} disabled><option value={item.region}>{labels[item.region]}</option></select></label>
+        <label>Currency<select name="currency" defaultValue={item.currency}><option value="NGN">NGN</option><option value="USD">USD</option></select></label>
         <label>Original price ({item.currency})<input name="originalPrice" type="number" step="0.01" min="0.01" defaultValue={item.originalPrice} required /></label>
         <label>Discount type<select name="discountType" defaultValue={item.discountType}><option value="percentage">Percentage</option><option value="fixed">Fixed amount</option></select></label>
         <label>Discount value<input name="discountValue" type="number" step="0.01" min="0" defaultValue={item.discountValue} required /></label>

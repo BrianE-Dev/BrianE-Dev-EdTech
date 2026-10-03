@@ -28,9 +28,12 @@ const pricingSchema = new Schema({
 
 const paymentSchema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
-  reference: { type: String, required: true, unique: true }, transactionId: String, amount: { type: Number, required: true },
-  currency: { type: String, required: true, enum: ['NGN', 'USD'] }, originalPrice: Number, discount: Number,
-  region: String, status: { type: String, enum: ['pending', 'successful', 'failed', 'abandoned', 'refunded'], default: 'pending' },
+  application: { type: String, enum: ['brianedev', 'devportix'], default: 'brianedev', required: true },
+  productType: { type: String, enum: ['course'], default: 'course', required: true }, productId: { type: String, required: true }, productName: { type: String, required: true },
+  reference: { type: String, required: true, unique: true }, paystackReference: { type: String, unique: true, sparse: true }, transactionId: String, paystackTransactionId: String, amount: { type: Number, required: true },
+  currency: { type: String, required: true, enum: ['NGN', 'USD'] }, originalPrice: Number, originalAmount: Number, discount: Number, discountAmount: Number,
+  discountType: { type: String, enum: ['percentage', 'fixed'] }, discountValue: Number, pricingId: { type: Schema.Types.ObjectId, ref: 'Pricing' },
+  region: String, status: { type: String, enum: ['pending', 'processing', 'paid', 'successful', 'failed', 'cancelled', 'abandoned', 'refunded'], default: 'pending' },
   provider: { type: String, default: 'paystack' }, paidAt: Date, metadata: Schema.Types.Mixed,
 }, timestamps)
 

@@ -62,7 +62,7 @@ function App() {
     const params = new URLSearchParams(window.location.search)
     const reference = params.get('reference') || params.get('trxref')
     if (params.get('payment') === 'return' && reference) {
-      api('/payments/verify', { method: 'POST', body: JSON.stringify({ reference }) })
+      api('/brianedev/payments/verify', { method: 'POST', body: JSON.stringify({ reference }) })
         .then(() => setPaymentMessage('Payment confirmed. Your course access is ready.'))
         .catch((error) => setPaymentMessage(error.message))
         .finally(() => window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`))
@@ -73,7 +73,7 @@ function App() {
   const purchaseCourse = async () => {
     setPaymentBusy(true); setPricingError('')
     try {
-      const { authorizationUrl } = await api('/payments/initialize', { method: 'POST', body: JSON.stringify({ courseSlug: 'ai-powered-developer-productivity' }) })
+      const { authorizationUrl } = await api('/brianedev/payments/initialize', { method: 'POST', body: JSON.stringify({ productId: 'ai-powered-developer-productivity' }) })
       window.location.assign(authorizationUrl)
     } catch (error) { setPricingError(error.message); setPaymentBusy(false) }
   }
