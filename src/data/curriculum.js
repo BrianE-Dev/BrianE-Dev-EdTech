@@ -1,126 +1,146 @@
-const sectionDefinitions = [
-  {
-    title: 'Modern AI Developer Workflow',
-    category: 'FOUNDATION',
-    color: 'cyan',
-    description: 'Establish mental models and practical foundations for using AI effectively as a software developer.',
-    chapters: [
-      'How AI Changes the Modern Developer Workflow',
-      'Choosing the Right AI Tool for the Task',
-      'Prompting for Better Development Results',
-      'Understanding AI Strengths and Limitations',
-      'Knowing When NOT to Use AI',
-    ],
-  },
-  {
-    title: 'ChatGPT for Developers',
-    category: 'AI TOOL WORKFLOWS',
-    color: 'green',
-    description: 'Use ChatGPT throughout everyday software development work, from code understanding to technical problem solving.',
-    chapters: [
-      'Using ChatGPT to Understand and Explain Code',
-      'Debugging Errors with ChatGPT',
-      'Refactoring and Improving Existing Code',
-      'Working with Frameworks, APIs, and Documentation',
-      'Using ChatGPT for SQL and Database Tasks',
-      'Architecture, Planning, and Technical Problem Solving',
-    ],
-  },
-  {
-    title: 'GitHub Copilot',
-    category: 'AI TOOL WORKFLOWS',
-    color: 'amber',
-    description: 'Use GitHub Copilot as an AI coding assistant within an established software development workflow.',
-    chapters: [
-      'Getting Started with GitHub Copilot',
-      'AI Autocomplete and Code Suggestions',
-      'Generating Code with Copilot',
-      'Generating and Improving Tests',
-      'Refactoring with Copilot',
-      'Using Copilot as an AI Pair Programmer',
-    ],
-  },
-  {
-    title: 'Codex',
-    category: 'AI TOOL WORKFLOWS',
-    color: 'violet',
-    description: 'Use Codex for larger development tasks, codebase work, and AI-assisted engineering workflows.',
-    chapters: [
-      'What Codex Is and Where It Fits',
-      'Generating and Editing Code with Codex',
-      'Making Multi-File Changes',
-      'Asking Codex to Explain Existing Code',
-      'Using Codex for Larger Development Tasks',
-      'ChatGPT vs GitHub Copilot vs Codex',
-    ],
-  },
-  {
-    title: 'Building a Full Project with AI',
-    category: 'PROJECT WORKFLOW',
-    color: 'cyan',
-    description: 'Apply AI productivity methods to a realistic project from planning through implementation, review, and delivery.',
-    chapters: [
-      'Planning the Project with ChatGPT',
-      'Defining Requirements and Technical Specifications',
-      'Designing the Project Architecture',
-      'Breaking the Project into Development Tasks',
-      'Implementing Features with AI Assistance',
-      'Reviewing and Refining AI-Generated Code',
-      'Debugging and Improving the Application',
-      'Preparing the Project for Delivery',
-    ],
-  },
-  {
-    title: 'Debugging with AI',
-    category: 'DEVELOPMENT WORKFLOW',
-    color: 'amber',
-    description: 'Investigate, understand, and resolve software problems with a systematic AI-assisted workflow.',
-    chapters: [
-      'Understanding Errors and Stack Traces',
-      'Giving AI the Right Debugging Context',
-      'Investigating Bugs Systematically',
-      'Verifying AI-Suggested Fixes',
-    ],
-  },
-  {
-    title: 'Documentation & Testing',
-    category: 'DEVELOPMENT WORKFLOW',
-    color: 'green',
-    description: 'Use AI to reduce the time and effort involved in writing, improving, and reviewing documentation and tests.',
-    chapters: [
-      'Using AI to Write and Improve Documentation',
-      'Using AI to Generate and Improve Tests',
-      'Reviewing Documentation and Tests with AI',
-    ],
-  },
-  {
-    title: 'Security & Best Practices',
-    category: 'RESPONSIBLE AI USE',
-    color: 'violet',
-    description: 'Use AI responsibly while protecting code, data, credentials, and software quality.',
-    chapters: [
-      'Protecting Sensitive Information When Using AI',
-      'Reviewing AI-Generated Code for Security Risks',
-      'Avoiding Blind Trust in AI Output',
-      'Verifying and Validating AI-Generated Work',
-      'Building a Responsible AI-Assisted Development Workflow',
-    ],
-  },
-]
-
-let nextChapterNumber = 1
+/**
+ * Stable curriculum IDs are permanent identifiers.
+ * Do not derive them from array indexes, numbers, or mutable titles.
+ * Reordering or renaming a learning unit must not change its ID.
+ */
+export const CURRICULUM_VERSION = '1.0.0'
 
 export const curriculum = {
   title: 'AI-Powered Developer Productivity for Software Engineers',
   description: 'Learn to use AI effectively throughout the software development lifecycle to improve productivity, reasoning, debugging, planning, refactoring, documentation, testing, and everyday engineering workflows. Code provides the working context for lessons, examples, demonstrations, and workflows.',
-  sections: sectionDefinitions.map((section, sectionIndex) => ({
-    ...section,
-    number: String(sectionIndex + 1).padStart(2, '0'),
-    chapters: section.chapters.map((title) => ({
-      number: String(nextChapterNumber++).padStart(2, '0'),
-      title,
-    })),
-  })),
+  sections: [
+    {
+      id: 'section-modern-ai-developer-workflow',
+      number: 1,
+      order: 1,
+      title: 'Modern AI Developer Workflow',
+      category: 'FOUNDATION',
+      color: 'cyan',
+      description: 'Establish mental models and practical foundations for using AI effectively as a software developer.',
+      chapters: [
+        { id: 'chapter-ai-assisted-developer', number: 1, order: 1, title: 'The AI-Assisted Developer' },
+        { id: 'chapter-choosing-the-right-ai-tool', number: 2, order: 2, title: 'Choosing the Right AI Tool' },
+        { id: 'chapter-prompting-for-software-development', number: 3, order: 3, title: 'Prompting for Software Development' },
+        { id: 'chapter-when-not-to-use-ai', number: 4, order: 4, title: 'When NOT to Use AI' },
+      ],
+    },
+    {
+      id: 'section-chatgpt-for-developers',
+      number: 2,
+      order: 2,
+      title: 'ChatGPT for Developers',
+      category: 'AI TOOL WORKFLOWS',
+      color: 'green',
+      description: 'Use ChatGPT throughout everyday software development work, from code understanding to technical problem solving.',
+      chapters: [
+        { id: 'chapter-chatgpt-as-a-development-assistant', number: 5, order: 5, title: 'ChatGPT as a Development Assistant' },
+        { id: 'chapter-debugging-with-chatgpt', number: 6, order: 6, title: 'Debugging with ChatGPT' },
+        { id: 'chapter-refactoring-and-improving-existing-code', number: 7, order: 7, title: 'Refactoring and Improving Existing Code' },
+        { id: 'chapter-frameworks-libraries-and-documentation', number: 8, order: 8, title: 'Frameworks, Libraries, and Documentation' },
+        { id: 'chapter-understanding-errors-and-stack-traces', number: 9, order: 9, title: 'Understanding Errors and Stack Traces' },
+        { id: 'chapter-apis-sql-and-development-questions', number: 10, order: 10, title: 'APIs, SQL, and Development Questions' },
+        { id: 'chapter-architecture-and-technical-reasoning', number: 11, order: 11, title: 'Architecture and Technical Reasoning' },
+      ],
+    },
+    {
+      id: 'section-github-copilot',
+      number: 3,
+      order: 3,
+      title: 'GitHub Copilot',
+      category: 'AI TOOL WORKFLOWS',
+      color: 'amber',
+      description: 'Use GitHub Copilot as an AI coding assistant within an established software development workflow.',
+      chapters: [
+        { id: 'chapter-getting-started-with-github-copilot', number: 12, order: 12, title: 'Getting Started with GitHub Copilot' },
+        { id: 'chapter-intelligent-autocomplete', number: 13, order: 13, title: 'Intelligent Autocomplete' },
+        { id: 'chapter-generating-code-with-copilot', number: 14, order: 14, title: 'Generating Code with Copilot' },
+        { id: 'chapter-writing-tests-with-copilot', number: 15, order: 15, title: 'Writing Tests with Copilot' },
+        { id: 'chapter-refactoring-with-copilot', number: 16, order: 16, title: 'Refactoring with Copilot' },
+        { id: 'chapter-copilot-as-a-pair-programmer', number: 17, order: 17, title: 'Copilot as a Pair Programmer' },
+      ],
+    },
+    {
+      id: 'section-codex-for-software-engineering',
+      number: 4,
+      order: 4,
+      title: 'Codex for Software Engineering',
+      category: 'AI TOOL WORKFLOWS',
+      color: 'violet',
+      description: 'Use Codex for larger development tasks, codebase work, and AI-assisted engineering workflows.',
+      chapters: [
+        { id: 'chapter-understanding-codex', number: 18, order: 18, title: 'Understanding Codex' },
+        { id: 'chapter-generating-and-editing-code', number: 19, order: 19, title: 'Generating and Editing Code' },
+        { id: 'chapter-multi-file-changes', number: 20, order: 20, title: 'Multi-File Changes' },
+        { id: 'chapter-explaining-existing-codebases', number: 21, order: 21, title: 'Explaining Existing Codebases' },
+        { id: 'chapter-handling-larger-development-tasks', number: 22, order: 22, title: 'Handling Larger Development Tasks' },
+        { id: 'chapter-chatgpt-vs-github-copilot-vs-codex', number: 23, order: 23, title: 'ChatGPT vs GitHub Copilot vs Codex' },
+      ],
+    },
+    {
+      id: 'section-planning-the-project-with-ai',
+      number: 5,
+      order: 5,
+      title: 'Planning the Project with AI',
+      category: 'PROJECT WORKFLOW',
+      color: 'cyan',
+      description: 'Plan software projects with AI by turning requirements into user flows, architecture decisions, roadmaps, and implementation tasks.',
+      chapters: [
+        { id: 'chapter-planning-a-software-project-with-chatgpt', number: 24, order: 24, title: 'Planning a Software Project with ChatGPT' },
+        { id: 'chapter-turning-requirements-into-tasks', number: 25, order: 25, title: 'Turning Requirements into Tasks' },
+        { id: 'chapter-designing-features-and-user-flows', number: 26, order: 26, title: 'Designing Features and User Flows' },
+        { id: 'chapter-choosing-technologies-and-architecture', number: 27, order: 27, title: 'Choosing Technologies and Architecture' },
+        { id: 'chapter-creating-a-development-roadmap', number: 28, order: 28, title: 'Creating a Development Roadmap' },
+        { id: 'chapter-using-ai-during-implementation', number: 29, order: 29, title: 'Using AI During Implementation' },
+      ],
+    },
+    {
+      id: 'section-building-debugging-and-testing-with-ai',
+      number: 6,
+      order: 6,
+      title: 'Building, Debugging, and Testing with AI',
+      category: 'DEVELOPMENT WORKFLOW',
+      color: 'amber',
+      description: 'Apply AI across application development, integrations, debugging, and software quality assurance.',
+      chapters: [
+        { id: 'chapter-generating-application-code', number: 30, order: 30, title: 'Generating Application Code' },
+        { id: 'chapter-working-with-frontend-development', number: 31, order: 31, title: 'Working with Frontend Development' },
+        { id: 'chapter-working-with-backend-development', number: 32, order: 32, title: 'Working with Backend Development' },
+        { id: 'chapter-working-with-databases', number: 33, order: 33, title: 'Working with Databases' },
+        { id: 'chapter-api-integration-and-testing', number: 34, order: 34, title: 'API Integration and Testing' },
+        { id: 'chapter-debugging-complex-problems', number: 35, order: 35, title: 'Debugging Complex Problems' },
+        { id: 'chapter-automated-testing-and-quality-assurance', number: 36, order: 36, title: 'Automated Testing and Quality Assurance' },
+      ],
+    },
+    {
+      id: 'section-professional-ai-assisted-software-engineering',
+      number: 7,
+      order: 7,
+      title: 'Professional AI-Assisted Software Engineering',
+      category: 'PROFESSIONAL PRACTICE',
+      color: 'green',
+      description: 'Use AI responsibly in professional engineering through review, documentation, security, version control, and maintenance.',
+      chapters: [
+        { id: 'chapter-code-review-with-ai', number: 37, order: 37, title: 'Code Review with AI' },
+        { id: 'chapter-documentation-with-ai', number: 38, order: 38, title: 'Documentation with AI' },
+        { id: 'chapter-security-privacy-and-responsible-ai-use', number: 39, order: 39, title: 'Security, Privacy, and Responsible AI Use' },
+        { id: 'chapter-git-version-control-and-ai-assisted-workflows', number: 40, order: 40, title: 'Git, Version Control, and AI-Assisted Workflows' },
+        { id: 'chapter-maintaining-and-improving-ai-assisted-codebases', number: 41, order: 41, title: 'Maintaining and Improving AI-Assisted Codebases' },
+      ],
+    },
+    {
+      id: 'section-building-your-ai-powered-developer-workflow',
+      number: 8,
+      order: 8,
+      title: 'Building Your AI-Powered Developer Workflow',
+      category: 'PERSONAL WORKFLOW',
+      color: 'violet',
+      description: 'Combine the course methods into a practical, personal AI-assisted development workflow.',
+      chapters: [
+        { id: 'chapter-designing-your-personal-ai-development-workflow', number: 42, order: 42, title: 'Designing Your Personal AI Development Workflow' },
+        { id: 'chapter-the-ai-powered-developer-putting-everything-together', number: 43, order: 43, title: 'The AI-Powered Developer: Putting Everything Together' },
+      ],
+    },
+  ],
   formats: [
     { title: 'Written lessons', description: 'Read structured instruction about using AI throughout software development.' },
     { title: 'Code examples', description: 'Study code in context as part of AI-assisted development workflows.' },
@@ -132,4 +152,5 @@ export const curriculum = {
   ],
 }
 
+export const totalSections = curriculum.sections.length
 export const totalChapters = curriculum.sections.reduce((total, section) => total + section.chapters.length, 0)

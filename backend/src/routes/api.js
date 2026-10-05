@@ -8,6 +8,10 @@ import { authenticate, requireAdmin } from '../middleware/auth.js'
 import { getFinalPrice } from '../utils/pricing.js'
 import { getPaystackConfig } from '../config/paystack.js'
 import { initializeTransaction, verifyTransaction } from '../services/paystack.js'
+import { curriculum, CURRICULUM_VERSION } from '../../../src/data/curriculum.js'
+import { canAccessCourseLesson } from '../services/courseLessonAccess.js'
+import { getLessonByChapterId, InvalidChapterError, InvalidLessonContentError, LessonNotFoundError } from '../services/lessonRepository.js'
+import { toPublicLesson } from '../services/publicLesson.js'
 
 const router = Router()
 const isSecureCookie = process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production'
@@ -73,11 +77,34 @@ function authenticateOptional(req, _res, next) {
   try { jwt.verify(token, process.env.JWT_SECRET, (error, payload) => { if (!error) User.findById(payload.sub).then((user) => { req.user = user; next() }).catch(next); else next() }) } catch { next() }
 }
 
-router.get('/courses', async (_req, res) => res.json(await Course.find({ published: true }).select('title slug description sections.title sections.chapters.title')))
+function publicCourseMetadata(course) {
+  return {
+    title: course.title,
+    slug: course.slug,
+    description: course.description || '',
+    curriculumVersion: CURRICULUM_VERSION,
+    sections: curriculum.sections.map((section) => ({
+      id: section.id,
+      title: section.title,
+      order: section.order,
+      chapters: section.chapters.map((chapter) => ({
+        id: chapter.id,
+        number: chapter.number,
+        title: chapter.title,
+        order: chapter.order,
+      })),
+    })),
+  }
+}
+
+router.get('/courses', async (_req, res) => {
+  const courses = await Course.find({ published: true }).select('title slug description').lean()
+  res.json(courses.map(publicCourseMetadata))
+})
 router.get('/courses/:slug', async (req, res) => {
-  const course = await Course.findOne({ slug: req.params.slug, published: true })
+  const course = await Course.findOne({ slug: req.params.slug, published: true }).select('title slug description').lean()
   if (!course) return res.status(404).json({ error: 'Course not found' })
-  res.json(course)
+  res.json(publicCourseMetadata(course))
 })
 
 async function initializeCoursePayment(req, res) {
@@ -160,14 +187,23 @@ router.post('/payments/paystack/webhook', paystackWebhook)
 router.post('/brianedev/payments/paystack/webhook', paystackWebhook)
 
 router.get('/me/purchases', authenticate, async (req, res) => res.json(await Payment.find({ user: req.user.id, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } }).populate('course', 'title slug')))
-router.get('/courses/:courseId/lessons/:chapterId', authenticate, async (req, res) => {
+router.get('/courses/:courseId/lessons/:chapterId', authenticate, async (req, res, next) => {
   const course = await Course.findById(req.params.courseId)
   if (!course) return res.status(404).json({ error: 'Course not found' })
-  const access = await Payment.exists({ user: req.user.id, course: course.id, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } })
-  if (!access) return res.status(403).json({ error: 'Course purchase required' })
-  const chapter = course.sections.flatMap((section, sectionIndex) => section.chapters.map((item, chapterIndex) => ({ item, sectionIndex, chapterIndex, id: `${sectionIndex}-${chapterIndex}` }))).find(({ id }) => id === req.params.chapterId)
-  if (!chapter) return res.status(404).json({ error: 'Lesson not found' })
-  res.json({ course: course.title, section: course.sections[chapter.sectionIndex].title, lesson: chapter.item })
+  if (!(await canAccessCourseLesson(req.user, course))) return res.status(403).json({ error: 'Course purchase required' })
+
+  try {
+    const lesson = await getLessonByChapterId(req.params.chapterId)
+    return res.json({ course: course.title, lesson: toPublicLesson(lesson) })
+  } catch (error) {
+    if (error instanceof InvalidChapterError) return res.status(404).json({ error: 'Lesson not found' })
+    if (error instanceof LessonNotFoundError) return res.status(404).json({ error: 'Lesson content is not available' })
+    if (error instanceof InvalidLessonContentError) {
+      console.error(error.message)
+      return res.status(500).json({ error: 'Lesson content is invalid' })
+    }
+    return next(error)
+  }
 })
 
 router.post('/courses/:courseId/progress/:chapterId', authenticate, async (req, res) => {

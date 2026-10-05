@@ -2,7 +2,7 @@
 
 AI-powered developer productivity learning for software engineers. The course focuses on using AI throughout the software lifecycle; code provides context for lessons, examples, and workflows.
 
-The approved course title, 8 sections, 43 chapters, and chapter titles are centralized in [`src/data/curriculum.js`](src/data/curriculum.js). See [`documentation.md`](documentation.md) for the course overview and project setup.
+The approved course title, 8 sections, 43 chapters, and stable section/chapter IDs are centralized in [`src/data/curriculum.js`](src/data/curriculum.js) at curriculum version `1.0.0`. Lesson-content contracts and curriculum validation live under `src/data/schemas/` and `src/data/validation/`. See [`documentation.md`](documentation.md) for the course overview and project setup.
 
 ## Run locally
 
@@ -22,13 +22,20 @@ npm run seed
 npm run dev:all
 ```
 
+Validate curriculum/content structure and run the automated tests with:
+
+```sh
+npm run validate:curriculum
+npm test
+```
+
 The seed command creates the published 8-section, 43-chapter course and initial prices (international: USD 15 with a 40% promotion; Nigeria: independently configurable NGN 15,000 with a 40% promotion). It does not create an admin unless temporary `SEED_ADMIN_*` values are provided. BrianE-Dev Paystack references use the `BDE-` namespace and transactions include a `brianedev` application identifier, so they remain distinguishable when using the shared DevPortix Paystack business.
 
 Local development uses `APP_ENV=development` and Paystack TEST credentials. Production uses `APP_ENV=production` and LIVE credentials. The backend validates required Paystack variables and known key prefixes at startup; credentials and webhook secrets stay backend-only. See [`backend/README.md`](backend/README.md) for the environment variable list and live migration setup.
 
 The detailed payment metadata, authenticated callback verification, signed webhook endpoint, route list, data model, security notes, and deployment instructions are in [`backend/README.md`](backend/README.md).
 
-The current React app is a marketing page and curriculum overview. The backend enforces purchases for lesson, progress, and certificate APIs; detailed lesson bodies and a learner lesson-player/dashboard are not currently present in the repository.
+The current React app is a marketing page and curriculum overview. Authored lessons are stored as validated JSON under `content/lessons/` and delivered by the backend only to authenticated users with a paid purchase. The learner lesson reader/dashboard is not implemented.
 
 Super Admin sign-in is available at `/login`; the protected commerce dashboard is at `/admin`. Accounts are created through the documented seed/admin setup and there is no public Super Admin registration. Production static hosting must serve the React app entry point for these paths.
 

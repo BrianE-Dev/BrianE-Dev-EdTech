@@ -11,6 +11,9 @@
     "seed": "node backend/src/seed.js",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "node --test",
+    "validate:curriculum": "node scripts/validate-course-content.mjs",
+    "validate:content:complete": "node scripts/validate-course-content.mjs --require-complete",
     "preview": "vite preview"
   },
   "dependencies": {

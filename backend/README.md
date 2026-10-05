@@ -43,15 +43,21 @@ Production deployment should set `APP_ENV=production`, `NODE_ENV=production`, pr
 - `GET /api/health`
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
 - `GET /api/pricing` (uses authenticated country first, then Cloudflare/Vercel country headers, then international USD fallback)
-- `GET /api/courses`, `GET /api/courses/:slug`
+- `GET /api/courses`, `GET /api/courses/:slug` (public course and canonical curriculum metadata only)
 - `POST /api/brianedev/payments/initialize` with `{ "productId": "ai-powered-developer-productivity" }`, `POST /api/brianedev/payments/verify` with `{ "reference": "BDE-..." }`, `POST /api/brianedev/payments/paystack/webhook` (compatibility aliases remain under `/api/payments/*`)
 - `GET /api/me/purchases`, `GET /api/me/progress/:courseId`, `GET /api/me/certificates`
-- `GET /api/courses/:courseId/lessons/:chapterId` (requires a paid BrianE-Dev purchase)
+- `GET /api/courses/:courseId/lessons/:chapterId` (requires authentication and a paid BrianE-Dev purchase; `chapterId` is the stable curriculum ID)
 - `POST /api/courses/:courseId/progress/:chapterId` (requires purchase; completion creates one certificate)
 - `GET /api/certificates/verify/:certificateId`
 - Super Admin: `GET /api/admin/pricing`, `PUT /api/admin/pricing/:region`, `GET /api/admin/transactions`, `GET /api/admin/purchases`, `GET /api/admin/certificates`
 
 Authentication uses an HTTP-only, same-site cookie. Production must use HTTPS. Configure the exact frontend origin in `CLIENT_URL`; multiple origins may be comma-separated. Sensitive routes have rate limits and request validation. Payments are immutable through the admin API. Pricing writes create audit records. Mongoose uses unique indexes for emails, course slugs, pricing regions, payment references, Paystack references, and certificate IDs; compound indexes support environment-isolated payment administration and one-progress/one-certificate-per-user/course lookups.
+
+## Lesson content and delivery
+
+`src/data/curriculum.js` remains the canonical curriculum metadata source. Authored lesson JSON lives only in `content/lessons/<chapterId>.json`; MongoDB continues to hold course commerce and learner/application state, not authored lesson bodies. `backend/src/services/lessonRepository.js` resolves the stable `chapterId`, reads that exact filename, and runs the Phase 3 Zod and curriculum/title/filename checks before returning content. Missing content is allowed while authoring is incremental; `npm run validate:content:complete` reports failure until all 43 canonical lessons exist.
+
+The protected lesson route first uses the existing session authentication, then checks the existing `Payment` model for a paid/successful BrianE-Dev purchase in the active Paystack environment. It then loads and validates the repository lesson and passes it through `toPublicLesson()` before serialization. The response transformation recursively removes assessment answer-key fields, including `correctOptionId`; answer keys remain server-side. Public course endpoints return course title/slug/description and canonical section/chapter metadata only. Objectives, lesson blocks, exercises, assessments, and TTS text are protected lesson content. The learner lesson reader, TTS playback, exercise and quiz interactions, and progress UI are not implemented here.
 
 ## Payment and completion rules
 

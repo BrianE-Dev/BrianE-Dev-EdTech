@@ -10,98 +10,15 @@ The course is about using AI to improve software development work, not learning 
 
 **AI-Powered Developer Productivity for Software Engineers**
 
-The authoritative course data is [`src/data/curriculum.js`](src/data/curriculum.js). It contains the course title and description, all approved sections and chapters, and the learning formats. Section numbers, globally sequential chapter numbers, and the total chapter count are generated from this data. The course has **8 sections and 43 chapters**.
+The canonical curriculum is [`src/data/curriculum.js`](src/data/curriculum.js), version **1.0.0**. It defines the approved 8 sections and 43 chapters, including immutable section/chapter IDs and explicit display ordering. Keep curriculum changes in that source; do not maintain another application curriculum list. The homepage and course metadata consume the exported curriculum.
 
-Update `src/data/curriculum.js` when approved course content changes. Do not maintain a separate curriculum list or count in a page or component. The homepage section cards, expandable chapter lists, course-format cards, chapter counts in access plans, browser title, and meta description consume this source.
+Lesson content uses the Phase 3 versioned JSON contract. Authored files live under `content/lessons/<chapterId>.json`; the first authored lesson is `chapter-ai-assisted-developer.json`. The backend repository validates schema, chapter identity, canonical title, and filename before returning content. See `src/data/schemas/lessonSchema.js`, `src/data/validation/`, and `backend/src/services/lessonRepository.js`.
 
-### Section 01 — Modern AI Developer Workflow (5 chapters)
-
-Purpose: Establish the mental models and practical foundations for using AI effectively as a software developer.
-
-1. How AI Changes the Modern Developer Workflow
-2. Choosing the Right AI Tool for the Task
-3. Prompting for Better Development Results
-4. Understanding AI Strengths and Limitations
-5. Knowing When NOT to Use AI
-
-### Section 02 — ChatGPT for Developers (6 chapters)
-
-Purpose: Teach practical ways developers can use ChatGPT throughout everyday software development work.
-
-1. Using ChatGPT to Understand and Explain Code
-2. Debugging Errors with ChatGPT
-3. Refactoring and Improving Existing Code
-4. Working with Frameworks, APIs, and Documentation
-5. Using ChatGPT for SQL and Database Tasks
-6. Architecture, Planning, and Technical Problem Solving
-
-### Section 03 — GitHub Copilot (6 chapters)
-
-Purpose: Teach developers how to use GitHub Copilot as an AI coding assistant inside their development workflow.
-
-1. Getting Started with GitHub Copilot
-2. AI Autocomplete and Code Suggestions
-3. Generating Code with Copilot
-4. Generating and Improving Tests
-5. Refactoring with Copilot
-6. Using Copilot as an AI Pair Programmer
-
-### Section 04 — Codex (6 chapters)
-
-Purpose: Teach developers how to use Codex for larger development tasks, codebase work, and AI-assisted engineering workflows.
-
-1. What Codex Is and Where It Fits
-2. Generating and Editing Code with Codex
-3. Making Multi-File Changes
-4. Asking Codex to Explain Existing Code
-5. Using Codex for Larger Development Tasks
-6. ChatGPT vs GitHub Copilot vs Codex
-
-### Section 05 — Building a Full Project with AI (8 chapters)
-
-Purpose: Apply AI productivity methods to a realistic project from planning through implementation and verification.
-
-1. Planning the Project with ChatGPT
-2. Defining Requirements and Technical Specifications
-3. Designing the Project Architecture
-4. Breaking the Project into Development Tasks
-5. Implementing Features with AI Assistance
-6. Reviewing and Refining AI-Generated Code
-7. Debugging and Improving the Application
-8. Preparing the Project for Delivery
-
-### Section 06 — Debugging with AI (4 chapters)
-
-Purpose: Develop a systematic workflow for using AI to investigate, understand, and resolve software problems.
-
-1. Understanding Errors and Stack Traces
-2. Giving AI the Right Debugging Context
-3. Investigating Bugs Systematically
-4. Verifying AI-Suggested Fixes
-
-### Section 07 — Documentation & Testing (3 chapters)
-
-Purpose: Show how AI can reduce the time and effort required for documentation and software testing.
-
-1. Using AI to Write and Improve Documentation
-2. Using AI to Generate and Improve Tests
-3. Reviewing Documentation and Tests with AI
-
-### Section 08 — Security & Best Practices (5 chapters)
-
-Purpose: Teach responsible and effective AI usage while protecting code, data, credentials, and software quality.
-
-1. Protecting Sensitive Information When Using AI
-2. Reviewing AI-Generated Code for Security Risks
-3. Avoiding Blind Trust in AI Output
-4. Verifying and Validating AI-Generated Work
-5. Building a Responsible AI-Assisted Development Workflow
-
-**Total: 8 sections, 43 chapters.** Chapter numbers shown in the application are sequential across the complete course.
+Run `npm run validate:curriculum` to check the curriculum and any lesson files that exist. Missing lessons are allowed during incremental authoring. Run `npm run validate:content:complete` to require a valid file for every chapter, and `npm test` for automated curriculum, schema, repository, access, API, and sanitization tests.
 
 ## Course content format
 
-The approved course formats are written lessons, code examples, real-world development scenarios, AI prompts and workflows, explanations, practical demonstrations, and TTS audio narration.
+The intended course format is written lessons, code examples, real-world development scenarios, AI prompts and workflows, explanations, practical demonstrations, and optional TTS narration. The homepage currently contains an illustrative audio-control mockup; actual TTS playback is not implemented.
 
 The application does not currently provide interactive coding sandboxes, browser coding playgrounds, automated coding challenges, lesson checkpoints, quizzes, in-platform coding assignments, or automated skill assessments. Avoid describing these as product features unless they are implemented in a future version.
 
@@ -110,14 +27,14 @@ The application does not currently provide interactive coding sandboxes, browser
 The current frontend is a responsive React 19 application built with Vite. It contains a homepage with:
 
 - Hero section and product positioning
-- Feature cards for written lessons and code examples, AI-powered workflows, and TTS narration
+- Feature cards for written lessons and code examples, AI-powered workflows, and planned TTS narration
 - Eight expandable curriculum cards with chapter titles
 - Course-format overview
 - Access-plan cards, FAQs, and navigation anchors
 - Light and dark themes; the saved preference is stored in local storage, with the operating-system theme used on first visit
 - A hero entrance animation that replays when the hero re-enters the viewport and respects reduced-motion preferences
 
-The React frontend is a public marketing and curriculum overview; it does not yet include a sign-in screen, student dashboard, lesson player, or authored lesson bodies. A separate Express/Mongoose API now provides persisted users, courses, regional pricing, payment records, purchase-protected lesson access, progress, certificates, Super Admin pricing/transaction/certificate endpoints, and audit records. The app's chapter list remains a curriculum overview, not a lesson player or progress system. See [`backend/README.md`](backend/README.md) for backend setup and API details.
+The React frontend is a public marketing and curriculum overview with a Super Admin sign-in; it does not yet include learner sign-in/registration, a student dashboard, or lesson player. The homepage audio controls are illustrative and do not play audio. A separate Express/Mongoose API provides persisted users, courses, regional pricing, payment records, purchase-protected lesson delivery, progress, certificates, Super Admin pricing/transaction/certificate endpoints, and audit records. Authored lesson JSON is read from the repository, while MongoDB stores commerce and learner/application state. The app's chapter list remains a curriculum overview, not a lesson player or progress system. See [`backend/README.md`](backend/README.md) for backend setup and API details.
 
 The files in `UI From Stitch/` are design references. Older curriculum descriptions and mock interface elements in those references are not authoritative product content. Use `src/data/curriculum.js` for approved course information.
 
@@ -203,7 +120,7 @@ Deployment configuration is provided by `vercel.json` and `render.yaml`. Vercel 
 
 ### Access, progress, and certificates
 
-Paid purchase records control lesson and progress API access. Chapter completion is stored per user and course; completion percentage is calculated from chapters in MongoDB. A certificate is issued once only after all chapters of a certificate-eligible course are complete. Public certificate verification is available by certificate ID. The backend APIs are present, but the repository still needs authored lesson bodies and learner-facing login, course, progress, and certificate screens to provide the complete learning experience.
+Paid purchase records control lesson and progress API access. Lesson delivery resolves a stable `chapterId` to `content/lessons/<chapterId>.json`, validates it with the Phase 3 contract, and sanitizes assessment answer keys before returning it. Public course endpoints expose catalog metadata only. The current authored set is incremental; `npm run validate:content:complete` checks eventual 43-lesson readiness. Chapter completion is stored per user and course; completion percentage is calculated from chapters in MongoDB. A certificate is issued once only after all chapters of a certificate-eligible course are complete. Public certificate verification is available by certificate ID. Learner-facing lesson, progress, and certificate screens are not implemented.
 
 ### Admin commerce
 

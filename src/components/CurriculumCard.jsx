@@ -7,7 +7,7 @@ export default function CurriculumCard({ section }) {
 
   return (
     <article className={`path-card ${section.color}`}>
-      <div className="path-meta"><span>SECTION {section.number}</span><span>{section.chapters.length} CHAPTERS</span></div>
+      <div className="path-meta"><span>SECTION {String(section.number).padStart(2, '0')}</span><span>{section.chapters.length} CHAPTERS</span></div>
       <span className="path-level">{section.category}</span>
       <h3>{section.title}</h3>
       <p>{section.description}</p>
@@ -17,7 +17,7 @@ export default function CurriculumCard({ section }) {
           {chaptersOpen ? 'HIDE CHAPTERS' : 'VIEW CHAPTERS'} <Icon name={chaptersOpen ? 'close' : 'arrow'} size={13}/>
         </button>
       </div>
-      <ol className="chapter-list" id={chaptersId} hidden={!chaptersOpen}>{section.chapters.map((chapter) => <li key={chapter.number}><span>{chapter.number}</span>{chapter.title}</li>)}</ol>
+      <ol className="chapter-list" id={chaptersId} hidden={!chaptersOpen}>{section.chapters.map((chapter) => <li key={chapter.id}><span>{String(chapter.number).padStart(2, '0')}</span>{chapter.title}</li>)}</ol>
     </article>
   )
 }

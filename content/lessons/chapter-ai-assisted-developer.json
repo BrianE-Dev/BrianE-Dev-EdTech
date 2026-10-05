@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-ai-assisted-developer",
+  "title": "The AI-Assisted Developer",
+  "objectives": [
+    "Explain how AI can support software development without replacing engineering judgment.",
+    "Choose a bounded development task that is appropriate for AI assistance.",
+    "Review AI-generated suggestions against project context and evidence."
+  ],
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "AI as a collaborator in engineering work"
+    },
+    {
+      "type": "paragraph",
+      "text": "An AI-assisted developer brings a model into a workflow to speed up exploration, drafting, and analysis. The developer still owns the goal, supplies relevant context, checks the result, and decides whether it belongs in the codebase."
+    },
+    {
+      "type": "quote",
+      "text": "Treat a model response as a proposal that needs review, not as evidence that the work is correct.",
+      "attribution": "Engineering review principle"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "A repeatable working loop"
+    },
+    {
+      "type": "ordered-list",
+      "items": [
+        "State the task and the outcome you need.",
+        "Give the model the smallest useful project context, including constraints.",
+        "Ask for a proposal or a small change that can be reviewed.",
+        "Check the reasoning, inspect the diff, and run relevant verification.",
+        "Keep, revise, or reject the suggestion based on evidence."
+      ]
+    },
+    {
+      "type": "callout",
+      "variant": "tip",
+      "title": "Keep the task bounded",
+      "text": "A narrow request such as explaining one function or drafting a focused test is easier to evaluate than asking a model to redesign an unfamiliar application all at once."
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Give useful context and constraints"
+    },
+    {
+      "type": "paragraph",
+      "text": "A useful request names the relevant files or behavior, describes the expected outcome, and states constraints such as supported runtime versions or existing patterns. Avoid sharing secrets, private user data, or proprietary material unless the tool and organization explicitly permit it."
+    },
+    {
+      "type": "list",
+      "items": [
+        "Include the error message or failing behavior when asking for debugging help.",
+        "Provide only the code and documentation needed for the current task.",
+        "Ask the model to identify assumptions and suggest checks when uncertainty remains."
+      ]
+    },
+    {
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Explain why parseUser rejects a valid-looking email.\nContext: src/users/parseUser.js and the failing input below.\nConstraints: Do not change the public return shape.\nRequest: Trace the validation path, identify the likely cause, and suggest a focused test before proposing a fix.",
+      "caption": "A task brief that asks for an inspectable first step."
+    },
+    {
+      "type": "table",
+      "headers": ["Task", "Useful model contribution", "Developer check"],
+      "rows": [
+        ["Understand unfamiliar code", "Summarize control flow and dependencies", "Compare the explanation with the actual call sites"],
+        ["Draft a test", "Suggest cases and an initial test structure", "Check assertions against the intended behavior"],
+        ["Debug a failure", "Offer hypotheses from logs and code context", "Reproduce the failure and verify the root cause"]
+      ]
+    },
+    {
+      "type": "callout",
+      "variant": "warning",
+      "title": "Review before accepting changes",
+      "text": "Generated code can be incomplete, insecure, incompatible with project conventions, or based on an incorrect assumption. Read every changed line and run checks that match the risk of the change."
+    },
+    {
+      "type": "divider"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Practice: review an AI suggestion"
+    },
+    {
+      "type": "paragraph",
+      "text": "Choose a small task from a project you are allowed to share with your selected AI tool. Ask for a proposal, then list what you would inspect or test before using it."
+    }
+  ],
+  "ttsText": "An AI-assisted developer uses a model to support exploration, drafting, and analysis while remaining responsible for the outcome. State a bounded task, provide relevant context and constraints, review the proposal, inspect any changes, and verify the result. Do not share secrets or private data. Treat each response as a proposal that needs evidence and review.",
+  "exercises": [
+    {
+      "id": "exercise-ai-assisted-developer-review-loop",
+      "type": "reflection",
+      "title": "Plan a reviewable AI-assisted task",
+      "objective": "Practice defining a bounded task and a concrete review step.",
+      "instructions": [
+        "Choose a routine development task that does not require sharing restricted information.",
+        "Write a short task brief with the goal, relevant context, and constraints.",
+        "Name one way you will independently verify the result."
+      ],
+      "constraints": [
+        "Do not include credentials, private user data, or code you are not permitted to share."
+      ],
+      "expectedOutcome": "A task brief and a verification step that make the model's contribution reviewable.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-ai-assisted-developer-review-loop",
+      "type": "multiple-choice",
+      "prompt": "After an AI tool proposes a code change, what should the developer do before accepting it?",
+      "options": [
+        {
+          "id": "option-accept-immediately",
+          "text": "Accept it because the model produced a complete response."
+        },
+        {
+          "id": "option-review-and-verify",
+          "text": "Inspect the change and verify it against the task and project behavior."
+        },
+        {
+          "id": "option-share-more-secrets",
+          "text": "Provide credentials so the model can make a more confident change."
+        }
+      ],
+      "correctOptionId": "option-review-and-verify",
+      "explanation": "The developer remains responsible for correctness and safety, so generated changes need review and relevant verification.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}
