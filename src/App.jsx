@@ -34,7 +34,6 @@ function LandingPage() {
   const [pricingError, setPricingError] = useState('')
   const [paymentMessage, setPaymentMessage] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
 
@@ -63,7 +62,7 @@ function LandingPage() {
 
   useEffect(() => {
     api('/pricing').then(setPricing).catch((error) => setPricingError(error.message))
-    api('/auth/me').then(({ user }) => { setIsAuthenticated(true); setIsAdmin(user.role === 'super_admin') }).catch(() => { setIsAuthenticated(false); setIsAdmin(false) })
+    api('/auth/me').then(({ user }) => setIsAdmin(user.role === 'super_admin')).catch(() => setIsAdmin(false))
     const params = new URLSearchParams(window.location.search)
     const reference = params.get('reference') || params.get('trxref')
     if (params.get('payment') === 'return' && reference) {
@@ -76,15 +75,19 @@ function LandingPage() {
 
   const closeMenu = () => setMenuOpen(false)
   const purchaseCourse = async () => {
-    if (!isAuthenticated) {
-      window.location.assign(`/learn/login?returnTo=${encodeURIComponent('/learn')}`)
-      return
-    }
     setPaymentBusy(true); setPricingError('')
     try {
+      await api('/auth/me')
       const { authorizationUrl } = await api('/brianedev/payments/initialize', { method: 'POST', body: JSON.stringify({ productId: 'ai-powered-developer-productivity' }) })
       window.location.assign(authorizationUrl)
-    } catch (error) { setPricingError(error.message); setPaymentBusy(false) }
+    } catch (error) {
+      setPaymentBusy(false)
+      if (error.status === 401) {
+        window.location.assign(`/learn/login?returnTo=${encodeURIComponent('/#pricing')}`)
+        return
+      }
+      setPricingError(error.message)
+    }
   }
   const regionalPrice = pricing ? {
     ...plans[0],

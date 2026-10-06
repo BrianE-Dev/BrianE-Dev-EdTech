@@ -82,6 +82,18 @@ test('lesson rejects duplicate exercise and assessment IDs', () => {
   assert.ok(result.error.issues.some((issue) => issue.message.includes('Assessment IDs must be unique')))
 })
 
+test('preview metadata requires unique stable block IDs that exist in the Chapter 1 lesson', () => {
+  const previewLesson = {
+    ...validLessonFixture,
+    blocks: [{ id: 'block-preview-intro', type: 'paragraph', text: 'Preview block.' }],
+    preview: { blockIds: ['block-preview-intro'] },
+  }
+  assert.equal(lessonSchema.safeParse(previewLesson).success, true)
+  assert.equal(lessonSchema.safeParse({ ...previewLesson, preview: { blockIds: ['block-missing'] } }).success, false)
+  assert.equal(lessonSchema.safeParse({ ...previewLesson, preview: { blockIds: ['block-preview-intro', 'block-preview-intro'] } }).success, false)
+  assert.equal(lessonSchema.safeParse({ ...previewLesson, chapterId: 'chapter-choosing-the-right-ai-tool' }).success, false)
+})
+
 test('frontend assessment schema rejects server-only answer keys', () => {
   assert.equal(publicAssessmentSchema.safeParse(validAssessmentFixture).success, false)
   const publicAssessment = { ...validAssessmentFixture }

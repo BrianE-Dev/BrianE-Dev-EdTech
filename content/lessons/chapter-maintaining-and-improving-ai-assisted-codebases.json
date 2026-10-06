@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-maintaining-and-improving-ai-assisted-codebases",
+  "title": "Maintaining and Improving AI-Assisted Codebases",
+  "objectives": [
+    "Explain how Maintaining and Improving AI-Assisted Codebases supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-opening",
+      "type": "paragraph",
+      "text": "Maintain AI-assisted systems through ownership, observability, and evidence-based cleanup. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-why",
+      "type": "paragraph",
+      "text": "This matters in professional ai-assisted software engineering because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: maintain AI-assisted systems through ownership, observability, and evidence-based cleanup.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Track why code exists; monitor defects and complexity; review dependencies and tests; use AI to explore options, then prioritize from actual maintenance signals.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-example",
+      "type": "paragraph",
+      "text": "A generated abstraction that adds indirection without reuse should be simplified when future changes and tests show it obscures behavior. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Maintain AI-assisted systems through ownership, observability, and evidence-based cleanup.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Track why code exists; monitor defects and complexity; review dependencies and tests; use AI to explore options, then prioritize from actual maintenance signals.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Maintaining and Improving AI-Assisted Codebases requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-maintaining-and-improving-ai-assisted-codebases-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Maintaining and Improving AI-Assisted Codebases. Maintain AI-assisted systems through ownership, observability, and evidence-based cleanup. Track why code exists; monitor defects and complexity; review dependencies and tests; use AI to explore options, then prioritize from actual maintenance signals. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-maintaining-and-improving-ai-assisted-codebases-practice",
+      "type": "practical",
+      "title": "Practice: Maintaining and Improving AI-Assisted Codebases",
+      "objective": "Choose a maintenance signal and define a small improvement, evidence of benefit, and regression check.",
+      "instructions": [
+        "Choose a small, permitted task related to Maintaining and Improving AI-Assisted Codebases.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Choose a maintenance signal and define a small improvement, evidence of benefit, and regression check.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-maintaining-and-improving-ai-assisted-codebases-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Maintaining and Improving AI-Assisted Codebases and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-maintaining-and-improving-ai-assisted-codebases-workflow-evidence",
+          "text": "Apply the workflow: Track why code exists; monitor defects and complexity; review dependencies and tests; use AI to explore options, then prioritize from actual maintenance signals. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-maintaining-and-improving-ai-assisted-codebases-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-maintaining-and-improving-ai-assisted-codebases-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-maintaining-and-improving-ai-assisted-codebases-workflow-evidence",
+      "explanation": "For Maintaining and Improving AI-Assisted Codebases, the recommendation is useful only when evaluated against task context and evidence. Track why code exists; monitor defects and complexity; review dependencies and tests; use AI to explore options, then prioritize from actual maintenance signals. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-maintaining-and-improving-ai-assisted-codebases-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Maintain AI-assisted systems through ownership, observability, and evidence-based cleanup Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-maintaining-and-improving-ai-assisted-codebases-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-maintaining-and-improving-ai-assisted-codebases-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-maintaining-and-improving-ai-assisted-codebases-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-maintaining-and-improving-ai-assisted-codebases-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

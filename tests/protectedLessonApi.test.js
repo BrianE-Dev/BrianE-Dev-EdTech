@@ -15,13 +15,16 @@ const [{ default: app }, models] = await Promise.all([
   import('../backend/src/app.js'),
   import('../backend/src/models/index.js'),
 ])
-const { AssessmentAttempt, Course, Payment, Pricing, Progress, User } = models
+const { curriculum } = await import('../src/data/curriculum.js')
+const { getLessonByChapterId } = await import('../backend/src/services/lessonRepository.js')
+const { AssessmentAttempt, Certificate, Course, Payment, Pricing, Progress, User } = models
 
 const course = {
   id: '507f1f77bcf86cd799439011',
   title: 'AI-Powered Developer Productivity for Software Engineers',
   slug: 'ai-powered-developer-productivity',
   description: 'Course catalog description',
+  certificateEligible: true,
   sections: [{ title: 'Sensitive stored section', chapters: [{ title: 'Stored title', content: 'Sensitive embedded content' }] }],
 }
 const userDbId = '507f1f77bcf86cd799439012'
@@ -47,6 +50,8 @@ const originals = {
   assessmentCreate: AssessmentAttempt.create,
   assessmentExists: AssessmentAttempt.exists,
   pricingFind: Pricing.find,
+  certificateFind: Certificate.find,
+  certificateFindOne: Certificate.findOne,
 }
 let progressRecords
 let attemptRecords
@@ -104,6 +109,8 @@ test.before(async () => {
   }
   AssessmentAttempt.exists = async (filter) => attemptRecords.some((item) => item.user === filter.user && item.course === filter.course && item.chapterId === filter.chapterId && item.assessmentId === filter.assessmentId && item.passed === filter.passed)
   Pricing.find = () => ({ sort: async () => [] })
+  Certificate.find = async () => []
+  Certificate.findOne = () => ({ select: async () => null })
   server = createServer(app)
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   baseUrl = `http://127.0.0.1:${server.address().port}`
@@ -124,6 +131,8 @@ test.after(async () => {
   AssessmentAttempt.create = originals.assessmentCreate
   AssessmentAttempt.exists = originals.assessmentExists
   Pricing.find = originals.pricingFind
+  Certificate.find = originals.certificateFind
+  Certificate.findOne = originals.certificateFindOne
 })
 
 function sessionCookie(userId = userDbId) {
@@ -139,13 +148,15 @@ function apiJson(path, { userId = userDbId, method = 'GET', body } = {}) {
   })
 }
 
-test('protected lesson API enforces authentication and existing paid purchase access', async () => {
+test('paid lesson API returns purchase-required for unauthenticated and unpaid visitors', async () => {
   paid = false
   const unauthenticated = await fetch(`${baseUrl}/api/courses/${course.id}/lessons/chapter-ai-assisted-developer`)
-  assert.equal(unauthenticated.status, 401)
+  assert.equal(unauthenticated.status, 403)
+  assert.equal((await unauthenticated.json()).code, 'COURSE_PURCHASE_REQUIRED')
 
   const denied = await fetch(`${baseUrl}/api/courses/${course.id}/lessons/chapter-ai-assisted-developer`, { headers: { cookie: sessionCookie() } })
   assert.equal(denied.status, 403)
+  assert.equal((await denied.json()).code, 'COURSE_PURCHASE_REQUIRED')
 
   paid = true
   const allowed = await fetch(`${baseUrl}/api/courses/${course.id}/lessons/chapter-ai-assisted-developer`, { headers: { cookie: sessionCookie() } })
@@ -158,13 +169,228 @@ test('protected lesson API enforces authentication and existing paid purchase ac
   assert.equal(JSON.stringify(body).includes('option-review-and-verify'), true)
 })
 
-test('protected lesson API handles invalid chapter, unavailable content, and unknown course', async () => {
+test('public and authenticated unpaid visitors receive only the Chapter 1 preview', async () => {
+  paid = false
+  progressRecords.clear()
+  for (const userId of [null, userDbId]) {
+    const response = await apiJson('/courses/ai-powered-developer-productivity/lessons/chapter-ai-assisted-developer/preview', { userId })
+    assert.equal(response.status, 200)
+    const body = await response.json()
+    assert.equal(body.access.level, 'preview')
+    assert.equal(body.access.isPreview, true)
+    assert.equal(body.access.isPurchased, false)
+    assert.equal(body.progress, null)
+    assert.deepEqual(body.lesson.blocks.map(({ id }) => id), [
+      'block-ai-collaboration-heading',
+      'block-ai-collaboration-intro',
+      'block-review-principle',
+      'block-repeatable-loop-heading',
+      'block-repeatable-loop-steps',
+      'block-bounded-task-tip',
+    ])
+    assert.deepEqual(body.lesson.assessments, [])
+    assert.deepEqual(body.lesson.exercises, [])
+    assert.equal(body.lesson.ttsText, null)
+    assert.equal(JSON.stringify(body).includes('correctOptionId'), false)
+    assert.equal(JSON.stringify(body).includes('assessment-ai-assisted-developer-review-loop'), false)
+    assert.equal(JSON.stringify(body).includes('assessment-explanation'), false)
+  }
+  assert.equal(progressRecords.size, 0)
+})
+
+test('unpaid direct access to the remainder of Chapter 1 and Chapters 2 and 43 is denied without lesson data', async () => {
+  paid = false
+  for (const userId of [null, userDbId]) {
+    for (const chapterId of ['chapter-ai-assisted-developer', 'chapter-choosing-the-right-ai-tool', 'chapter-the-ai-powered-developer-putting-everything-together']) {
+      const response = await apiJson(`/courses/${course.id}/lessons/${chapterId}`, { userId })
+      assert.equal(response.status, 403)
+      const body = await response.json()
+      assert.equal(body.code, 'COURSE_PURCHASE_REQUIRED')
+      assert.equal(JSON.stringify(body).includes('AI as a collaborator in engineering work'), false)
+      assert.equal(JSON.stringify(body).includes('correctOptionId'), false)
+    }
+    for (const chapterId of ['chapter-choosing-the-right-ai-tool', 'chapter-the-ai-powered-developer-putting-everything-together']) {
+      const response = await apiJson(`/courses/${course.slug}/lessons/${chapterId}/preview`, { userId })
+      assert.equal(response.status, 403)
+      assert.equal((await response.json()).code, 'COURSE_PURCHASE_REQUIRED')
+    }
+  }
+})
+
+test('purchased learners access full lessons for later chapter IDs and ebook', async () => {
+  paid = true
+  progressRecords.clear()
+  attemptRecords = []
+  const chapterOne = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer`)
+  assert.equal(chapterOne.status, 200)
+  const full = await chapterOne.json()
+  assert.equal(full.access.level, 'full')
+  assert.equal(full.access.isPurchased, true)
+  assert.ok(full.lesson.blocks.length > 6)
+  assert.ok(full.lesson.assessments.length > 0)
+
+  for (const chapterId of ['chapter-choosing-the-right-ai-tool', 'chapter-the-ai-powered-developer-putting-everything-together']) {
+    const response = await apiJson(`/courses/${course.id}/lessons/${chapterId}`)
+    assert.equal(response.status, 200)
+    const body = await response.json()
+    assert.equal(body.lesson.chapterId, chapterId)
+    assert.equal(body.access.level, 'full')
+    assert.equal(body.access.isPurchased, true)
+  }
+
+  const canonicalChapters = curriculum.sections.flatMap((section) => section.chapters)
+  for (const chapter of canonicalChapters) {
+    const response = await apiJson(`/courses/${course.id}/lessons/${chapter.id}`)
+    assert.equal(response.status, 200, `${chapter.id} should be delivered to a purchaser`)
+    const body = await response.json()
+    assert.equal(body.lesson.chapterId, chapter.id)
+    assert.ok(body.lesson.assessments.length > 0)
+    for (const assessment of body.lesson.assessments) {
+      assert.equal(Object.hasOwn(assessment, 'correctOptionId'), false)
+      assert.equal(Object.hasOwn(assessment, 'explanation'), false)
+    }
+  }
+
+  const assessmentChapterId = 'chapter-choosing-the-right-ai-tool'
+  const lessonSource = await getLessonByChapterId(assessmentChapterId)
+  const wrongAnswers = lessonSource.assessments.map((assessment) => ({
+    questionId: assessment.id,
+    optionId: assessment.options.find((option) => option.id !== assessment.correctOptionId).id,
+  }))
+  const failedAttempt = await apiJson(`/courses/${course.id}/lessons/${assessmentChapterId}/assessment`, { method: 'POST', body: { answers: wrongAnswers } })
+  assert.equal(failedAttempt.status, 201)
+  assert.equal((await failedAttempt.json()).assessment.passed, false)
+  const beforePass = await apiJson(`/courses/${course.id}/progress`)
+  const beforePassState = (await beforePass.json()).chapters.find((chapter) => chapter.chapterId === assessmentChapterId)
+  assert.equal(beforePassState.status, 'in_progress')
+
+  const optionalExercise = lessonSource.exercises.find((exercise) => !exercise.required)
+  const optionalAcknowledgment = await apiJson(`/courses/${course.id}/lessons/${assessmentChapterId}/exercises/${optionalExercise.id}/complete`, { method: 'POST', body: {} })
+  assert.deepEqual(await optionalAcknowledgment.json(), { exerciseId: optionalExercise.id, required: false, acknowledged: false })
+  const correctAnswers = lessonSource.assessments.map((assessment) => ({ questionId: assessment.id, optionId: assessment.correctOptionId }))
+  const passedAttempt = await apiJson(`/courses/${course.id}/lessons/${assessmentChapterId}/assessment`, { method: 'POST', body: { answers: correctAnswers } })
+  assert.equal(passedAttempt.status, 201)
+  assert.equal((await passedAttempt.json()).assessment.passed, true)
+  const afterPass = await apiJson(`/courses/${course.id}/progress`)
+  const afterPassState = (await afterPass.json()).chapters.find((chapter) => chapter.chapterId === assessmentChapterId)
+  assert.equal(afterPassState.status, 'completed')
+
+  const ebook = await apiJson(`/courses/${course.id}/ebook`)
+  assert.equal(ebook.status, 200)
+  assert.match(ebook.headers.get('content-type'), /application\/pdf/)
+  assert.match(ebook.headers.get('content-disposition'), /attachment; filename="BrianE-Dev-Course-Ebook\.pdf"/)
+  assert.equal(Buffer.from(await ebook.arrayBuffer()).subarray(0, 5).toString(), '%PDF-')
+})
+
+test('ebook and certificate endpoints reject visitors and authenticated unpaid learners', async () => {
+  paid = false
+  const ebookStatus = await apiJson(`/courses/${course.id}/ebook/status`, { userId: null })
+  assert.equal(ebookStatus.status, 200)
+  assert.deepEqual(await ebookStatus.json(), { available: true, title: 'BrianE-Dev Course Ebook' })
+  const unauthenticatedEbook = await apiJson(`/courses/${course.id}/ebook`, { userId: null })
+  assert.equal(unauthenticatedEbook.status, 403)
+  assert.equal((await unauthenticatedEbook.json()).code, 'COURSE_PURCHASE_REQUIRED')
+  const unpaidEbook = await apiJson(`/courses/${course.id}/ebook`)
+  assert.equal(unpaidEbook.status, 403)
+  assert.equal((await unpaidEbook.json()).code, 'COURSE_PURCHASE_REQUIRED')
+
+  const unpaidCertificates = await apiJson('/me/certificates')
+  assert.equal(unpaidCertificates.status, 403)
+  assert.equal((await unpaidCertificates.json()).code, 'COURSE_PURCHASE_REQUIRED')
+  const anonymousCertificates = await apiJson('/me/certificates', { userId: null })
+  assert.equal(anonymousCertificates.status, 401)
+  const publicCertificate = await apiJson('/certificates/verify/BE-test', { userId: null })
+  assert.equal(publicCertificate.status, 404)
+
+  paid = true
+  const incompleteCertificates = await apiJson('/me/certificates')
+  assert.equal(incompleteCertificates.status, 200)
+  assert.deepEqual(await incompleteCertificates.json(), [])
+  paid = false
+})
+
+test('certificate data requires a paid owner with all 43 stable chapters complete', async () => {
+  paid = true
+  const progressKey = `${userDbId}:${course.id}`
+  const chapters = (await import('../src/data/curriculum.js')).curriculum.sections.flatMap((section) => section.chapters)
+  progressRecords.set(progressKey, {
+    user: userDbId,
+    course: course.id,
+    chapterProgress: chapters.map((chapter) => ({ chapterId: chapter.id, status: 'completed' })),
+    canonicalCompletionPercentage: 100,
+  })
+  const certificate = {
+    certificateId: 'BE-test-certificate',
+    recipientName: 'Test User',
+    courseTitle: course.title,
+    issueDate: new Date('2026-01-01T00:00:00.000Z'),
+    completionDate: new Date('2026-01-01T00:00:00.000Z'),
+    verificationStatus: 'valid',
+    user: userDbId,
+    course: course.id,
+  }
+  Certificate.find = async () => [certificate]
+  Certificate.findOne = (filter) => ({ select: async () => filter.certificateId === certificate.certificateId ? certificate : null })
+
+  const completeProgress = progressRecords.get(progressKey)
+  progressRecords.set(progressKey, {
+    ...completeProgress,
+    chapterProgress: chapters.slice(0, -1).map((chapter) => ({ chapterId: chapter.id, status: 'completed' })),
+  })
+  const incompleteDownload = await apiJson('/me/certificates/BE-test-certificate/download')
+  assert.equal(incompleteDownload.status, 403)
+  assert.equal((await incompleteDownload.json()).code, 'CERTIFICATE_NOT_ELIGIBLE')
+  progressRecords.set(progressKey, completeProgress)
+
+  const list = await apiJson('/me/certificates')
+  assert.equal(list.status, 200)
+  assert.equal((await list.json()).length, 1)
+  const verified = await apiJson('/certificates/verify/BE-test-certificate')
+  assert.equal(verified.status, 200)
+  const verifiedBody = await verified.json()
+  assert.equal(verifiedBody.certificateId, certificate.certificateId)
+  assert.equal(verifiedBody.status, 'valid')
+  assert.equal(verifiedBody.learnerName, 'Test User')
+  assert.equal('email' in verifiedBody, false)
+  assert.equal('user' in verifiedBody, false)
+  assert.equal('course' in verifiedBody, false)
+
+  const publicVerifier = await apiJson('/certificates/verify/BE-test-certificate', { userId: null })
+  assert.equal(publicVerifier.status, 200)
+  const otherOwner = await apiJson('/certificates/verify/BE-test-certificate', { userId: secondUserId })
+  assert.equal(otherOwner.status, 200)
+
+  const unauthenticatedDownload = await apiJson('/me/certificates/BE-test-certificate/download', { userId: null })
+  assert.equal(unauthenticatedDownload.status, 401)
+  paid = false
+  const unpaidDownload = await apiJson('/me/certificates/BE-test-certificate/download')
+  assert.equal(unpaidDownload.status, 403)
+  assert.equal((await unpaidDownload.json()).code, 'COURSE_PURCHASE_REQUIRED')
+  paid = true
+  const wrongOwnerDownload = await apiJson('/me/certificates/BE-test-certificate/download', { userId: secondUserId })
+  assert.equal(wrongOwnerDownload.status, 403)
+  assert.equal((await wrongOwnerDownload.json()).code, 'CERTIFICATE_ACCESS_DENIED')
+  const download = await apiJson('/me/certificates/BE-test-certificate/download')
+  assert.equal(download.status, 200)
+  assert.match(download.headers.get('content-type'), /application\/pdf/)
+  assert.match(download.headers.get('content-disposition'), /BrianE-Dev-Certificate-BE-test-certificate\.pdf/)
+  assert.equal(Buffer.from(await download.arrayBuffer()).subarray(0, 5).toString(), '%PDF-')
+  const invalidPublicId = await apiJson('/certificates/verify/not-a-certificate', { userId: null })
+  assert.equal(invalidPublicId.status, 404)
+  const invalidDownload = await apiJson('/me/certificates/not-a-certificate/download')
+  assert.equal(invalidDownload.status, 404)
+  progressRecords.delete(progressKey)
+  paid = false
+})
+
+test('protected lesson API handles invalid chapter, complete content, and unknown course', async () => {
   paid = true
   const headers = { cookie: sessionCookie() }
   const unknownChapter = await fetch(`${baseUrl}/api/courses/${course.id}/lessons/chapter-not-real`, { headers })
   assert.equal(unknownChapter.status, 404)
-  const missingContent = await fetch(`${baseUrl}/api/courses/${course.id}/lessons/chapter-when-not-to-use-ai`, { headers })
-  assert.equal(missingContent.status, 404)
+  const availableContent = await fetch(`${baseUrl}/api/courses/${course.id}/lessons/chapter-when-not-to-use-ai`, { headers })
+  assert.equal(availableContent.status, 200)
+  assert.equal((await availableContent.json()).lesson.chapterId, 'chapter-when-not-to-use-ai')
   const unknownCourse = await fetch(`${baseUrl}/api/courses/not-a-course/lessons/chapter-ai-assisted-developer`, { headers })
   assert.equal(unknownCourse.status, 404)
 })
@@ -332,16 +558,26 @@ test('lesson API navigation returns first, middle, and final canonical neighbors
   assert.equal(firstBody.navigation.next.chapterId, 'chapter-choosing-the-right-ai-tool')
   assert.equal(firstBody.chapter.chapterId, 'chapter-ai-assisted-developer')
 
-  const missingButCanonical = await apiJson(`/courses/${course.id}/lessons/chapter-handling-larger-development-tasks`, { userId: userDbId })
-  assert.equal(missingButCanonical.status, 404)
-  const finalMissing = await apiJson(`/courses/${course.id}/lessons/chapter-the-ai-powered-developer-putting-everything-together`, { userId: userDbId })
-  assert.equal(finalMissing.status, 404)
+  const middle = await apiJson(`/courses/${course.id}/lessons/chapter-handling-larger-development-tasks`, { userId: userDbId })
+  assert.equal(middle.status, 200)
+  const middleBody = await middle.json()
+  assert.equal(middleBody.chapter.chapterId, 'chapter-handling-larger-development-tasks')
+  assert.equal(middleBody.navigation.previous.chapterId, 'chapter-explaining-existing-codebases')
+  assert.equal(middleBody.navigation.next.chapterId, 'chapter-chatgpt-vs-github-copilot-vs-codex')
+
+  const final = await apiJson(`/courses/${course.id}/lessons/chapter-the-ai-powered-developer-putting-everything-together`, { userId: userDbId })
+  assert.equal(final.status, 200)
+  const finalBody = await final.json()
+  assert.equal(finalBody.chapter.chapterId, 'chapter-the-ai-powered-developer-putting-everything-together')
+  assert.equal(finalBody.navigation.previous.chapterId, 'chapter-designing-your-personal-ai-development-workflow')
+  assert.equal(finalBody.navigation.next, null)
 })
 
 test('protected image endpoint enforces authentication, paid access, and referenced-image restriction', async () => {
   paid = true
   const noSession = await fetch(`${baseUrl}/api/courses/${course.id}/lessons/chapter-ai-assisted-developer/assets?src=content%2Fprivate.png`)
-  assert.equal(noSession.status, 401)
+  assert.equal(noSession.status, 403)
+  assert.equal((await noSession.json()).code, 'COURSE_PURCHASE_REQUIRED')
   paid = false
   const unpaid = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/assets?src=content%2Fprivate.png`, { userId: userDbId })
   assert.equal(unpaid.status, 403)

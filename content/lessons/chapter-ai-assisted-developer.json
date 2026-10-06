@@ -3,6 +3,16 @@
   "contentVersion": "1.0.0",
   "chapterId": "chapter-ai-assisted-developer",
   "title": "The AI-Assisted Developer",
+  "preview": {
+    "blockIds": [
+      "block-ai-collaboration-heading",
+      "block-ai-collaboration-intro",
+      "block-review-principle",
+      "block-repeatable-loop-heading",
+      "block-repeatable-loop-steps",
+      "block-bounded-task-tip"
+    ]
+  },
   "objectives": [
     "Explain how AI can support software development without replacing engineering judgment.",
     "Choose a bounded development task that is appropriate for AI assistance.",
@@ -10,25 +20,30 @@
   ],
   "blocks": [
     {
+      "id": "block-ai-collaboration-heading",
       "type": "heading",
       "level": 2,
       "text": "AI as a collaborator in engineering work"
     },
     {
+      "id": "block-ai-collaboration-intro",
       "type": "paragraph",
       "text": "An AI-assisted developer brings a model into a workflow to speed up exploration, drafting, and analysis. The developer still owns the goal, supplies relevant context, checks the result, and decides whether it belongs in the codebase."
     },
     {
+      "id": "block-review-principle",
       "type": "quote",
       "text": "Treat a model response as a proposal that needs review, not as evidence that the work is correct.",
       "attribution": "Engineering review principle"
     },
     {
+      "id": "block-repeatable-loop-heading",
       "type": "heading",
       "level": 3,
       "text": "A repeatable working loop"
     },
     {
+      "id": "block-repeatable-loop-steps",
       "type": "ordered-list",
       "items": [
         "State the task and the outcome you need.",
@@ -39,6 +54,7 @@
       ]
     },
     {
+      "id": "block-bounded-task-tip",
       "type": "callout",
       "variant": "tip",
       "title": "Keep the task bounded",

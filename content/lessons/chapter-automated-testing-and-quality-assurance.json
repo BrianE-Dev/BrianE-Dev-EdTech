@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-automated-testing-and-quality-assurance",
+  "title": "Automated Testing and Quality Assurance",
+  "objectives": [
+    "Explain how Automated Testing and Quality Assurance supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-automated-testing-and-quality-assurance-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-opening",
+      "type": "paragraph",
+      "text": "Use tests as executable evidence across unit, integration, and user-visible behavior. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-why",
+      "type": "paragraph",
+      "text": "This matters in building, debugging, and testing with ai because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: use tests as executable evidence across unit, integration, and user-visible behavior.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Choose test level by risk; cover meaningful partitions and boundaries; review generated tests for assertions and isolation; run them in the normal workflow.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-example",
+      "type": "paragraph",
+      "text": "A mocked unit test cannot prove a route enforces database-backed ownership; add an integration test at that boundary. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Use tests as executable evidence across unit, integration, and user-visible behavior.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Choose test level by risk; cover meaningful partitions and boundaries; review generated tests for assertions and isolation; run them in the normal workflow.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Automated Testing and Quality Assurance requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-automated-testing-and-quality-assurance-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Automated Testing and Quality Assurance. Use tests as executable evidence across unit, integration, and user-visible behavior. Choose test level by risk; cover meaningful partitions and boundaries; review generated tests for assertions and isolation; run them in the normal workflow. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-automated-testing-and-quality-assurance-practice",
+      "type": "practical",
+      "title": "Practice: Automated Testing and Quality Assurance",
+      "objective": "Select a feature and propose layered tests with the risk each test detects and any behavior still requiring manual review.",
+      "instructions": [
+        "Choose a small, permitted task related to Automated Testing and Quality Assurance.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Select a feature and propose layered tests with the risk each test detects and any behavior still requiring manual review.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-automated-testing-and-quality-assurance-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Automated Testing and Quality Assurance and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-automated-testing-and-quality-assurance-workflow-evidence",
+          "text": "Apply the workflow: Choose test level by risk; cover meaningful partitions and boundaries; review generated tests for assertions and isolation; run them in the normal workflow. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-automated-testing-and-quality-assurance-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-automated-testing-and-quality-assurance-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-automated-testing-and-quality-assurance-workflow-evidence",
+      "explanation": "For Automated Testing and Quality Assurance, the recommendation is useful only when evaluated against task context and evidence. Choose test level by risk; cover meaningful partitions and boundaries; review generated tests for assertions and isolation; run them in the normal workflow. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-automated-testing-and-quality-assurance-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Use tests as executable evidence across unit, integration, and user-visible behavior Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-automated-testing-and-quality-assurance-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-automated-testing-and-quality-assurance-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-automated-testing-and-quality-assurance-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-automated-testing-and-quality-assurance-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

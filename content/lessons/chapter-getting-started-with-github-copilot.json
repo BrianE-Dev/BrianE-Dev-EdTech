@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-getting-started-with-github-copilot",
+  "title": "Getting Started with GitHub Copilot",
+  "objectives": [
+    "Explain how Getting Started with GitHub Copilot supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-getting-started-with-github-copilot-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-opening",
+      "type": "paragraph",
+      "text": "Establish an editor workflow that treats Copilot suggestions as optional drafts. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-why",
+      "type": "paragraph",
+      "text": "This matters in github copilot because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: establish an editor workflow that treats Copilot suggestions as optional drafts.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Orient to the file and nearby patterns; state intent in names or comments; inspect the complete suggestion before accepting and verify afterward.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-example",
+      "type": "paragraph",
+      "text": "In a repository with existing validation helpers, inspect nearby tests and naming before accepting a generated helper. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Establish an editor workflow that treats Copilot suggestions as optional drafts.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Orient to the file and nearby patterns; state intent in names or comments; inspect the complete suggestion before accepting and verify afterward.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Getting Started with GitHub Copilot requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-getting-started-with-github-copilot-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Getting Started with GitHub Copilot. Establish an editor workflow that treats Copilot suggestions as optional drafts. Orient to the file and nearby patterns; state intent in names or comments; inspect the complete suggestion before accepting and verify afterward. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-getting-started-with-github-copilot-practice",
+      "type": "practical",
+      "title": "Practice: Getting Started with GitHub Copilot",
+      "objective": "Choose an editor task and write the context, acceptance check, and reason you would reject a plausible suggestion.",
+      "instructions": [
+        "Choose a small, permitted task related to Getting Started with GitHub Copilot.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Choose an editor task and write the context, acceptance check, and reason you would reject a plausible suggestion.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-getting-started-with-github-copilot-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Getting Started with GitHub Copilot and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-getting-started-with-github-copilot-workflow-evidence",
+          "text": "Apply the workflow: Orient to the file and nearby patterns; state intent in names or comments; inspect the complete suggestion before accepting and verify afterward. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-getting-started-with-github-copilot-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-getting-started-with-github-copilot-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-getting-started-with-github-copilot-workflow-evidence",
+      "explanation": "For Getting Started with GitHub Copilot, the recommendation is useful only when evaluated against task context and evidence. Orient to the file and nearby patterns; state intent in names or comments; inspect the complete suggestion before accepting and verify afterward. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-getting-started-with-github-copilot-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Establish an editor workflow that treats Copilot suggestions as optional drafts Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-getting-started-with-github-copilot-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-getting-started-with-github-copilot-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-getting-started-with-github-copilot-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-getting-started-with-github-copilot-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

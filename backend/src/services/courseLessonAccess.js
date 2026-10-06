@@ -5,10 +5,12 @@ export async function canAccessCourseLesson(user, course, {
   PaymentModel = Payment,
   appEnvironment = getPaystackConfig().appEnvironment,
 } = {}) {
-  if (!user?.id || !course?.id) return false
+  const userId = user?.id || user?._id
+  const courseId = course?.id || course?._id
+  if (!userId || !courseId) return false
   return Boolean(await PaymentModel.exists({
-    user: user.id,
-    course: course.id,
+    user: userId,
+    course: courseId,
     application: 'brianedev',
     environment: appEnvironment,
     status: { $in: ['paid', 'successful'] },

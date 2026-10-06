@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-refactoring-and-improving-existing-code",
+  "title": "Refactoring and Improving Existing Code",
+  "objectives": [
+    "Explain how Refactoring and Improving Existing Code supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-refactoring-and-improving-existing-code-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-opening",
+      "type": "paragraph",
+      "text": "Improve structure while preserving observable behavior. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-why",
+      "type": "paragraph",
+      "text": "This matters in chatgpt for developers because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: improve structure while preserving observable behavior.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Define behavior and constraints first; request one small refactor; compare before and after; run focused tests and inspect the diff.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-example",
+      "type": "paragraph",
+      "text": "Extract repeated price formatting into a pure helper while preserving rounding, locale, and null behavior through characterization tests. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Improve structure while preserving observable behavior.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Define behavior and constraints first; request one small refactor; compare before and after; run focused tests and inspect the diff.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Refactoring and Improving Existing Code requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-refactoring-and-improving-existing-code-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Refactoring and Improving Existing Code. Improve structure while preserving observable behavior. Define behavior and constraints first; request one small refactor; compare before and after; run focused tests and inspect the diff. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-refactoring-and-improving-existing-code-practice",
+      "type": "practical",
+      "title": "Practice: Refactoring and Improving Existing Code",
+      "objective": "Select a small refactor, record current behavior, and specify regression checks before changing structure.",
+      "instructions": [
+        "Choose a small, permitted task related to Refactoring and Improving Existing Code.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Select a small refactor, record current behavior, and specify regression checks before changing structure.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-refactoring-and-improving-existing-code-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Refactoring and Improving Existing Code and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-refactoring-and-improving-existing-code-workflow-evidence",
+          "text": "Apply the workflow: Define behavior and constraints first; request one small refactor; compare before and after; run focused tests and inspect the diff. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-refactoring-and-improving-existing-code-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-refactoring-and-improving-existing-code-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-refactoring-and-improving-existing-code-workflow-evidence",
+      "explanation": "For Refactoring and Improving Existing Code, the recommendation is useful only when evaluated against task context and evidence. Define behavior and constraints first; request one small refactor; compare before and after; run focused tests and inspect the diff. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-refactoring-and-improving-existing-code-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Improve structure while preserving observable behavior Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-refactoring-and-improving-existing-code-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-refactoring-and-improving-existing-code-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-refactoring-and-improving-existing-code-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-refactoring-and-improving-existing-code-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

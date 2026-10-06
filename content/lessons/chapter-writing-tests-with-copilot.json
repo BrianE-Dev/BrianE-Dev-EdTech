@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-writing-tests-with-copilot",
+  "title": "Writing Tests with Copilot",
+  "objectives": [
+    "Explain how Writing Tests with Copilot supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-writing-tests-with-copilot-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-writing-tests-with-copilot-opening",
+      "type": "paragraph",
+      "text": "Use generated tests to explore behavior, while ensuring assertions prove requirements. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-writing-tests-with-copilot-why",
+      "type": "paragraph",
+      "text": "This matters in github copilot because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-writing-tests-with-copilot-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-writing-tests-with-copilot-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: use generated tests to explore behavior, while ensuring assertions prove requirements.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Give the function contract and test framework; request cases including boundaries; check each assertion and run tests against both normal and faulty implementations.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-writing-tests-with-copilot-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-writing-tests-with-copilot-example",
+      "type": "paragraph",
+      "text": "A test for an access check should fail when ownership is removed; a test that only asserts status 200 may miss the security requirement. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-writing-tests-with-copilot-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Use generated tests to explore behavior, while ensuring assertions prove requirements.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Give the function contract and test framework; request cases including boundaries; check each assertion and run tests against both normal and faulty implementations.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-writing-tests-with-copilot-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-writing-tests-with-copilot-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-writing-tests-with-copilot-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Writing Tests with Copilot requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-writing-tests-with-copilot-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Writing Tests with Copilot. Use generated tests to explore behavior, while ensuring assertions prove requirements. Give the function contract and test framework; request cases including boundaries; check each assertion and run tests against both normal and faulty implementations. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-writing-tests-with-copilot-practice",
+      "type": "practical",
+      "title": "Practice: Writing Tests with Copilot",
+      "objective": "Ask for a test matrix for a function and assess whether each test would catch a realistic regression.",
+      "instructions": [
+        "Choose a small, permitted task related to Writing Tests with Copilot.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Ask for a test matrix for a function and assess whether each test would catch a realistic regression.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-writing-tests-with-copilot-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Writing Tests with Copilot and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-writing-tests-with-copilot-workflow-evidence",
+          "text": "Apply the workflow: Give the function contract and test framework; request cases including boundaries; check each assertion and run tests against both normal and faulty implementations. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-writing-tests-with-copilot-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-writing-tests-with-copilot-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-writing-tests-with-copilot-workflow-evidence",
+      "explanation": "For Writing Tests with Copilot, the recommendation is useful only when evaluated against task context and evidence. Give the function contract and test framework; request cases including boundaries; check each assertion and run tests against both normal and faulty implementations. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-writing-tests-with-copilot-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Use generated tests to explore behavior, while ensuring assertions prove requirements Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-writing-tests-with-copilot-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-writing-tests-with-copilot-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-writing-tests-with-copilot-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-writing-tests-with-copilot-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

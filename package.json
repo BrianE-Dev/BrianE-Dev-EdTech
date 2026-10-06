@@ -14,7 +14,8 @@
     "test": "node --test",
     "validate:curriculum": "node scripts/validate-course-content.mjs",
     "validate:content:complete": "node scripts/validate-course-content.mjs --require-complete",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ebook:build": "node scripts/build-ebook.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

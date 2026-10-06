@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-prompting-for-software-development",
+  "title": "Prompting for Software Development",
+  "objectives": [
+    "Explain how Prompting for Software Development supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-prompting-for-software-development-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-prompting-for-software-development-opening",
+      "type": "paragraph",
+      "text": "Turn a vague request into a task brief with observable success criteria. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-prompting-for-software-development-why",
+      "type": "paragraph",
+      "text": "This matters in modern ai developer workflow because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-prompting-for-software-development-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-prompting-for-software-development-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: turn a vague request into a task brief with observable success criteria.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "State the goal, relevant files or behavior, constraints, desired response, and how correctness will be checked.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-prompting-for-software-development-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-prompting-for-software-development-example",
+      "type": "paragraph",
+      "text": "For a date parser bug, provide the accepted formats, current behavior, expected behavior, and a failing input; ask for a hypothesis and test before a patch. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-prompting-for-software-development-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Turn a vague request into a task brief with observable success criteria.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: State the goal, relevant files or behavior, constraints, desired response, and how correctness will be checked.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-prompting-for-software-development-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-prompting-for-software-development-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-prompting-for-software-development-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Prompting for Software Development requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-prompting-for-software-development-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Prompting for Software Development. Turn a vague request into a task brief with observable success criteria. State the goal, relevant files or behavior, constraints, desired response, and how correctness will be checked. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-prompting-for-software-development-practice",
+      "type": "practical",
+      "title": "Practice: Prompting for Software Development",
+      "objective": "Rewrite a vague coding request as a bounded brief and name the evidence that would prove the result.",
+      "instructions": [
+        "Choose a small, permitted task related to Prompting for Software Development.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Rewrite a vague coding request as a bounded brief and name the evidence that would prove the result.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-prompting-for-software-development-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Prompting for Software Development and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-prompting-for-software-development-workflow-evidence",
+          "text": "Apply the workflow: State the goal, relevant files or behavior, constraints, desired response, and how correctness will be checked. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-prompting-for-software-development-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-prompting-for-software-development-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-prompting-for-software-development-workflow-evidence",
+      "explanation": "For Prompting for Software Development, the recommendation is useful only when evaluated against task context and evidence. State the goal, relevant files or behavior, constraints, desired response, and how correctness will be checked. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-prompting-for-software-development-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Turn a vague request into a task brief with observable success criteria Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-prompting-for-software-development-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-prompting-for-software-development-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-prompting-for-software-development-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-prompting-for-software-development-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

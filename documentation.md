@@ -18,7 +18,7 @@ Run `npm run validate:curriculum` to check the curriculum and any lesson files t
 
 ## Course content format
 
-The intended course format is written lessons, code examples, real-world development scenarios, AI prompts and workflows, explanations, practical demonstrations, and optional TTS narration. The homepage currently contains an illustrative audio-control mockup; actual TTS playback is not implemented.
+The intended course format is written lessons, code examples, real-world development scenarios, AI prompts and workflows, explanations, practical demonstrations, and optional TTS narration. The homepage audio controls are illustrative. The authenticated lesson reader provides optional narration through browser speech synthesis when available.
 
 The application does not currently provide interactive coding sandboxes, browser coding playgrounds, automated coding challenges, lesson checkpoints, quizzes, in-platform coding assignments, or automated skill assessments. Avoid describing these as product features unless they are implemented in a future version.
 
@@ -34,7 +34,9 @@ The current frontend is a responsive React 19 application built with Vite. It co
 - Light and dark themes; the saved preference is stored in local storage, with the operating-system theme used on first visit
 - A hero entrance animation that replays when the hero re-enters the viewport and respects reduced-motion preferences
 
-The React frontend is a public marketing and curriculum overview with a Super Admin sign-in; it does not yet include learner sign-in/registration, a student dashboard, or lesson player. The homepage audio controls are illustrative and do not play audio. A separate Express/Mongoose API provides persisted users, courses, regional pricing, payment records, purchase-protected lesson delivery, progress, certificates, Super Admin pricing/transaction/certificate endpoints, and audit records. Authored lesson JSON is read from the repository, while MongoDB stores commerce and learner/application state. The app's chapter list remains a curriculum overview, not a lesson player or progress system. See [`backend/README.md`](backend/README.md) for backend setup and API details.
+The React app includes learner registration and login at `/learn/register` and `/learn/login`, a learner dashboard at `/learn`, and lesson routes at `/courses/:courseSlug/learn/:chapterId`. Chapter 1 offers a server-filtered public preview; the reader displays a purchase gate for all remaining content. Paid learners receive chapter navigation, optional browser speech synthesis, exercise acknowledgments, assessment submissions, and progress/completion status. Course purchases use the existing Paystack flow. Super Admin sign-in is at `/login`, with the protected commerce dashboard at `/admin`.
+
+The separate Express/Mongoose API persists users, courses, regional pricing, payments, progress, certificates, and audit records. Authored lesson JSON is validated and read from the repository; MongoDB stores commerce and learner/application state. Full lesson and progress endpoints require a verified purchase in the active Paystack environment. Assessment answers are scored server-side and answer keys are removed from learner responses. Certificate endpoints require the certificate owner, paid access, and completion of the canonical course requirements. See [`backend/README.md`](backend/README.md) for backend setup and API details.
 
 The files in `UI From Stitch/` are design references. Older curriculum descriptions and mock interface elements in those references are not authoritative product content. Use `src/data/curriculum.js` for approved course information.
 
@@ -54,7 +56,7 @@ The files in `UI From Stitch/` are design references. Older curriculum descripti
 │   ├── index.css            # Global styles and theme tokens
 │   └── main.jsx             # React application entry point
 ├── UI From Stitch/         # Supplied design references and imagery
-├── documentation.md
+├── DOCUMENTATION.md
 ├── index.html
 ├── package.json
 └── vite.config.js
@@ -118,10 +120,30 @@ Keep `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_SECRET`, `JWT_SECRET`, and `MONGOD
 
 Deployment configuration is provided by `vercel.json` and `render.yaml`. Vercel serves the React build, rewrites `/api/*` to Render, and falls back to the app entry point for routes such as `/login` and `/admin`. Render runs the Express API and connects to MongoDB Atlas. The browser calls the same-origin `/api` path, which keeps cookie authentication compatible across the two hosts. Initial Render configuration uses Paystack TEST mode while setting `NODE_ENV=production` for secure HTTPS cookies. Follow [`backend/README.md`](backend/README.md) for Vercel/Render environment setup and the later LIVE switch.
 
-### Access, progress, and certificates
+### Learner access, progress, and certificates
 
-Paid purchase records control lesson and progress API access. Lesson delivery resolves a stable `chapterId` to `content/lessons/<chapterId>.json`, validates it with the Phase 3 contract, and sanitizes assessment answer keys before returning it. Public course endpoints expose catalog metadata only. The current authored set is incremental; `npm run validate:content:complete` checks eventual 43-lesson readiness. Chapter completion is stored per user and course; completion percentage is calculated from chapters in MongoDB. A certificate is issued once only after all chapters of a certificate-eligible course are complete. Public certificate verification is available by certificate ID. Learner-facing lesson, progress, and certificate screens are not implemented.
+Paid purchase records control full lesson and progress API access. Lesson delivery resolves a stable `chapterId` to `content/lessons/<chapterId>.json`, validates it against the schema and canonical curriculum, and removes assessment answer keys and explanations before returning it. The public Chapter 1 preview is selected by stable block IDs and is delivered without progress or paid activities. Public course endpoints expose catalog metadata only. The current authored set is incremental; `npm run validate:content:complete` checks readiness for all 43 lessons. Chapter progress, required exercise acknowledgments, and assessment attempts are stored server-side. Course completion and certificate issuance are evaluated server-side; certificate data is available only to its owner with paid access after canonical completion. The learner dashboard shows course progress, ebook availability, and available certificates, while the lesson reader provides chapter navigation and learning activities.
 
 ### Admin commerce
 
 Super Admin sign-in is available at `/login`, and the protected dashboard is at `/admin`. The dashboard shows transaction/payment/certificate counts and includes the commerce panel for pricing changes, transactions, purchases, and issued certificates. Accounts are created through the seed/admin setup; public registration does not grant admin privileges. Pricing writes are validated server-side and audited with previous and new values. Admin role authorization uses the persisted user record; no browser-supplied role can grant access. Payment records are not editable through the admin API. Production static hosting must route `/login` and `/admin` to the React app entry point.
+
+## Content and ebook status
+
+The complete course has 43 valid lesson JSON files for the canonical 43 chapters. Run `npm run validate:curriculum` to check curriculum and lessons, and `npm run validate:content:complete` to require every lesson. Both validators should report zero missing chapters.
+
+The ebook is generated from `src/data/curriculum.js` and the 43 lesson JSON files by `npm run ebook:build`. The script validates each lesson, lays out all eight parts, excludes assessment answer keys, and writes `content/ebooks/briane-dev-course.pdf`. It requires an installed Chromium-based browser (Chrome or Edge; set `PDF_BROWSER` to its executable when it is not in a standard location). The PDF is stored outside Vite's public directory and is delivered only by the API after a verified purchase.
+
+Chapter 1 has a server-enforced public preview defined by stable block IDs. The preview contains only allowlisted blocks and omits objectives, narration, exercises, assessments, and progress. Full lessons, lesson assets, progress, exercises, assessments, ebook download, and certificate download are protected by the verified purchase check. Certificates are issued idempotently when the server's canonical completion evaluator accepts all 43 stable chapter IDs and their required activities. The certificate owner must sign in and retain course access to download the PDF; the public verification endpoint returns only certificate ID, validity, learner name, course title, and issue date.
+
+## Frontend routes and API capabilities
+
+Frontend routes are `/` (marketing, curriculum, pricing), `/learn/register`, `/learn/login`, `/learn` (learner dashboard), `/courses/:courseSlug/learn/:chapterId` (lesson reader), `/login` (Super Admin sign-in), and `/admin` (Super Admin dashboard). Static hosting must serve the React entry point for these deep links.
+
+Learner API capabilities include authentication, public course metadata, public Chapter 1 preview delivery, purchase lookup, protected course progress and full lesson delivery, exercise acknowledgments, assessment submission, protected lesson image and ebook delivery, certificate listing and owner-only PDF download, and public certificate verification. Ebook status exposes availability without exposing the file. Payment and admin route details are listed in [`backend/README.md`](backend/README.md).
+
+## Checks and deployment
+
+Run `npm test`, `npm run lint`, and `npm run build` for automated tests, static checks, and the frontend production build. Run `npm run validate:curriculum` and `npm run validate:content:complete` to validate all canonical lesson content. Run `npm run ebook:build` to regenerate the ebook PDF from the course source; Chrome or Edge must be installed. A successful frontend build does not verify MongoDB seeding, Paystack configuration, or deployed service connectivity.
+
+Deployment configuration is provided for Vercel (React frontend) and Render (Express API). Production details, environment variables, same-origin `/api` proxying, HTTPS cookies, MongoDB Atlas, and Paystack TEST-to-LIVE setup are maintained in [`backend/README.md`](backend/README.md). Keep backend secrets out of frontend variables and source control.

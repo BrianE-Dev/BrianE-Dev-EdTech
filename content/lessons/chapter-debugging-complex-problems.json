@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-debugging-complex-problems",
+  "title": "Debugging Complex Problems",
+  "objectives": [
+    "Explain how Debugging Complex Problems supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-debugging-complex-problems-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-debugging-complex-problems-opening",
+      "type": "paragraph",
+      "text": "Investigate cross-layer failures through timelines, boundaries, and falsifiable hypotheses. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-debugging-complex-problems-why",
+      "type": "paragraph",
+      "text": "This matters in building, debugging, and testing with ai because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-debugging-complex-problems-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-debugging-complex-problems-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: investigate cross-layer failures through timelines, boundaries, and falsifiable hypotheses.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Reproduce; collect sanitized observations; trace identifiers across layers; rank causes; change one variable; verify with a regression test.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-debugging-complex-problems-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-debugging-complex-problems-example",
+      "type": "paragraph",
+      "text": "If saved data appears stale, compare browser payload, API response, database read, and cache behavior using one correlated request. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-debugging-complex-problems-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Investigate cross-layer failures through timelines, boundaries, and falsifiable hypotheses.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Reproduce; collect sanitized observations; trace identifiers across layers; rank causes; change one variable; verify with a regression test.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-debugging-complex-problems-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-debugging-complex-problems-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-debugging-complex-problems-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Debugging Complex Problems requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-debugging-complex-problems-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Debugging Complex Problems. Investigate cross-layer failures through timelines, boundaries, and falsifiable hypotheses. Reproduce; collect sanitized observations; trace identifiers across layers; rank causes; change one variable; verify with a regression test. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-debugging-complex-problems-practice",
+      "type": "practical",
+      "title": "Practice: Debugging Complex Problems",
+      "objective": "Build a hypothesis table for a multi-layer defect with evidence that would confirm or reject each cause.",
+      "instructions": [
+        "Choose a small, permitted task related to Debugging Complex Problems.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Build a hypothesis table for a multi-layer defect with evidence that would confirm or reject each cause.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-debugging-complex-problems-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Debugging Complex Problems and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-debugging-complex-problems-workflow-evidence",
+          "text": "Apply the workflow: Reproduce; collect sanitized observations; trace identifiers across layers; rank causes; change one variable; verify with a regression test. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-debugging-complex-problems-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-debugging-complex-problems-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-debugging-complex-problems-workflow-evidence",
+      "explanation": "For Debugging Complex Problems, the recommendation is useful only when evaluated against task context and evidence. Reproduce; collect sanitized observations; trace identifiers across layers; rank causes; change one variable; verify with a regression test. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-debugging-complex-problems-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Investigate cross-layer failures through timelines, boundaries, and falsifiable hypotheses Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-debugging-complex-problems-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-debugging-complex-problems-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-debugging-complex-problems-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-debugging-complex-problems-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

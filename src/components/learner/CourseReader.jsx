@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import Brand from '../Brand.jsx'
-import { completeExercise, getCourse, getCourseProgress, getLesson, logoutUser, updateLessonProgress } from '../../services/api.js'
+import { completeExercise, getCourse, getCourseProgress, getLesson, getLessonPreview, logoutUser, updateLessonProgress } from '../../services/api.js'
 import ChapterNavigation from './ChapterNavigation.jsx'
 import LessonAssessment from './LessonAssessment.jsx'
 import LessonBlockRenderer from './LessonBlockRenderer.jsx'
 import LessonTts from './LessonTts.jsx'
+import PurchaseGate from './PurchaseGate.jsx'
 
 function readRoute() {
   const match = window.location.pathname.match(/^\/courses\/([^/]+)\/learn\/(chapter-[a-z0-9-]+)\/?$/)
@@ -30,14 +31,27 @@ export default function CourseReader() {
       return
     }
     setState({ status: 'loading', data: null, error: '' })
+    let course = null
     try {
-      const course = await getCourse(courseSlug)
+      course = await getCourse(courseSlug)
       if (!course.id) throw new Error('Course metadata is unavailable.')
-      const response = await getLesson(course.id, chapterId)
+      let response
+      try {
+        response = await getLesson(course.id, chapterId)
+      } catch (error) {
+        if (error.status !== 403 || error.code !== 'COURSE_PURCHASE_REQUIRED') throw error
+        if (chapterId === 'chapter-ai-assisted-developer') {
+          response = await getLessonPreview(courseSlug, chapterId)
+        } else {
+          const chapter = course.sections.flatMap((section) => section.chapters).find((item) => item.id === chapterId)
+          setState({ status: 'purchase-required', data: { course, chapter }, error: '' })
+          return
+        }
+      }
       setState({ status: 'loaded', data: { course, response }, error: '' })
     } catch (error) {
       const errorState = lessonErrorState(error)
-      setState({ status: errorState.status, data: null, error: errorState.message })
+      setState({ status: errorState.status, data: { course }, error: errorState.message })
     }
   }, [courseSlug, chapterId])
 
@@ -97,6 +111,19 @@ export default function CourseReader() {
     try { await logoutUser() } finally { window.location.assign('/learn/login') }
   }
 
+  if (state.status === 'purchase-required') {
+    const chapterTitle = state.data.chapter?.title || 'this chapter'
+    return <main className="learner-state">
+      <header className="learner-header"><a href="/" aria-label="BrianE-Dev homepage"><Brand /></a><div><a href="/#pricing">Course pricing</a><a href="/learn/login">Sign in</a></div></header>
+      <section className="locked-lesson-state">
+        <span className="eyebrow">CHAPTER {String(state.data.chapter?.number || '').padStart(2, '0')} / PURCHASE REQUIRED</span>
+        <h1>{chapterTitle}</h1>
+        <p>Chapter 1 has a free preview. The rest of Chapter 1 and Chapters 2–43 require a confirmed course purchase.</p>
+        <PurchaseGate chapterTitle={chapterTitle}/>
+      </section>
+    </main>
+  }
+
   if (state.status !== 'loaded') {
     const returnTo = encodeURIComponent(window.location.pathname)
     return <main className="learner-state">
@@ -113,35 +140,38 @@ export default function CourseReader() {
 
   const { course, response } = state.data
   const { lesson, chapter, navigation, progress } = response
-  const acknowledged = new Set(progress.requiredExerciseAcknowledgments || [])
+  const isPreview = response.access?.isPreview === true
+  const learnerProgress = progress || { status: 'not_started', percent: 0, requiredExerciseAcknowledgments: [] }
+  const acknowledged = new Set(learnerProgress.requiredExerciseAcknowledgments || [])
   const hasRequiredActivities = lesson.assessments.some((assessment) => assessment.required)
     || lesson.exercises.some((exercise) => exercise.required)
 
   return <main className="learner-app reader-app">
-    <header className="learner-header"><a href="/learn" aria-label="Back to learning space"><Brand /></a><div><a href="/learn">My learning</a><button type="button" onClick={signOut}>Sign out</button></div></header>
+    <header className="learner-header"><a href={isPreview ? '/' : '/learn'} aria-label="Back to learning space"><Brand /></a><div>{isPreview ? <><a href="/#pricing">Course pricing</a><a href="/learn/login">Sign in</a></> : <><a href="/learn">My learning</a><button type="button" onClick={signOut}>Sign out</button></>}</div></header>
     <div className="reader-layout">
       <aside className="reader-sidebar">
-        <a className="reader-course-link" href="/learn">← Learning space</a>
+        <a className="reader-course-link" href={isPreview ? '/#curriculum' : '/learn'}>{isPreview ? '← Course curriculum' : '← Learning space'}</a>
         <span className="eyebrow">SECTION {String(chapter.sectionNumber).padStart(2, '0')}</span>
         <h2>{chapter.sectionTitle}</h2>
-        <div className="reader-sidebar-progress"><span>Course progress</span><strong>{progress.percent}%</strong><div className="learner-progress-track"><span style={{ width: `${progress.percent}%` }}/></div></div>
-        <span className={`reader-status reader-status-${progress.status}`}>{progress.status.replace('_', ' ')}</span>
+        {isPreview ? <span className="preview-badge">Free preview · not saved to progress</span> : <><div className="reader-sidebar-progress"><span>Course progress</span><strong>{learnerProgress.percent}%</strong><div className="learner-progress-track"><span style={{ width: `${learnerProgress.percent}%` }}/></div></div>
+          <span className={`reader-status reader-status-${learnerProgress.status}`}>{learnerProgress.status.replace('_', ' ')}</span></>}
       </aside>
       <article className="reader-main">
-        <header className="reader-lesson-header"><span className="eyebrow">CHAPTER {String(chapter.number).padStart(2, '0')} / {course.title}</span><h1>{lesson.title}</h1><p>{chapter.sectionTitle}</p></header>
-        <section className="reader-objectives"><h2>In this chapter</h2><ul>{lesson.objectives.map((objective, index) => <li key={index}>{objective}</li>)}</ul></section>
+        <header className="reader-lesson-header"><span className="eyebrow">CHAPTER {String(chapter.number).padStart(2, '0')} / {course.title}</span>{isPreview && <span className="preview-badge">Free preview</span>}<h1>{lesson.title}</h1><p>{chapter.sectionTitle}</p></header>
+        {lesson.objectives.length > 0 && <section className="reader-objectives"><h2>In this chapter</h2><ul>{lesson.objectives.map((objective, index) => <li key={index}>{objective}</li>)}</ul></section>}
         <LessonTts text={lesson.ttsText}/>
         <LessonBlockRenderer blocks={lesson.blocks} courseId={course.id} chapterId={lesson.chapterId}/>
-        {lesson.exercises.length > 0 && <section className="reader-exercises"><span className="eyebrow">PRACTICE</span><h2>Exercises</h2>{lesson.exercises.map((exercise) => <article className="reader-exercise" key={exercise.id}>
+        {isPreview && <PurchaseGate preview/>}
+        {!isPreview && lesson.exercises.length > 0 && <section className="reader-exercises"><span className="eyebrow">PRACTICE</span><h2>Exercises</h2>{lesson.exercises.map((exercise) => <article className="reader-exercise" key={exercise.id}>
           <div><h3>{exercise.title}</h3><p>{exercise.objective}</p></div>
           {exercise.required ? <label className="reader-exercise-ack"><input type="checkbox" checked={acknowledged.has(exercise.id)} disabled={acknowledged.has(exercise.id)} onChange={() => acknowledgeExercise(exercise.id)}/><span>I completed this exercise. This is my acknowledgment, not an automated skill assessment.</span></label> : <span className="reader-optional-label">Optional</span>}
           <details><summary>Exercise instructions</summary><ol>{exercise.instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}</ol>{exercise.constraints.length > 0 && <><h4>Constraints</h4><ul>{exercise.constraints.map((constraint, index) => <li key={index}>{constraint}</li>)}</ul></>}<p><strong>Expected outcome:</strong> {exercise.expectedOutcome}</p></details>
         </article>)}</section>}
-        <LessonAssessment courseId={course.id} chapterId={lesson.chapterId} assessments={lesson.assessments} onCompleted={refreshAfterAssessment}/>
-        {state.error && <p className="reader-error" role="alert">{state.error}</p>}
-        {progress.status !== 'completed' && hasRequiredActivities && <section className="reader-completion"><div><strong>Complete the required activities</strong><p>This chapter completes automatically when you pass the required assessment and acknowledge required exercises.</p></div></section>}
-        {progress.status !== 'completed' && !hasRequiredActivities && <section className="reader-completion"><div><strong>Finished this chapter?</strong><p>There are no required activities for this lesson.</p></div><button className="button button-primary" type="button" disabled={state.completionBusy} onClick={markComplete}>{state.completionBusy ? 'Saving…' : 'Mark chapter complete'}</button></section>}
-        {progress.status === 'completed' && <p className="reader-completed-banner" role="status">Chapter completed and saved to your progress.</p>}
+        {!isPreview && <LessonAssessment courseId={course.id} chapterId={lesson.chapterId} assessments={lesson.assessments} onCompleted={refreshAfterAssessment}/>}
+        {!isPreview && state.error && <p className="reader-error" role="alert">{state.error}</p>}
+        {!isPreview && learnerProgress.status !== 'completed' && hasRequiredActivities && <section className="reader-completion"><div><strong>Complete the required activities</strong><p>This chapter completes automatically when you pass the required assessment and acknowledge required exercises.</p></div></section>}
+        {!isPreview && learnerProgress.status !== 'completed' && !hasRequiredActivities && <section className="reader-completion"><div><strong>Finished this chapter?</strong><p>There are no required activities for this lesson.</p></div><button className="button button-primary" type="button" disabled={state.completionBusy} onClick={markComplete}>{state.completionBusy ? 'Saving…' : 'Mark chapter complete'}</button></section>}
+        {!isPreview && learnerProgress.status === 'completed' && <p className="reader-completed-banner" role="status">Chapter completed and saved to your progress.</p>}
         <ChapterNavigation courseSlug={course.slug} previous={navigation.previous} next={navigation.next}/>
       </article>
     </div>

@@ -3,18 +3,23 @@ import { z } from 'zod'
 export const LESSON_SCHEMA_VERSION = '1.0.0'
 
 const nonEmptyText = z.string().min(1).refine((value) => value.trim().length > 0, 'Must not be blank')
+const stableBlockId = z.string().regex(/^block-[a-z0-9]+(?:-[a-z0-9]+)*$/)
+const blockIdentity = { id: stableBlockId.optional() }
+const previewSchema = z.object({ blockIds: z.array(stableBlockId).min(1) }).strict()
 
 const headingBlockSchema = z.object({
+  ...blockIdentity,
   type: z.literal('heading'),
   level: z.number().int().min(2).max(4),
   text: nonEmptyText,
 }).strict()
 
-const paragraphBlockSchema = z.object({ type: z.literal('paragraph'), text: nonEmptyText }).strict()
-const listBlockSchema = z.object({ type: z.literal('list'), items: z.array(nonEmptyText) }).strict()
-const orderedListBlockSchema = z.object({ type: z.literal('ordered-list'), items: z.array(nonEmptyText) }).strict()
+const paragraphBlockSchema = z.object({ ...blockIdentity, type: z.literal('paragraph'), text: nonEmptyText }).strict()
+const listBlockSchema = z.object({ ...blockIdentity, type: z.literal('list'), items: z.array(nonEmptyText) }).strict()
+const orderedListBlockSchema = z.object({ ...blockIdentity, type: z.literal('ordered-list'), items: z.array(nonEmptyText) }).strict()
 
 const codeBlockSchema = z.object({
+  ...blockIdentity,
   type: z.literal('code'),
   language: nonEmptyText,
   filename: nonEmptyText.optional(),
@@ -23,6 +28,7 @@ const codeBlockSchema = z.object({
 }).strict()
 
 const calloutBlockSchema = z.object({
+  ...blockIdentity,
   type: z.literal('callout'),
   variant: z.enum(['info', 'tip', 'warning', 'note']),
   title: nonEmptyText,
@@ -30,12 +36,14 @@ const calloutBlockSchema = z.object({
 }).strict()
 
 const quoteBlockSchema = z.object({
+  ...blockIdentity,
   type: z.literal('quote'),
   text: nonEmptyText,
   attribution: nonEmptyText.optional(),
 }).strict()
 
 const tableBlockSchema = z.object({
+  ...blockIdentity,
   type: z.literal('table'),
   headers: z.array(nonEmptyText).min(1),
   rows: z.array(z.array(z.string())),
@@ -52,13 +60,14 @@ const tableBlockSchema = z.object({
 })
 
 const imageBlockSchema = z.object({
+  ...blockIdentity,
   type: z.literal('image'),
   src: nonEmptyText.refine((value) => value.startsWith('content/') && !value.split('/').includes('..'), 'Must be a safe relative path under content/'),
   alt: nonEmptyText,
   caption: nonEmptyText.optional(),
 }).strict()
 
-const dividerBlockSchema = z.object({ type: z.literal('divider') }).strict()
+const dividerBlockSchema = z.object({ ...blockIdentity, type: z.literal('divider') }).strict()
 
 export const lessonBlockSchema = z.discriminatedUnion('type', [
   headingBlockSchema,
@@ -120,6 +129,26 @@ const lessonFields = {
 }
 
 function validateUniqueActivityIds(lesson, context) {
+  const blockIds = lesson.blocks.flatMap((block) => block.id ? [block.id] : [])
+  if (new Set(blockIds).size !== blockIds.length) {
+    context.addIssue({ code: 'custom', path: ['blocks'], message: 'Block IDs must be unique within a lesson.' })
+  }
+
+  if (lesson.preview) {
+    if (new Set(lesson.preview.blockIds).size !== lesson.preview.blockIds.length) {
+      context.addIssue({ code: 'custom', path: ['preview', 'blockIds'], message: 'Preview block IDs must be unique.' })
+    }
+    const availableBlockIds = new Set(blockIds)
+    lesson.preview.blockIds.forEach((blockId, index) => {
+      if (!availableBlockIds.has(blockId)) {
+        context.addIssue({ code: 'custom', path: ['preview', 'blockIds', index], message: `Preview block ID "${blockId}" must match a lesson block.` })
+      }
+    })
+    if (lesson.chapterId !== 'chapter-ai-assisted-developer') {
+      context.addIssue({ code: 'custom', path: ['preview'], message: 'Public preview metadata is only supported for Chapter 1.' })
+    }
+  }
+
   const exerciseIds = lesson.exercises.map(({ id }) => id)
   if (new Set(exerciseIds).size !== exerciseIds.length) {
     context.addIssue({ code: 'custom', path: ['exercises'], message: 'Exercise IDs must be unique within a lesson.' })
@@ -132,6 +161,7 @@ function validateUniqueActivityIds(lesson, context) {
 
 export const lessonSchema = z.object({
   ...lessonFields,
+  preview: previewSchema.optional(),
   assessments: z.array(assessmentSchema),
 }).strict().superRefine(validateUniqueActivityIds)
 

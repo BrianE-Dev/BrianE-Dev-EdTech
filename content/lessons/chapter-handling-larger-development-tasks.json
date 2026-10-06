@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-handling-larger-development-tasks",
+  "title": "Handling Larger Development Tasks",
+  "objectives": [
+    "Explain how Handling Larger Development Tasks supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-handling-larger-development-tasks-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-handling-larger-development-tasks-opening",
+      "type": "paragraph",
+      "text": "Reduce a large task into safe increments with clear stop and review points. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-handling-larger-development-tasks-why",
+      "type": "paragraph",
+      "text": "This matters in codex for software engineering because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-handling-larger-development-tasks-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-handling-larger-development-tasks-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: reduce a large task into safe increments with clear stop and review points.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Inventory requirements and existing behavior; split into independently verifiable steps; implement one slice at a time; test and reassess.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-handling-larger-development-tasks-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-handling-larger-development-tasks-example",
+      "type": "paragraph",
+      "text": "For a reporting feature, first define data shape and access control, then add query logic, API response, and UI as separate reviewed steps. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-handling-larger-development-tasks-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Reduce a large task into safe increments with clear stop and review points.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Inventory requirements and existing behavior; split into independently verifiable steps; implement one slice at a time; test and reassess.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-handling-larger-development-tasks-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-handling-larger-development-tasks-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-handling-larger-development-tasks-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Handling Larger Development Tasks requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-handling-larger-development-tasks-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Handling Larger Development Tasks. Reduce a large task into safe increments with clear stop and review points. Inventory requirements and existing behavior; split into independently verifiable steps; implement one slice at a time; test and reassess. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-handling-larger-development-tasks-practice",
+      "type": "practical",
+      "title": "Practice: Handling Larger Development Tasks",
+      "objective": "Decompose a larger feature into increments with dependencies, acceptance checks, and explicit out-of-scope areas.",
+      "instructions": [
+        "Choose a small, permitted task related to Handling Larger Development Tasks.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Decompose a larger feature into increments with dependencies, acceptance checks, and explicit out-of-scope areas.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-handling-larger-development-tasks-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Handling Larger Development Tasks and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-handling-larger-development-tasks-workflow-evidence",
+          "text": "Apply the workflow: Inventory requirements and existing behavior; split into independently verifiable steps; implement one slice at a time; test and reassess. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-handling-larger-development-tasks-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-handling-larger-development-tasks-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-handling-larger-development-tasks-workflow-evidence",
+      "explanation": "For Handling Larger Development Tasks, the recommendation is useful only when evaluated against task context and evidence. Inventory requirements and existing behavior; split into independently verifiable steps; implement one slice at a time; test and reassess. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-handling-larger-development-tasks-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Reduce a large task into safe increments with clear stop and review points Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-handling-larger-development-tasks-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-handling-larger-development-tasks-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-handling-larger-development-tasks-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-handling-larger-development-tasks-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

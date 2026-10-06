@@ -12,9 +12,14 @@ test('repository resolves and validates a lesson by stable chapterId', async () 
   assert.equal(lesson.title, 'The AI-Assisted Developer')
 })
 
-test('repository distinguishes unknown chapters and missing canonical files', async () => {
+test('repository distinguishes unknown chapters and missing lesson files', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'briane-dev-missing-lessons-'))
+  const lessonsDirectory = path.join(root, 'lessons')
+  await mkdir(lessonsDirectory)
+  context.after(() => rm(root, { recursive: true, force: true }))
+
   await assert.rejects(getLessonByChapterId('chapter-not-in-curriculum'), InvalidChapterError)
-  await assert.rejects(getLessonByChapterId('chapter-when-not-to-use-ai'), LessonNotFoundError)
+  await assert.rejects(getLessonByChapterId('chapter-when-not-to-use-ai', { lessonsDirectory }), LessonNotFoundError)
 })
 
 test('repository rejects invalid JSON and invalid lesson contracts', async (context) => {

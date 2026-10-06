@@ -29,6 +29,7 @@ export const getPurchases = () => api('/me/purchases')
 export const getCourse = (slug) => api(`/courses/${encodeURIComponent(slug)}`)
 export const getCourseProgress = (courseId) => api(`/courses/${encodeURIComponent(courseId)}/progress`)
 export const getLesson = (courseId, chapterId) => api(`/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}`)
+export const getLessonPreview = (courseSlug, chapterId) => api(`/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(chapterId)}/preview`)
 export const updateLessonProgress = (courseId, chapterId, status) => api(
   `/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/progress`,
   { method: 'POST', body: jsonBody({ status }) },
@@ -42,6 +43,10 @@ export const completeExercise = (courseId, chapterId, exerciseId) => api(
   { method: 'POST', body: jsonBody({}) },
 )
 export const getCertificates = () => api('/me/certificates')
+export const getCertificateDownloadUrl = (certificateId) => `${API_URL}/me/certificates/${encodeURIComponent(certificateId)}/download`
+export const getCertificateVerificationUrl = (certificateId) => `${API_URL}/certificates/verify/${encodeURIComponent(certificateId)}`
+export const getCourseEbookUrl = (courseId) => `${API_URL}/courses/${encodeURIComponent(courseId)}/ebook`
+export const getCourseEbookStatus = (courseId) => api(`/courses/${encodeURIComponent(courseId)}/ebook/status`)
 
 export function lessonImageUrl(courseId, chapterId, source) {
   const query = new URLSearchParams({ src: source })

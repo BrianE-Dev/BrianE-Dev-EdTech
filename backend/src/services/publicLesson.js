@@ -12,7 +12,9 @@ export function sanitizeProtectedAnswers(value) {
 
 export function toPublicLesson(repositoryLesson) {
   const validatedSource = lessonSchema.parse(repositoryLesson)
-  const sanitized = sanitizeProtectedAnswers(validatedSource)
+  const fullLesson = { ...validatedSource }
+  delete fullLesson.preview
+  const sanitized = sanitizeProtectedAnswers(fullLesson)
   const withoutExplanations = {
     ...sanitized,
     assessments: sanitized.assessments.map(({ explanation, ...assessment }) => {
@@ -21,4 +23,23 @@ export function toPublicLesson(repositoryLesson) {
     }),
   }
   return publicLessonSchema.parse(withoutExplanations)
+}
+
+export function toPublicPreviewLesson(repositoryLesson) {
+  const validatedSource = lessonSchema.parse(repositoryLesson)
+  if (validatedSource.chapterId !== 'chapter-ai-assisted-developer' || !validatedSource.preview) {
+    throw new Error('This lesson has no public preview boundary.')
+  }
+
+  const previewBlockIds = new Set(validatedSource.preview.blockIds)
+  const lessonWithoutPreviewMetadata = { ...validatedSource }
+  delete lessonWithoutPreviewMetadata.preview
+  return toPublicLesson({
+    ...lessonWithoutPreviewMetadata,
+    objectives: [],
+    blocks: validatedSource.blocks.filter((block) => previewBlockIds.has(block.id)),
+    ttsText: null,
+    exercises: [],
+    assessments: [],
+  })
 }

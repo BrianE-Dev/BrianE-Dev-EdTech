@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-working-with-databases",
+  "title": "Working with Databases",
+  "objectives": [
+    "Explain how Working with Databases supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-working-with-databases-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-working-with-databases-opening",
+      "type": "paragraph",
+      "text": "Use AI to reason about data shape and queries while checking integrity and operational impact. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-working-with-databases-why",
+      "type": "paragraph",
+      "text": "This matters in building, debugging, and testing with ai because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-working-with-databases-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-working-with-databases-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: use AI to reason about data shape and queries while checking integrity and operational impact.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Share schemas and access patterns, not real customer data; examine indexes, constraints, migrations, and transaction needs; test representative edge cases.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-working-with-databases-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-working-with-databases-example",
+      "type": "paragraph",
+      "text": "A uniqueness requirement must be enforced by a database constraint when concurrent requests could bypass an application-only check. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-working-with-databases-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Use AI to reason about data shape and queries while checking integrity and operational impact.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Share schemas and access patterns, not real customer data; examine indexes, constraints, migrations, and transaction needs; test representative edge cases.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-working-with-databases-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-working-with-databases-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-working-with-databases-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Working with Databases requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-working-with-databases-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Working with Databases. Use AI to reason about data shape and queries while checking integrity and operational impact. Share schemas and access patterns, not real customer data; examine indexes, constraints, migrations, and transaction needs; test representative edge cases. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-working-with-databases-practice",
+      "type": "practical",
+      "title": "Practice: Working with Databases",
+      "objective": "Analyze a small data model and list integrity rules, query patterns, and safe migration questions.",
+      "instructions": [
+        "Choose a small, permitted task related to Working with Databases.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Analyze a small data model and list integrity rules, query patterns, and safe migration questions.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-working-with-databases-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Working with Databases and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-working-with-databases-workflow-evidence",
+          "text": "Apply the workflow: Share schemas and access patterns, not real customer data; examine indexes, constraints, migrations, and transaction needs; test representative edge cases. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-working-with-databases-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-working-with-databases-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-working-with-databases-workflow-evidence",
+      "explanation": "For Working with Databases, the recommendation is useful only when evaluated against task context and evidence. Share schemas and access patterns, not real customer data; examine indexes, constraints, migrations, and transaction needs; test representative edge cases. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-working-with-databases-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Use AI to reason about data shape and queries while checking integrity and operational impact Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-working-with-databases-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-working-with-databases-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-working-with-databases-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-working-with-databases-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

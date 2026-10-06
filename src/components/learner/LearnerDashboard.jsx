@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Brand from '../Brand.jsx'
-import { getCertificates, getCourseProgress, getCurrentUser, getPurchases, logoutUser } from '../../services/api.js'
+import { getCertificateDownloadUrl, getCertificateVerificationUrl, getCertificates, getCourseEbookStatus, getCourseEbookUrl, getCourseProgress, getCurrentUser, getPurchases, logoutUser } from '../../services/api.js'
+import { curriculum } from '../../data/curriculum.js'
 
 export default function LearnerDashboard() {
   const [state, setState] = useState({ status: 'loading', user: null, courses: [], certificates: [], error: '' })
@@ -9,17 +10,19 @@ export default function LearnerDashboard() {
     let active = true
     async function load() {
       try {
-        const [{ user }, purchases, certificates] = await Promise.all([getCurrentUser(), getPurchases(), getCertificates()])
+        const [{ user }, purchases] = await Promise.all([getCurrentUser(), getPurchases()])
         if (user.role === 'super_admin') {
           window.location.replace('/admin')
           return
         }
+        const certificates = purchases.length ? await getCertificates() : []
         const courses = await Promise.all(purchases
           .filter((purchase) => purchase.course?.slug)
-          .map(async (purchase) => ({
-            course: purchase.course,
-            progress: await getCourseProgress(purchase.course._id || purchase.course.id),
-          })))
+          .map(async (purchase) => {
+            const courseId = purchase.course._id || purchase.course.id
+            const [progress, ebook] = await Promise.all([getCourseProgress(courseId), getCourseEbookStatus(courseId)])
+            return { course: purchase.course, progress, ebook }
+          }))
         if (active) setState({ status: 'loaded', user, courses, certificates, error: '' })
       } catch (error) {
         if (active) setState({ status: 'error', user: null, courses: [], certificates: [], error: error.message })
@@ -44,9 +47,10 @@ export default function LearnerDashboard() {
       <p className="learner-lede">Your course progress is saved to your account and follows the approved chapter order.</p>
       {state.courses.length === 0 ? <article className="learner-empty-card">
         <h2>No course access found</h2>
-        <p>Course enrollment is connected to a confirmed purchase on your account.</p>
+        <p>Preview Chapter 1 for free, then purchase access to read the complete 43 chapter course.</p>
+        <a className="learner-text-link" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Start Chapter 1 Preview</a>
         <a className="button button-primary" href="/#pricing">View course access</a>
-      </article> : state.courses.map(({ course, progress }) => {
+      </article> : state.courses.map(({ course, progress, ebook }) => {
         const statuses = new Map(progress.chapters.map((chapter) => [chapter.chapterId, chapter.status]))
         const current = progress.currentChapterId && statuses.get(progress.currentChapterId) !== 'completed'
           ? progress.currentChapterId
@@ -58,8 +62,15 @@ export default function LearnerDashboard() {
           <div className="learner-course-heading"><div><span className="eyebrow">COURSE / 01</span><h2>{course.title}</h2></div><strong>{progress.completionPercentage}%</strong></div>
           <div className="learner-progress-track" role="progressbar" aria-label="Course completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress.completionPercentage}><span style={{ width: `${progress.completionPercentage}%` }}/></div>
           <p>{progress.completedChapters} of {progress.totalChapters} chapters complete</p>
-          {complete ? <div className="learner-complete-message"><strong>Course complete</strong>{certificate && <span>Certificate issued: {certificate.certificateId}</span>}</div>
+          <p className="learner-course-state">{certificate ? 'Certificate issued' : complete ? 'Course complete - certificate record unavailable' : progress.completedChapters === 0 ? 'Not started' : 'In progress'}</p>
+          <section className="learner-entitlement-card"><div><span className="eyebrow">COURSE EBOOK</span><h3>{ebook.title}</h3><p>{ebook.available ? 'Included with your course purchase.' : 'The PDF is not published yet. Download access will appear here when it is available.'}</p></div>{ebook.available ? <a className="button button-secondary" href={getCourseEbookUrl(course._id || course.id)}>Download ebook</a> : <span className="entitlement-unavailable">Not published</span>}</section>
+          {complete ? <div className="learner-complete-message"><strong>Course complete</strong>{certificate && <><span>Certificate issued: {certificate.certificateId}</span><div className="learner-certificate-actions"><a className="button button-primary" href={getCertificateDownloadUrl(certificate.certificateId)}>Download certificate</a><a className="learner-text-link" href={getCertificateVerificationUrl(certificate.certificateId)} target="_blank" rel="noreferrer">Verify certificate</a></div></>}</div>
             : <a className="button button-primary" href={readerUrl || `/courses/${encodeURIComponent(course.slug)}/learn/${encodeURIComponent(progress.chapters[0].chapterId)}`}>{progress.currentChapterId ? 'Resume course' : 'Start learning'}</a>}
+          <details className="learner-curriculum"><summary>Course curriculum - {curriculum.sections.length} sections, {progress.totalChapters} chapters</summary>{curriculum.sections.map((section) => <section key={section.id}><h3>Part {section.number}: {section.title}</h3><ol>{section.chapters.map((chapter) => {
+            const status = statuses.get(chapter.id) || 'not_started'
+            const currentChapter = chapter.id === current && status !== 'completed'
+            return <li className={`learner-curriculum-${status}${currentChapter ? ' is-current' : ''}`} key={chapter.id}><a href={`/courses/${encodeURIComponent(course.slug)}/learn/${encodeURIComponent(chapter.id)}`}><span>Chapter {String(chapter.number).padStart(2, '0')}: {chapter.title}</span><small>{status === 'completed' ? 'Completed' : currentChapter ? 'Current' : status === 'in_progress' ? 'In progress' : 'Available'}</small></a></li>
+          })}</ol></section>)}</details>
         </article>
       })}
     </section>

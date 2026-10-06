@@ -8,7 +8,7 @@ export const questions = [
 ]
 
 export const plans = [
-  { id: 'individual', label: 'INDIVIDUAL COURSE ACCESS', name: 'Individual Course Pass', price: '$249', period: 'one-time', desc: 'Access the complete AI-powered developer productivity course.', features: [`Access all ${totalChapters} course chapters`, 'Written lessons and code examples', 'Real-world scenarios, AI prompts, and workflows', 'TTS audio narration'], action: 'Enroll Now', popular: true },
+  { id: 'individual', label: 'INDIVIDUAL COURSE ACCESS', name: 'Individual Course Pass', price: '$249', period: 'one-time', desc: 'Unlock the complete Chapter 1 lesson and published course materials. The other 42 chapter lessons are still being authored.', features: ['Complete Chapter 1 lesson', 'Assessments and exercises for published lessons', 'Saved progress against the approved curriculum', 'Certificate eligibility after all course requirements are met', 'Course ebook download when the PDF is published', 'Optional browser speech synthesis for authored lessons'], action: 'Enroll Now', popular: true },
   { id: 'team', label: 'TEAM COURSE ACCESS', name: 'Engineering Team Course', price: '$1,490', period: 'per team / year', desc: 'AI-powered developer productivity learning for engineering teams.', features: [`Course content across all ${totalChapters} chapters`, 'Written lessons and code examples', 'Real-world scenarios, AI prompts, and workflows', 'TTS audio narration'], action: 'Explore Team Plans' },
 ]
 

@@ -12,11 +12,13 @@ import { initializeTransaction, verifyTransaction } from '../services/paystack.j
 import { curriculum, CURRICULUM_VERSION } from '../../../src/data/curriculum.js'
 import { canAccessCourseLesson } from '../services/courseLessonAccess.js'
 import { getLessonByChapterId, InvalidChapterError, InvalidLessonContentError, LessonNotFoundError, LessonRepositoryError } from '../services/lessonRepository.js'
-import { toPublicLesson } from '../services/publicLesson.js'
+import { toPublicLesson, toPublicPreviewLesson } from '../services/publicLesson.js'
 import { acknowledgeRequiredExercise, CompletionRequirementsError, getCourseProgress, openLessonProgress, updateLessonProgress } from '../services/lessonCompletion.js'
 import { InvalidAssessmentSubmissionError, submitLessonAssessment } from '../services/assessmentService.js'
 import { LessonAssetNotFoundError, resolveLessonImage } from '../services/lessonAssetRepository.js'
 import { getChapterMetadata } from '../services/curriculumNavigation.js'
+import { CourseEbookNotFoundError, resolveCourseEbook } from '../services/courseEbookRepository.js'
+import { createCertificatePdf } from '../services/certificatePdf.js'
 
 const router = Router()
 const isSecureCookie = process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production'
@@ -209,7 +211,7 @@ async function getPaidCourse(req, res) {
     return null
   }
   if (!(await canAccessCourseLesson(req.user, course))) {
-    apiFailure(res, 403, 'Course purchase required', 'LESSON_ACCESS_DENIED')
+    apiFailure(res, 403, 'Purchase the course to continue.', 'COURSE_PURCHASE_REQUIRED')
     return null
   }
   return course
@@ -249,7 +251,31 @@ function progressState(progress, chapterId) {
   }
 }
 
-router.get('/courses/:courseId/lessons/:chapterId', authenticate, async (req, res, next) => {
+router.get('/courses/:slug/lessons/:chapterId/preview', authenticateOptional, async (req, res, next) => {
+  try {
+    const course = await Course.findOne({ slug: req.params.slug, published: true }).select('title slug').lean()
+    if (!course) return apiFailure(res, 404, 'Course not found', 'COURSE_NOT_FOUND')
+    const isPurchased = await canAccessCourseLesson(req.user, course)
+    if (req.params.chapterId !== 'chapter-ai-assisted-developer') {
+      return apiFailure(res, 403, 'Purchase the course to continue.', 'COURSE_PURCHASE_REQUIRED')
+    }
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    if (!lesson.preview) {
+      return apiFailure(res, 403, 'Purchase the course to continue.', 'COURSE_PURCHASE_REQUIRED')
+    }
+    const metadata = getChapterMetadata(lesson.chapterId)
+    res.json({
+      course: course.title,
+      lesson: toPublicPreviewLesson(lesson),
+      ...metadata,
+      progress: null,
+      access: { level: isPurchased ? 'full' : 'preview', isPreview: !isPurchased, isPurchased, purchaseRequired: false },
+    })
+  } catch (error) { next(error) }
+})
+
+router.get('/courses/:courseId/lessons/:chapterId', authenticateOptional, async (req, res, next) => {
   try {
     const course = await getPaidCourse(req, res)
     if (!course) return
@@ -262,6 +288,7 @@ router.get('/courses/:courseId/lessons/:chapterId', authenticate, async (req, re
       lesson: toPublicLesson(lesson),
       ...metadata,
       progress: progressState(progress, lesson.chapterId),
+      access: { level: 'full', isPreview: false, isPurchased: true, purchaseRequired: false },
     })
   } catch (error) { next(error) }
 })
@@ -353,7 +380,7 @@ router.post('/courses/:courseId/lessons/:chapterId/assessment', authenticate, as
   }
 })
 
-router.get('/courses/:courseId/lessons/:chapterId/assets', authenticate, async (req, res, next) => {
+router.get('/courses/:courseId/lessons/:chapterId/assets', authenticateOptional, async (req, res, next) => {
   try {
     const course = await getPaidCourse(req, res)
     if (!course) return
@@ -371,6 +398,32 @@ router.get('/courses/:courseId/lessons/:chapterId/assets', authenticate, async (
   }
 })
 
+router.get('/courses/:courseId/ebook/status', async (req, res, next) => {
+  try {
+    const course = await findCourse(req.params.courseId)
+    if (!course) return apiFailure(res, 404, 'Course not found', 'COURSE_NOT_FOUND')
+    try {
+      await resolveCourseEbook()
+      return res.json({ available: true, title: 'BrianE-Dev Course Ebook' })
+    } catch (error) {
+      if (error instanceof CourseEbookNotFoundError) return res.json({ available: false, title: 'BrianE-Dev Course Ebook' })
+      throw error
+    }
+  } catch (error) { next(error) }
+})
+
+router.get('/courses/:courseId/ebook', authenticateOptional, async (req, res, next) => {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    const ebook = await resolveCourseEbook()
+    res.download(ebook.path, ebook.filename)
+  } catch (error) {
+    if (error instanceof CourseEbookNotFoundError) return apiFailure(res, 404, error.message, 'EBOOK_UNAVAILABLE')
+    next(error)
+  }
+})
+
 router.post('/courses/:courseId/progress/:chapterId', authenticate, (req, res, next) => updateProgressRoute(req, res, next, 'completed'))
 
 router.get('/me/progress/:courseId', authenticate, async (req, res) => {
@@ -379,11 +432,49 @@ router.get('/me/progress/:courseId', authenticate, async (req, res) => {
   res.json(await Progress.findOne({ user: req.user.id, course: req.params.courseId }))
 })
 
-router.get('/me/certificates', authenticate, async (req, res) => res.json(await Certificate.find({ user: req.user.id, verificationStatus: 'valid' })))
+router.get('/me/certificates', authenticate, async (req, res) => {
+  const course = await Course.findOne({ slug: COURSE_SLUG, published: true }).select('title slug certificateEligible').lean()
+  if (!course) return apiFailure(res, 404, 'Course not found', 'COURSE_NOT_FOUND')
+  if (!(await canAccessCourseLesson(req.user, course))) return apiFailure(res, 403, 'Purchase the course to access certificate records.', 'COURSE_PURCHASE_REQUIRED')
+  const progress = await getCourseProgress({ user: req.user, course })
+  if (!course.certificateEligible || progress.completedChapters !== progress.totalChapters) return res.json([])
+  res.json(await Certificate.find({ user: req.user.id, course: course.id || course._id, verificationStatus: 'valid' }))
+})
 router.get('/certificates/verify/:certificateId', async (req, res) => {
-  const certificate = await Certificate.findOne({ certificateId: req.params.certificateId, verificationStatus: 'valid' }).select('certificateId recipientName courseTitle issueDate completionDate')
+  const certificate = await Certificate.findOne({ certificateId: req.params.certificateId, verificationStatus: 'valid' }).select('certificateId recipientName courseTitle issueDate verificationStatus')
   if (!certificate) return res.status(404).json({ error: 'Certificate not found' })
-  res.json(certificate)
+  res.json({
+    certificateId: certificate.certificateId,
+    status: certificate.verificationStatus,
+    learnerName: certificate.recipientName,
+    courseTitle: certificate.courseTitle,
+    issueDate: certificate.issueDate,
+  })
+})
+
+router.get('/me/certificates/:certificateId/download', authenticate, async (req, res, next) => {
+  try {
+    const certificate = await Certificate.findOne({ certificateId: req.params.certificateId, verificationStatus: 'valid' })
+      .select('certificateId recipientName courseTitle issueDate user course verificationStatus')
+    if (!certificate) return apiFailure(res, 404, 'Certificate not found.', 'CERTIFICATE_NOT_FOUND')
+    if (String(certificate.user) !== req.user.id) return apiFailure(res, 403, 'Certificate access denied.', 'CERTIFICATE_ACCESS_DENIED')
+    const course = await findCourse(certificate.course)
+    if (!course || !(await canAccessCourseLesson(req.user, course))) return apiFailure(res, 403, 'Purchase the course to download its certificate.', 'COURSE_PURCHASE_REQUIRED')
+    const progress = await getCourseProgress({ user: req.user, course })
+    if (!course.certificateEligible || progress.completedChapters !== progress.totalChapters) {
+      return apiFailure(res, 403, 'Complete all course requirements before downloading the certificate.', 'CERTIFICATE_NOT_ELIGIBLE')
+    }
+    const clientUrl = process.env.CLIENT_URL?.split(',').map((origin) => origin.trim()).find(Boolean) || 'http://localhost:5173'
+    const verificationUrl = new URL(`/api/certificates/verify/${encodeURIComponent(certificate.certificateId)}`, clientUrl).toString()
+    const pdf = createCertificatePdf(certificate, verificationUrl)
+    const safeId = certificate.certificateId.replace(/[^a-z0-9-]/gi, '')
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="BrianE-Dev-Certificate-${safeId}.pdf"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    }).send(pdf)
+  } catch (error) { next(error) }
 })
 
 router.get('/admin/pricing', authenticate, requireAdmin, async (_req, res) => res.json(await Pricing.find().sort({ region: 1 })))

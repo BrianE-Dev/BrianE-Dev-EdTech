@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "contentVersion": "1.0.0",
+  "chapterId": "chapter-frameworks-libraries-and-documentation",
+  "title": "Frameworks, Libraries, and Documentation",
+  "objectives": [
+    "Explain how Frameworks, Libraries, and Documentation supports a software-development task.",
+    "Apply a bounded workflow that uses relevant context and makes assumptions visible.",
+    "Evaluate and verify AI-supported work before relying on it."
+  ],
+  "blocks": [
+    {
+      "id": "block-frameworks-libraries-and-documentation-context",
+      "type": "heading",
+      "level": 2,
+      "text": "Start with the engineering decision"
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-opening",
+      "type": "paragraph",
+      "text": "Use current primary documentation to resolve framework and library questions. The useful outcome is a decision or change that can be checked in the context where the software actually runs. AI can help you explore options and reduce drafting effort; it cannot supply missing requirements or take responsibility for the result."
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-why",
+      "type": "paragraph",
+      "text": "This matters in chatgpt for developers because plausible output can still conflict with project behavior, user expectations, or operational constraints. Begin with the observed problem and define what success looks like before requesting a solution. Keep assumptions visible so a teammate can challenge them."
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-workflow",
+      "type": "heading",
+      "level": 3,
+      "text": "A practical workflow"
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-steps",
+      "type": "ordered-list",
+      "items": [
+        "State the task in terms of the behavior or decision you need: use current primary documentation to resolve framework and library questions.",
+        "Supply only the relevant code, contract, evidence, and constraints; remove secrets and unrelated data.",
+        "Identify package and version; search official documentation or repository types; ask AI to explain a supplied passage; validate an example locally.",
+        "Ask for assumptions and alternatives when the evidence is incomplete; do not let a confident tone substitute for a source or reproduction.",
+        "Review the result in the project, run proportionate checks, and keep, revise, or reject it based on observable evidence."
+      ]
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-scenario",
+      "type": "heading",
+      "level": 3,
+      "text": "Worked scenario"
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-example",
+      "type": "paragraph",
+      "text": "For a React hook question, include the installed React version and relevant component; compare the response with the official API reference. A useful request separates what is known from what is suspected. For example: “Here is the sanitized behavior, relevant contract, and constraint. First identify the assumptions and propose the smallest experiment that distinguishes the likely causes. Do not change unrelated interfaces.” This asks for reasoning that can be tested rather than a patch detached from evidence."
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-prompt",
+      "type": "code",
+      "language": "text",
+      "filename": "task-brief.txt",
+      "code": "Goal: Use current primary documentation to resolve framework and library questions.\nContext: [relevant behavior, files, version, or sanitized evidence]\nConstraints: [invariants, policy, compatibility, and out-of-scope work]\nRequest: Identify package and version; search official documentation or repository types; ask AI to explain a supplied passage; validate an example locally.\nCheck: [test, source, reproduction, or review that will verify the result]",
+      "caption": "A compact brief; replace bracketed text with project-specific evidence."
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-review",
+      "type": "heading",
+      "level": 3,
+      "text": "Review and verification"
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-checks",
+      "type": "list",
+      "items": [
+        "Compare the suggestion with the canonical requirement and nearby project conventions.",
+        "Check normal, boundary, and failure behavior; inspect what the proposed change leaves untouched.",
+        "Run the narrowest useful automated check, then broader checks when the change crosses boundaries.",
+        "Read the complete diff and explain the result in your own words before accepting it."
+      ]
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-pitfall",
+      "type": "callout",
+      "variant": "warning",
+      "title": "A plausible answer still needs evidence",
+      "text": "A common failure is to treat a fluent answer as proof. Frameworks, Libraries, and Documentation requires context and judgment: verify claims against code, tests, authoritative documentation, or a reproducible observation. If the tool lacks necessary context, ask a question or gather evidence instead of filling the gap with a guess."
+    },
+    {
+      "id": "block-frameworks-libraries-and-documentation-takeaway",
+      "type": "quote",
+      "text": "Use AI to make the next engineering decision easier to inspect; keep the decision and its verification yours.",
+      "attribution": "Working principle"
+    }
+  ],
+  "ttsText": "Frameworks, Libraries, and Documentation. Use current primary documentation to resolve framework and library questions. Identify package and version; search official documentation or repository types; ask AI to explain a supplied passage; validate an example locally. Provide relevant and safe context, ask for a reviewable contribution, and verify claims against project behavior, tests, or authoritative sources. AI output is a proposal; the developer remains accountable for the decision and result.",
+  "exercises": [
+    {
+      "id": "exercise-frameworks-libraries-and-documentation-practice",
+      "type": "practical",
+      "title": "Practice: Frameworks, Libraries, and Documentation",
+      "objective": "Investigate one version-sensitive API and record the version, authoritative source, and runnable verification.",
+      "instructions": [
+        "Choose a small, permitted task related to Frameworks, Libraries, and Documentation.",
+        "Write the goal, relevant context, constraints, and observable acceptance criteria before consulting an AI tool.",
+        "Request a bounded explanation, plan, or draft; note assumptions that need confirmation.",
+        "Verify the result with a source, focused test, reproduction, or review checklist and record what you changed or rejected."
+      ],
+      "constraints": [
+        "Use synthetic or approved information only; never include credentials, private user data, or material you are not allowed to share."
+      ],
+      "expectedOutcome": "A short task brief, a reviewable AI contribution, and evidence that addresses: Investigate one version-sensitive API and record the version, authoritative source, and runnable verification.",
+      "required": false
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment-frameworks-libraries-and-documentation-workflow",
+      "type": "scenario",
+      "prompt": "A developer is working on Frameworks, Libraries, and Documentation and receives a confident AI recommendation. What is the strongest next step?",
+      "options": [
+        {
+          "id": "option-frameworks-libraries-and-documentation-workflow-evidence",
+          "text": "Apply the workflow: Identify package and version; search official documentation or repository types; ask AI to explain a supplied passage; validate an example locally. Then verify the outcome against project evidence."
+        },
+        {
+          "id": "option-frameworks-libraries-and-documentation-workflow-assume",
+          "text": "Accept the recommendation because it is detailed and sounds technically plausible."
+        },
+        {
+          "id": "option-frameworks-libraries-and-documentation-workflow-skip",
+          "text": "Ask the model to repeat the same answer more confidently, then proceed without a project check."
+        }
+      ],
+      "correctOptionId": "option-frameworks-libraries-and-documentation-workflow-evidence",
+      "explanation": "For Frameworks, Libraries, and Documentation, the recommendation is useful only when evaluated against task context and evidence. Identify package and version; search official documentation or repository types; ask AI to explain a supplied passage; validate an example locally. This preserves reviewability and engineering ownership.",
+      "required": true,
+      "passThreshold": 0.7
+    },
+    {
+      "id": "assessment-frameworks-libraries-and-documentation-risk",
+      "type": "scenario",
+      "prompt": "A teammate asks you to act on this task: Use current primary documentation to resolve framework and library questions Some requirements or evidence are missing. What is the strongest response?",
+      "options": [
+        {
+          "id": "option-frameworks-libraries-and-documentation-risk-clarify",
+          "text": "Identify the missing assumption, gather the smallest useful evidence, narrow the request, and verify affected behavior."
+        },
+        {
+          "id": "option-frameworks-libraries-and-documentation-risk-broad",
+          "text": "Let the AI infer the missing requirements and make a broad change so work continues quickly."
+        },
+        {
+          "id": "option-frameworks-libraries-and-documentation-risk-ignore",
+          "text": "Ignore the uncertainty because the requested change appears small."
+        }
+      ],
+      "correctOptionId": "option-frameworks-libraries-and-documentation-risk-clarify",
+      "explanation": "Incomplete context is a reason to reduce uncertainty before acting. A bounded experiment and targeted verification reveal whether the proposal fits the real contract and downstream behavior.",
+      "required": true,
+      "passThreshold": 0.7
+    }
+  ]
+}

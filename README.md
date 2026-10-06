@@ -2,7 +2,7 @@
 
 AI-powered developer productivity learning for software engineers. The course focuses on using AI throughout the software lifecycle; code provides context for lessons, examples, and workflows.
 
-The approved course title, 8 sections, 43 chapters, and stable section/chapter IDs are centralized in [`src/data/curriculum.js`](src/data/curriculum.js) at curriculum version `1.0.0`. Lesson-content contracts and curriculum validation live under `src/data/schemas/` and `src/data/validation/`. See [`documentation.md`](documentation.md) for the course overview and project setup.
+The approved course title, 8 sections, 43 chapters, and stable section/chapter IDs are centralized in [`src/data/curriculum.js`](src/data/curriculum.js) at curriculum version `1.0.0`. Lesson-content contracts and curriculum validation live under `src/data/schemas/` and `src/data/validation/`. See [`DOCUMENTATION.md`](DOCUMENTATION.md) for the course overview and project setup.
 
 ## Run locally
 
@@ -35,7 +35,7 @@ Local development uses `APP_ENV=development` and Paystack TEST credentials. Prod
 
 The detailed payment metadata, authenticated callback verification, signed webhook endpoint, route list, data model, security notes, and deployment instructions are in [`backend/README.md`](backend/README.md).
 
-The React app includes learner sign-in and registration at `/learn/login` and `/learn/register`, a progress dashboard at `/learn`, and protected lesson reading at `/courses/:courseSlug/learn/:chapterId`. Authored lessons remain validated JSON under `content/lessons/` and are delivered only to authenticated users with a paid purchase. Browser speech synthesis is optional; progress, required exercise acknowledgment, assessment retries, and certificate eligibility are evaluated and stored server-side.
+The React app includes learner sign-in and registration at `/learn/login` and `/learn/register`, a progress dashboard at `/learn`, and lesson reading at `/courses/:courseSlug/learn/:chapterId`. Visitors can read only the server-defined Chapter 1 preview; all full lessons require a verified paid purchase. The 43 authored lessons remain validated JSON under `content/lessons/`. Paid learners can download the course ebook; eligible completers can download an owner-protected Certificate of Completion PDF and share its public verification endpoint. Progress, required exercise acknowledgment, assessment retries, and certificate eligibility are evaluated and stored server-side.
 
 Super Admin sign-in is available at `/login`; the protected commerce dashboard is at `/admin`. Accounts are created through the documented seed/admin setup and there is no public Super Admin registration. Production static hosting must serve the React app entry point for these paths.
 
