@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://briane-dev-edtech.onrender.com/api/:path*"
+      "destination": "https://briane-dev-api.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",

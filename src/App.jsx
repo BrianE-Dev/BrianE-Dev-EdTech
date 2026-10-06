@@ -103,6 +103,7 @@ function LandingPage() {
         <span onClick={closeMenu}><Brand /></span>
         <nav className={`main-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Main navigation">
           <a href="#curriculum" onClick={closeMenu}>Curriculum</a>
+          <a href="#preview" onClick={closeMenu}>Free Preview</a>
           <a href="#courses" onClick={closeMenu}>Course Format</a>
           <a href="#method" onClick={closeMenu}>Method</a>
           <a href="#pricing" onClick={closeMenu}>Pricing</a>
@@ -145,6 +146,19 @@ function LandingPage() {
           {features.map((feature) => <FeatureCard key={feature.title} {...feature}/>) }
         </section>
 
+        <section id="preview" className="course-preview-section section-wrap section-block" aria-labelledby="course-preview-title">
+          <div className="course-preview-copy">
+            <span className="eyebrow">START HERE / FREE COURSE PREVIEW</span>
+            <h2 id="course-preview-title">See how the course teaches.</h2>
+            <p>Open the free Chapter 1 preview to experience a real lesson and explore the learner view before enrolling.</p>
+          </div>
+          <a className="course-preview-card" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">
+            <span className="course-preview-card-label"><Icon name="book" size={14}/> CHAPTER 1 / FREE PREVIEW</span>
+            <strong>The AI-Assisted Developer</strong>
+            <span>Read the lesson preview <Icon name="arrow" size={14}/></span>
+          </a>
+        </section>
+
         <section id="curriculum" className="curriculum-section section-wrap section-block">
           <div className="course-name">{curriculum.title}</div>
           <SectionHeading eyebrow="CURRICULUM / PROGRESSION" title={<>{curriculum.sections.length} Sections <span>Â·</span> {totalChapters} Chapters</>} description="A structured path for using AI effectively throughout the software development lifecycle." action={<a className="text-link" href="#courses">Course content <Icon name="arrow" size={15}/></a>}/>
@@ -168,8 +182,8 @@ function LandingPage() {
         <section className="final-cta"><div><span className="eyebrow">AI-POWERED DEVELOPER PRODUCTIVITY</span><h2>Use AI Throughout<br/>the Software Lifecycle.</h2><p>Study practical AI workflows for planning, debugging, refactoring, documentation, testing, and delivery.</p><div className="hero-actions"><a className="button button-primary" href="#curriculum">View the Curriculum <Icon name="arrow" size={15}/></a><a className="button button-secondary" href="#courses">Explore Course Content</a></div></div></section>
       </main>
 
-      <footer className="site-footer section-wrap"><Brand/><span>ENGINEERING EDUCATION / BUILT FOR THE SOFTWARE LIFECYCLE</span><div><a href="#curriculum">CURRICULUM</a><a href="#courses">COURSES</a><a href="#pricing">ACCESS</a><a href="#faq">SUPPORT</a></div><span>Â© 2026 BRIANE-DEV</span></footer>
-      <nav className="mobile-dock" aria-label="Quick navigation"><a href="#top"><Icon name="grid" size={17}/><span>HOME</span></a><a href="#curriculum"><Icon name="book" size={17}/><span>CURRICULUM</span></a><a href="#courses"><Icon name="code" size={17}/><span>COURSE</span></a><a href="#pricing"><Icon name="lock" size={17}/><span>ACCESS</span></a></nav>
+      <footer className="site-footer section-wrap"><Brand/><span>ENGINEERING EDUCATION / BUILT FOR THE SOFTWARE LIFECYCLE</span><div><a href="#curriculum">CURRICULUM</a><a href="#preview">FREE PREVIEW</a><a href="#pricing">ACCESS</a><a href="#faq">SUPPORT</a></div><span>Â© 2026 BRIANE-DEV</span></footer>
+      <nav className="mobile-dock" aria-label="Quick navigation"><a href="#top"><Icon name="grid" size={17}/><span>HOME</span></a><a href="#curriculum"><Icon name="book" size={17}/><span>CURRICULUM</span></a><a href="#preview"><Icon name="code" size={17}/><span>PREVIEW</span></a><a href="#pricing"><Icon name="lock" size={17}/><span>ACCESS</span></a></nav>
     </div>
   )
 }

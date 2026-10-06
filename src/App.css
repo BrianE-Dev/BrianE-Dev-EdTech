@@ -323,3 +323,15 @@ h1,h2,h3 { font-family: var(--display); }
 .locked-lesson-state h1 { margin: 12px 0; font: 600 clamp(29px,4vw,42px)/1.12 var(--display); }
 .locked-lesson-state .purchase-gate { margin-top: 24px; }
 @media(max-width:560px) { .purchase-gate { padding: 17px; }.locked-lesson-state { width: calc(100% - 28px); margin-top: 32px; }.chapter-list li { grid-template-columns: 22px minmax(0,1fr); } }
+
+/* Keep the single course price card centered and make the free preview easy to find. */
+.pricing-grid { max-width: 500px; grid-template-columns: minmax(0,1fr); }
+.course-preview-section { display: grid; grid-template-columns: 1fr minmax(260px,.8fr); align-items: center; gap: 28px; padding: 26px; border: 1px solid #2a3d54; border-radius: 6px; background: linear-gradient(120deg,rgba(67,213,237,.08),rgba(12,22,38,.82) 56%); }
+.course-preview-copy h2 { margin: 11px 0 8px; color: var(--text); font: 600 clamp(23px,3vw,32px)/1.15 var(--display); letter-spacing: -.04em; }
+.course-preview-copy p { max-width: 480px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.course-preview-card { display: grid; gap: 16px; padding: 20px; border: 1px solid #2b4b5d; border-radius: 5px; color: inherit; background: #0b1727; text-decoration: none; transition: border-color .18s, transform .18s; }
+.course-preview-card:hover,.course-preview-card:focus-visible { transform: translateY(-2px); border-color: var(--cyan); }
+.course-preview-card-label,.course-preview-card > span:last-child { display: flex; align-items: center; gap: 8px; color: var(--cyan); font: 9px var(--mono); }
+.course-preview-card strong { color: #e2eaf5; font: 600 21px var(--display); }
+.course-preview-card > span:last-child { justify-content: space-between; padding-top: 12px; border-top: 1px solid #28394e; }
+@media(max-width:700px) { .course-preview-section { grid-template-columns: 1fr; gap: 17px; padding: 17px; }.course-preview-copy h2 { font-size: 24px; }.course-preview-card { gap: 12px; padding: 15px; } }
