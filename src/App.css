@@ -246,6 +246,7 @@ h1,h2,h3 { font-family: var(--display); }
 .learner-course-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
 .learner-course-heading h2,.learner-empty-card h2 { margin: 9px 0 17px; font: 600 21px var(--display); }
 .learner-course-heading > strong { color: var(--green); font: 600 24px var(--display); }
+.learner-course-progress { display: grid; justify-items: end; gap: 4px; }.learner-course-progress span { color: var(--muted); font: 9px var(--mono); }.learner-course-progress strong { color: var(--green); font: 600 24px var(--display); }
 .learner-progress-track { height: 7px; overflow: hidden; border-radius: 10px; background: var(--line); }
 .learner-progress-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,var(--cyan),var(--green)); transition: width .25s ease; }
 .learner-course-card > p,.learner-empty-card > p { margin: 12px 0 20px; color: var(--muted); font-size: 12px; }

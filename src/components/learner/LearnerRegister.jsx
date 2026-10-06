@@ -31,7 +31,7 @@ export default function LearnerRegister() {
     <section className="learner-auth-card">
       <span className="eyebrow">BRIANE-DEV / LEARNER ACCESS</span>
       <h1>Create your learner account</h1>
-      <p>Registration creates a regular learner account. It does not grant course access or administrative privileges.</p>
+      <p>Create your free BrianE-Dev account to access the course preview. Purchase the course to unlock the complete 43-chapter learning experience.</p>
       <form onSubmit={submit}>
         <label>Name<input type="text" name="name" autoComplete="name" minLength="2" maxLength="120" required /></label>
         <label>Email address<input type="email" name="email" autoComplete="email" required /></label>

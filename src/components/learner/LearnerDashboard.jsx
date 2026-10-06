@@ -43,13 +43,13 @@ export default function LearnerDashboard() {
     <header className="learner-header"><a href="/" aria-label="BrianE-Dev homepage"><Brand /></a><div><span>{state.user.name}</span><button type="button" onClick={signOut}>Sign out</button></div></header>
     <section className="learner-dashboard-content">
       <span className="eyebrow">YOUR LEARNING SPACE</span>
-      <h1>Continue learning</h1>
-      <p className="learner-lede">Your course progress is saved to your account and follows the approved chapter order.</p>
+      <h1>{state.courses.length ? 'Full Course Access' : 'Preview Access'}</h1>
+      <p className="learner-lede">{state.courses.length ? 'You’re enrolled in BrianE-Dev. Your progress is saved to your account.' : `You’re currently exploring BrianE-Dev, ${state.user.name}.`}</p>
       {state.courses.length === 0 ? <article className="learner-empty-card">
-        <h2>No course access found</h2>
-        <p>Preview Chapter 1 for free, then purchase access to read the complete 43 chapter course.</p>
+        <h2>Course access: Preview only</h2>
+        <p>Your free account gives you access to the public Chapter 1 preview. Purchase the course to unlock all 43 chapters, progress tracking, assessments, and the ebook.</p>
         <a className="learner-text-link" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Start Chapter 1 Preview</a>
-        <a className="button button-primary" href="/#pricing">View course access</a>
+        <a className="button button-primary" href="/#pricing">Enroll / Purchase</a>
       </article> : state.courses.map(({ course, progress, ebook }) => {
         const statuses = new Map(progress.chapters.map((chapter) => [chapter.chapterId, chapter.status]))
         const current = progress.currentChapterId && statuses.get(progress.currentChapterId) !== 'completed'
@@ -59,13 +59,13 @@ export default function LearnerDashboard() {
         const certificate = state.certificates.find((item) => String(item.course) === String(course._id || course.id))
         const readerUrl = current ? `/courses/${encodeURIComponent(course.slug)}/learn/${encodeURIComponent(current)}` : null
         return <article className="learner-course-card" key={course._id || course.id}>
-          <div className="learner-course-heading"><div><span className="eyebrow">COURSE / 01</span><h2>{course.title}</h2></div><strong>{progress.completionPercentage}%</strong></div>
+          <div className="learner-course-heading"><div><span className="eyebrow">COURSE / 01</span><h2>{course.title}</h2></div><div className="learner-course-progress"><span>PROGRESS</span><strong>{progress.completionPercentage}%</strong></div></div>
           <div className="learner-progress-track" role="progressbar" aria-label="Course completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress.completionPercentage}><span style={{ width: `${progress.completionPercentage}%` }}/></div>
           <p>{progress.completedChapters} of {progress.totalChapters} chapters complete</p>
           <p className="learner-course-state">{certificate ? 'Certificate issued' : complete ? 'Course complete - certificate record unavailable' : progress.completedChapters === 0 ? 'Not started' : 'In progress'}</p>
           <section className="learner-entitlement-card"><div><span className="eyebrow">COURSE EBOOK</span><h3>{ebook.title}</h3><p>{ebook.available ? 'Included with your course purchase.' : 'The PDF is not published yet. Download access will appear here when it is available.'}</p></div>{ebook.available ? <a className="button button-secondary" href={getCourseEbookUrl(course._id || course.id)}>Download ebook</a> : <span className="entitlement-unavailable">Not published</span>}</section>
           {complete ? <div className="learner-complete-message"><strong>Course complete</strong>{certificate && <><span>Certificate issued: {certificate.certificateId}</span><div className="learner-certificate-actions"><a className="button button-primary" href={getCertificateDownloadUrl(certificate.certificateId)}>Download certificate</a><a className="learner-text-link" href={getCertificateVerificationUrl(certificate.certificateId)} target="_blank" rel="noreferrer">Verify certificate</a></div></>}</div>
-            : <a className="button button-primary" href={readerUrl || `/courses/${encodeURIComponent(course.slug)}/learn/${encodeURIComponent(progress.chapters[0].chapterId)}`}>{progress.currentChapterId ? 'Resume course' : 'Start learning'}</a>}
+            : <a className="button button-primary" href={readerUrl || `/courses/${encodeURIComponent(course.slug)}/learn/${encodeURIComponent(progress.chapters[0].chapterId)}`}>{progress.currentChapterId ? 'Continue Learning' : 'Start Learning'}</a>}
           <details className="learner-curriculum"><summary>Course curriculum - {curriculum.sections.length} sections, {progress.totalChapters} chapters</summary>{curriculum.sections.map((section) => <section key={section.id}><h3>Part {section.number}: {section.title}</h3><ol>{section.chapters.map((chapter) => {
             const status = statuses.get(chapter.id) || 'not_started'
             const currentChapter = chapter.id === current && status !== 'completed'

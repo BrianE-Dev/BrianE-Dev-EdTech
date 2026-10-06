@@ -43,6 +43,7 @@ const originals = {
   courseFindOne: Course.findOne,
   courseFind: Course.find,
   paymentExists: Payment.exists,
+  paymentFind: Payment.find,
   progressFindOne: Progress.findOne,
   progressCreate: Progress.create,
   progressUpdateOne: Progress.updateOne,
@@ -76,6 +77,7 @@ test.before(async () => {
   Course.findOne = () => query(course)
   Course.find = () => query([course])
   Payment.exists = async () => paid ? { _id: 'paid-record' } : null
+  Payment.find = () => ({ populate: async () => [] })
   progressRecords = new Map()
   Progress.findOne = async (filter = {}) => progressRecords.get(`${filter.user}:${filter.course}`) || null
   Progress.create = async (input) => {
@@ -124,6 +126,7 @@ test.after(async () => {
   Course.findOne = originals.courseFindOne
   Course.find = originals.courseFind
   Payment.exists = originals.paymentExists
+  Payment.find = originals.paymentFind
   Progress.findOne = originals.progressFindOne
   Progress.create = originals.progressCreate
   Progress.updateOne = originals.progressUpdateOne
@@ -195,6 +198,14 @@ test('public and authenticated unpaid visitors receive only the Chapter 1 previe
     assert.equal(JSON.stringify(body).includes('assessment-ai-assisted-developer-review-loop'), false)
     assert.equal(JSON.stringify(body).includes('assessment-explanation'), false)
   }
+  paid = true
+  const purchasedPreview = await apiJson('/courses/ai-powered-developer-productivity/lessons/chapter-ai-assisted-developer/preview')
+  const purchasedPreviewBody = await purchasedPreview.json()
+  assert.equal(purchasedPreviewBody.access.level, 'preview')
+  assert.equal(purchasedPreviewBody.access.isPreview, true)
+  assert.equal(purchasedPreviewBody.access.isPurchased, true)
+  assert.deepEqual(purchasedPreviewBody.lesson.assessments, [])
+  paid = false
   assert.equal(progressRecords.size, 0)
 })
 
@@ -428,6 +439,41 @@ test('learner login, invalid credentials, registration role isolation, and admin
   const registered = await registration.json()
   assert.equal(registered.user.role, 'user')
   assert.equal(userRows.get(registered.user.id).role, 'user')
+
+  paid = false
+  progressRecords.clear()
+  const newLearnerLogin = await apiJson('/auth/login', { method: 'POST', body: { email: 'new@example.test', password: 'new-learner-password' } })
+  assert.equal(newLearnerLogin.status, 200)
+  assert.equal((await apiJson('/auth/me', { userId: registered.user.id })).status, 200)
+  const purchases = await apiJson('/me/purchases', { userId: registered.user.id })
+  assert.deepEqual(await purchases.json(), [])
+
+  const accountPreview = await apiJson('/courses/ai-powered-developer-productivity/lessons/chapter-ai-assisted-developer/preview', { userId: registered.user.id })
+  assert.equal(accountPreview.status, 200)
+  assert.equal((await accountPreview.json()).access.isPreview, true)
+  for (const chapterId of ['chapter-ai-assisted-developer', 'chapter-choosing-the-right-ai-tool', 'chapter-the-ai-powered-developer-putting-everything-together']) {
+    const fullLesson = await apiJson(`/courses/${course.id}/lessons/${chapterId}`, { userId: registered.user.id })
+    assert.equal(fullLesson.status, 403)
+    assert.equal((await fullLesson.json()).code, 'COURSE_PURCHASE_REQUIRED')
+  }
+
+  const unpaidProgress = await apiJson(`/courses/${course.id}/progress`, { userId: registered.user.id })
+  assert.equal(unpaidProgress.status, 403)
+  assert.equal((await unpaidProgress.json()).code, 'COURSE_PURCHASE_REQUIRED')
+  const unpaidLegacyProgress = await apiJson(`/me/progress/${course.id}`, { userId: registered.user.id })
+  assert.equal(unpaidLegacyProgress.status, 403)
+  const unpaidCompletion = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/progress`, { userId: registered.user.id, method: 'POST', body: { status: 'completed' } })
+  assert.equal(unpaidCompletion.status, 403)
+  const unpaidAssessment = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/assessment`, { userId: registered.user.id, method: 'POST', body: { answers: [] } })
+  assert.equal(unpaidAssessment.status, 403)
+  const unpaidExercise = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/exercises/any-exercise/complete`, { userId: registered.user.id, method: 'POST', body: {} })
+  assert.equal(unpaidExercise.status, 403)
+  const unpaidAsset = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/assets?src=%2Fimages%2Fexample.png`, { userId: registered.user.id })
+  assert.equal(unpaidAsset.status, 403)
+  const unpaidEbook = await apiJson(`/courses/${course.id}/ebook`, { userId: registered.user.id })
+  assert.equal(unpaidEbook.status, 403)
+  const unpaidCertificates = await apiJson('/me/certificates', { userId: registered.user.id })
+  assert.equal(unpaidCertificates.status, 403)
 
   const learnerAdminAccess = await apiJson('/admin/pricing', { userId: userDbId })
   assert.equal(learnerAdminAccess.status, 403)

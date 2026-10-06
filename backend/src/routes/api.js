@@ -270,7 +270,7 @@ router.get('/courses/:slug/lessons/:chapterId/preview', authenticateOptional, as
       lesson: toPublicPreviewLesson(lesson),
       ...metadata,
       progress: null,
-      access: { level: isPurchased ? 'full' : 'preview', isPreview: !isPurchased, isPurchased, purchaseRequired: false },
+      access: { level: 'preview', isPreview: true, isPurchased, purchaseRequired: false },
     })
   } catch (error) { next(error) }
 })
