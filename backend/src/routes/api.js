@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
+import mongoose from 'mongoose'
 import { AuditLog, Certificate, Course, Payment, Pricing, Progress, User } from '../models/index.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
 import { getFinalPrice } from '../utils/pricing.js'
@@ -10,8 +11,12 @@ import { getPaystackConfig } from '../config/paystack.js'
 import { initializeTransaction, verifyTransaction } from '../services/paystack.js'
 import { curriculum, CURRICULUM_VERSION } from '../../../src/data/curriculum.js'
 import { canAccessCourseLesson } from '../services/courseLessonAccess.js'
-import { getLessonByChapterId, InvalidChapterError, InvalidLessonContentError, LessonNotFoundError } from '../services/lessonRepository.js'
+import { getLessonByChapterId, InvalidChapterError, InvalidLessonContentError, LessonNotFoundError, LessonRepositoryError } from '../services/lessonRepository.js'
 import { toPublicLesson } from '../services/publicLesson.js'
+import { acknowledgeRequiredExercise, CompletionRequirementsError, getCourseProgress, openLessonProgress, updateLessonProgress } from '../services/lessonCompletion.js'
+import { InvalidAssessmentSubmissionError, submitLessonAssessment } from '../services/assessmentService.js'
+import { LessonAssetNotFoundError, resolveLessonImage } from '../services/lessonAssetRepository.js'
+import { getChapterMetadata } from '../services/curriculumNavigation.js'
 
 const router = Router()
 const isSecureCookie = process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production'
@@ -79,6 +84,7 @@ function authenticateOptional(req, _res, next) {
 
 function publicCourseMetadata(course) {
   return {
+    id: String(course._id || course.id),
     title: course.title,
     slug: course.slug,
     description: course.description || '',
@@ -187,41 +193,185 @@ router.post('/payments/paystack/webhook', paystackWebhook)
 router.post('/brianedev/payments/paystack/webhook', paystackWebhook)
 
 router.get('/me/purchases', authenticate, async (req, res) => res.json(await Payment.find({ user: req.user.id, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } }).populate('course', 'title slug')))
-router.get('/courses/:courseId/lessons/:chapterId', authenticate, async (req, res, next) => {
-  const course = await Course.findById(req.params.courseId)
-  if (!course) return res.status(404).json({ error: 'Course not found' })
-  if (!(await canAccessCourseLesson(req.user, course))) return res.status(403).json({ error: 'Course purchase required' })
+function apiFailure(res, status, message, code) {
+  return res.status(status).json({ error: message, code })
+}
 
+async function findCourse(courseId) {
+  if (!mongoose.isValidObjectId(courseId)) return null
+  return Course.findById(courseId)
+}
+
+async function getPaidCourse(req, res) {
+  const course = await findCourse(req.params.courseId)
+  if (!course) {
+    apiFailure(res, 404, 'Course not found', 'COURSE_NOT_FOUND')
+    return null
+  }
+  if (!(await canAccessCourseLesson(req.user, course))) {
+    apiFailure(res, 403, 'Course purchase required', 'LESSON_ACCESS_DENIED')
+    return null
+  }
+  return course
+}
+
+async function loadCanonicalLesson(chapterId, res) {
   try {
-    const lesson = await getLessonByChapterId(req.params.chapterId)
-    return res.json({ course: course.title, lesson: toPublicLesson(lesson) })
+    return await getLessonByChapterId(chapterId)
   } catch (error) {
-    if (error instanceof InvalidChapterError) return res.status(404).json({ error: 'Lesson not found' })
-    if (error instanceof LessonNotFoundError) return res.status(404).json({ error: 'Lesson content is not available' })
+    if (error instanceof InvalidChapterError || error instanceof LessonNotFoundError) {
+      apiFailure(res, 404, error instanceof InvalidChapterError ? 'Lesson not found' : 'Lesson content is not available', 'LESSON_NOT_FOUND')
+      return null
+    }
     if (error instanceof InvalidLessonContentError) {
       console.error(error.message)
-      return res.status(500).json({ error: 'Lesson content is invalid' })
+      apiFailure(res, 500, 'Lesson content is invalid', 'SERVER_ERROR')
+      return null
     }
-    return next(error)
+    if (error instanceof LessonRepositoryError) {
+      console.error(error.message)
+      apiFailure(res, 500, 'Unable to load lesson content', 'SERVER_ERROR')
+      return null
+    }
+    throw error
+  }
+}
+
+function progressState(progress, chapterId) {
+  const state = progress.chapterProgress?.find((item) => item.chapterId === chapterId)
+  const summary = progress.canonicalCompletionPercentage || 0
+  return {
+    status: state?.status || 'in_progress',
+    startedAt: state?.startedAt || null,
+    completedAt: state?.completedAt || null,
+    percent: summary,
+    requiredExerciseAcknowledgments: [...(state?.requiredExerciseAcknowledgments || [])],
+  }
+}
+
+router.get('/courses/:courseId/lessons/:chapterId', authenticate, async (req, res, next) => {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const metadata = getChapterMetadata(lesson.chapterId)
+    const progress = await openLessonProgress({ user: req.user, course, chapterId: lesson.chapterId })
+    res.json({
+      course: course.title,
+      lesson: toPublicLesson(lesson),
+      ...metadata,
+      progress: progressState(progress, lesson.chapterId),
+    })
+  } catch (error) { next(error) }
+})
+
+router.get('/courses/:courseId/progress', authenticate, async (req, res, next) => {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    res.json(await getCourseProgress({ user: req.user, course }))
+  } catch (error) { next(error) }
+})
+
+const progressRequestSchema = z.object({ status: z.enum(['in_progress', 'completed']) }).strict()
+
+async function updateProgressRoute(req, res, next, forcedStatus = null) {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const parsed = forcedStatus ? { success: true, data: { status: forcedStatus } } : progressRequestSchema.safeParse(req.body)
+    if (!parsed.success) return apiFailure(res, 400, 'Progress status is invalid', 'INVALID_PROGRESS')
+    const result = await updateLessonProgress({ user: req.user, course, lesson, status: parsed.data.status })
+    res.json({
+      chapterId: lesson.chapterId,
+      status: result.progress.chapterProgress.find((item) => item.chapterId === lesson.chapterId).status,
+      startedAt: result.progress.chapterProgress.find((item) => item.chapterId === lesson.chapterId).startedAt,
+      completedAt: result.progress.chapterProgress.find((item) => item.chapterId === lesson.chapterId).completedAt,
+      completionPercentage: result.progress.canonicalCompletionPercentage,
+      courseCompleted: result.courseCompleted,
+      certificateAvailable: result.courseCompleted && Boolean(course.certificateEligible),
+      certificate: result.certificate ? {
+        certificateId: result.certificate.certificateId,
+        recipientName: result.certificate.recipientName,
+        courseTitle: result.certificate.courseTitle,
+        issueDate: result.certificate.issueDate,
+      } : null,
+    })
+  } catch (error) {
+    if (error instanceof CompletionRequirementsError) return apiFailure(res, 409, error.message, 'COMPLETION_REQUIREMENTS_UNMET')
+    next(error)
+  }
+}
+
+router.post('/courses/:courseId/lessons/:chapterId/progress', authenticate, updateProgressRoute)
+
+router.post('/courses/:courseId/lessons/:chapterId/exercises/:exerciseId/complete', authenticate, async (req, res, next) => {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const result = await acknowledgeRequiredExercise({ user: req.user, course, lesson, exerciseId: req.params.exerciseId })
+    if (!result.found) return apiFailure(res, 404, 'Exercise not found', 'EXERCISE_NOT_FOUND')
+    if (!result.required) return res.json({ exerciseId: req.params.exerciseId, required: false, acknowledged: false })
+    const state = result.progress.chapterProgress.find((item) => item.chapterId === lesson.chapterId)
+    res.json({ exerciseId: req.params.exerciseId, required: true, acknowledged: true, status: state.status, completedAt: state.completedAt || null, completionPercentage: result.progress.canonicalCompletionPercentage })
+  } catch (error) { next(error) }
+})
+
+router.post('/courses/:courseId/lessons/:chapterId/assessment', authenticate, async (req, res, next) => {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const result = await submitLessonAssessment({ user: req.user, course, lesson, body: req.body })
+    res.status(201).json({
+      chapterId: lesson.chapterId,
+      assessment: result.assessment,
+      progress: result.progress ? {
+        status: result.progress.chapterProgress.find((item) => item.chapterId === lesson.chapterId).status,
+        completedAt: result.progress.chapterProgress.find((item) => item.chapterId === lesson.chapterId).completedAt || null,
+        completionPercentage: result.progress.canonicalCompletionPercentage,
+      } : null,
+      certificate: result.completion?.certificate ? {
+        certificateId: result.completion.certificate.certificateId,
+        recipientName: result.completion.certificate.recipientName,
+        courseTitle: result.completion.certificate.courseTitle,
+        issueDate: result.completion.certificate.issueDate,
+      } : null,
+    })
+  } catch (error) {
+    if (error instanceof InvalidAssessmentSubmissionError) {
+      const status = error.code === 'ASSESSMENT_NOT_FOUND' ? 404 : 400
+      return apiFailure(res, status, error.message, error.code)
+    }
+    next(error)
   }
 })
 
-router.post('/courses/:courseId/progress/:chapterId', authenticate, async (req, res) => {
-  const course = await Course.findById(req.params.courseId)
-  if (!course) return res.status(404).json({ error: 'Course not found' })
-  const purchased = await Payment.exists({ user: req.user.id, course: course.id, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } })
-  if (!purchased) return res.status(403).json({ error: 'Course purchase required' })
-  const allChapters = course.sections.flatMap((section, sectionIndex) => section.chapters.map((_chapter, chapterIndex) => `${sectionIndex}-${chapterIndex}`))
-  if (!allChapters.includes(req.params.chapterId)) return res.status(404).json({ error: 'Chapter not found' })
-  const progress = await Progress.findOneAndUpdate({ user: req.user.id, course: course.id }, { $addToSet: { completedChapters: req.params.chapterId }, $set: { lastAccessedChapter: req.params.chapterId, lastAccessedAt: new Date() } }, { upsert: true, new: true })
-  progress.completionPercentage = allChapters.length ? Math.round(progress.completedChapters.length / allChapters.length * 10000) / 100 : 0
-  if (progress.completionPercentage === 100 && course.certificateEligible) {
-    progress.completedAt ||= new Date()
-    await Certificate.findOneAndUpdate({ user: req.user.id, course: course.id }, { $setOnInsert: { certificateId: `BE-${crypto.randomUUID()}`, recipientName: req.user.name, courseTitle: course.title, issueDate: new Date(), completionDate: progress.completedAt, verificationStatus: 'valid' } }, { upsert: true, new: true })
+router.get('/courses/:courseId/lessons/:chapterId/assets', authenticate, async (req, res, next) => {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    const asset = await resolveLessonImage(req.params.chapterId, req.query.src)
+    res.type(asset.extension).sendFile(asset.path)
+  } catch (error) {
+    if (error instanceof InvalidChapterError || error instanceof LessonNotFoundError || error instanceof LessonAssetNotFoundError) {
+      return apiFailure(res, 404, 'Lesson image is not available', 'LESSON_ASSET_NOT_FOUND')
+    }
+    if (error instanceof InvalidLessonContentError || error instanceof LessonRepositoryError) {
+      console.error(error.message)
+      return apiFailure(res, 500, 'Lesson content is invalid', 'SERVER_ERROR')
+    }
+    next(error)
   }
-  await progress.save()
-  res.json(progress)
 })
+
+router.post('/courses/:courseId/progress/:chapterId', authenticate, (req, res, next) => updateProgressRoute(req, res, next, 'completed'))
 
 router.get('/me/progress/:courseId', authenticate, async (req, res) => {
   const purchased = await Payment.exists({ user: req.user.id, course: req.params.courseId, application: 'brianedev', environment: getPaystackConfig().appEnvironment, status: { $in: ['paid', 'successful'] } })

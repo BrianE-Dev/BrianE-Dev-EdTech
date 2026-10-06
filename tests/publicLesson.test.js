@@ -3,7 +3,7 @@ import test from 'node:test'
 import { sanitizeProtectedAnswers, toPublicLesson } from '../backend/src/services/publicLesson.js'
 import { validLessonFixture, validAssessmentFixture } from './fixtures/lessonFixture.js'
 
-test('public transformation recursively removes answer-key fields and validates safe output', () => {
+test('public transformation recursively removes answer keys and explanations', () => {
   const rawLesson = {
     ...validLessonFixture,
     assessments: [validAssessmentFixture],
@@ -15,5 +15,5 @@ test('public transformation recursively removes answer-key fields and validates 
   })
   for (const key of ['correctOptionId', 'answer_key', 'answerKey', 'correct_answer']) assert.equal(serialized.includes(key), false)
   assert.equal(publicLesson.assessments[0].options.length, 2)
-  assert.equal(publicLesson.assessments[0].explanation, validAssessmentFixture.explanation)
+  assert.equal('explanation' in publicLesson.assessments[0], false)
 })

@@ -35,7 +35,7 @@ Local development uses `APP_ENV=development` and Paystack TEST credentials. Prod
 
 The detailed payment metadata, authenticated callback verification, signed webhook endpoint, route list, data model, security notes, and deployment instructions are in [`backend/README.md`](backend/README.md).
 
-The current React app is a marketing page and curriculum overview. Authored lessons are stored as validated JSON under `content/lessons/` and delivered by the backend only to authenticated users with a paid purchase. The learner lesson reader/dashboard is not implemented.
+The React app includes learner sign-in and registration at `/learn/login` and `/learn/register`, a progress dashboard at `/learn`, and protected lesson reading at `/courses/:courseSlug/learn/:chapterId`. Authored lessons remain validated JSON under `content/lessons/` and are delivered only to authenticated users with a paid purchase. Browser speech synthesis is optional; progress, required exercise acknowledgment, assessment retries, and certificate eligibility are evaluated and stored server-side.
 
 Super Admin sign-in is available at `/login`; the protected commerce dashboard is at `/admin`. Accounts are created through the documented seed/admin setup and there is no public Super Admin registration. Production static hosting must serve the React app entry point for these paths.
 

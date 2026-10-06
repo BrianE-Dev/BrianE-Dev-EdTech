@@ -86,6 +86,7 @@ test('frontend assessment schema rejects server-only answer keys', () => {
   assert.equal(publicAssessmentSchema.safeParse(validAssessmentFixture).success, false)
   const publicAssessment = { ...validAssessmentFixture }
   delete publicAssessment.correctOptionId
+  delete publicAssessment.explanation
   assert.equal(publicAssessmentSchema.safeParse(publicAssessment).success, true)
 
   const publicLesson = { ...validLessonFixture, assessments: [publicAssessment] }

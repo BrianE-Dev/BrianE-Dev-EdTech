@@ -46,8 +46,13 @@ Production deployment should set `APP_ENV=production`, `NODE_ENV=production`, pr
 - `GET /api/courses`, `GET /api/courses/:slug` (public course and canonical curriculum metadata only)
 - `POST /api/brianedev/payments/initialize` with `{ "productId": "ai-powered-developer-productivity" }`, `POST /api/brianedev/payments/verify` with `{ "reference": "BDE-..." }`, `POST /api/brianedev/payments/paystack/webhook` (compatibility aliases remain under `/api/payments/*`)
 - `GET /api/me/purchases`, `GET /api/me/progress/:courseId`, `GET /api/me/certificates`
-- `GET /api/courses/:courseId/lessons/:chapterId` (requires authentication and a paid BrianE-Dev purchase; `chapterId` is the stable curriculum ID)
-- `POST /api/courses/:courseId/progress/:chapterId` (requires purchase; completion creates one certificate)
+- `GET /api/courses/:courseId/progress` (stable curriculum chapter progress; requires authentication and paid purchase)
+- `GET /api/courses/:courseId/lessons/:chapterId` (requires authentication and paid purchase; preserves `course` and `lesson` and adds chapter navigation/progress metadata)
+- `POST /api/courses/:courseId/lessons/:chapterId/progress` with `{ "status": "in_progress" | "completed" }`
+- `POST /api/courses/:courseId/lessons/:chapterId/exercises/:exerciseId/complete` (records learner acknowledgment for required exercises)
+- `POST /api/courses/:courseId/lessons/:chapterId/assessment` with `{ "answers": [{ "questionId": "assessment-id", "optionId": "option-id" }] }`
+- `GET /api/courses/:courseId/lessons/:chapterId/assets?src=content/...` (authenticated protected lesson images only)
+- `POST /api/courses/:courseId/progress/:chapterId` (legacy path; now accepts stable chapter IDs and applies the same completion evaluator)
 - `GET /api/certificates/verify/:certificateId`
 - Super Admin: `GET /api/admin/pricing`, `PUT /api/admin/pricing/:region`, `GET /api/admin/transactions`, `GET /api/admin/purchases`, `GET /api/admin/certificates`
 
@@ -57,13 +62,17 @@ Authentication uses an HTTP-only, same-site cookie. Production must use HTTPS. C
 
 `src/data/curriculum.js` remains the canonical curriculum metadata source. Authored lesson JSON lives only in `content/lessons/<chapterId>.json`; MongoDB continues to hold course commerce and learner/application state, not authored lesson bodies. `backend/src/services/lessonRepository.js` resolves the stable `chapterId`, reads that exact filename, and runs the Phase 3 Zod and curriculum/title/filename checks before returning content. Missing content is allowed while authoring is incremental; `npm run validate:content:complete` reports failure until all 43 canonical lessons exist.
 
-The protected lesson route first uses the existing session authentication, then checks the existing `Payment` model for a paid/successful BrianE-Dev purchase in the active Paystack environment. It then loads and validates the repository lesson and passes it through `toPublicLesson()` before serialization. The response transformation recursively removes assessment answer-key fields, including `correctOptionId`; answer keys remain server-side. Public course endpoints return course title/slug/description and canonical section/chapter metadata only. Objectives, lesson blocks, exercises, assessments, and TTS text are protected lesson content. The learner lesson reader, TTS playback, exercise and quiz interactions, and progress UI are not implemented here.
+The protected lesson route checks the existing session and paid BrianE-Dev purchase for the active Paystack environment. It loads and validates the canonical JSON lesson, then strips answer keys and explanations before returning it. Assessment submissions are scored on the server; attempts store selected option, outcome, score, and stable content identifiers but never answer keys. Learners receive only aggregate score and pass status.
+
+The existing `CourseProgress` document has additive stable-ID chapter state (`chapterProgress`), `currentChapterId`, and separate canonical completion fields. Existing legacy fields remain in place and are not translated from array indexes. Required exercises are completed by an explicit learner acknowledgment stored by exercise ID. Course completion requires all canonical chapters complete and all required activities satisfied; a certificate is created once when the course is certificate-eligible. Assessment retries are unlimited and recorded with a unique per-assessment attempt number.
+
+The React learner experience is available at `/learn/login`, `/learn/register`, `/learn`, and `/courses/:courseSlug/learn/:chapterId`. Super Admin sign-in remains at `/login`. Lesson images are served only when their exact path is referenced by that validated lesson and resolves inside `content/`. Browser speech synthesis is optional and does not affect progress. The repository currently contains one authored lesson; the strict validator reports the other 42 canonical lesson files as missing until authored.
 
 ## Payment and completion rules
 
 The browser submits a product ID only; it cannot submit amount, currency, region, or discount. The backend selects the course and regional MongoDB price, computes the discount and final amount, generates a `BDE-YYYYMMDD-RANDOM` reference, and writes a pending payment snapshot before calling Paystack. The payment snapshot stores application/product identity, user/course, Paystack reference, pricing record ID, region, original/final amounts, discount details, and currency. Paystack receives corresponding application/product/user/region/pricing metadata and dashboard custom fields.
 
-After checkout, the React return handler sends the reference to `/api/brianedev/payments/verify`. That endpoint requires the authenticated owner and verifies the reference directly with Paystack. The signed webhook at `/api/brianedev/payments/paystack/webhook` independently verifies the transaction. Both paths compare the payment record's application, product, reference, amount in minor units, and currency before setting `paid`. Unique references and conditional state changes make duplicate webhook deliveries idempotent. Only `paid` (plus the legacy `successful` state for older records) BrianE-Dev payments grant access. Progress tracks database chapter identifiers; reaching 100% for a certificate-eligible course creates one certificate.
+After checkout, the React return handler sends the reference to `/api/brianedev/payments/verify`. That endpoint requires the authenticated owner and verifies the reference directly with Paystack. The signed webhook at `/api/brianedev/payments/paystack/webhook` independently verifies the transaction. Both paths compare the payment record's application, product, reference, amount in minor units, and currency before setting `paid`. Unique references and conditional state changes make duplicate webhook deliveries idempotent. Only `paid` (plus the legacy `successful` state for older records) BrianE-Dev payments grant access. Canonical progress tracks stable chapter IDs. Certificate creation requires all 43 stable chapters complete, required assessments passed, required exercises acknowledged, and a certificate-eligible course.
 
 ## Production checklist
 
@@ -96,4 +105,4 @@ In Vercel, keep the project root at the repository root. The checked-in rewrite 
 
 For LIVE mode later, update Render to `APP_ENV=production`, replace both Paystack keys and the webhook secret with their LIVE values, configure the LIVE webhook in Paystack, and confirm the production Atlas URI. The Render service remains on `NODE_ENV=production`; frontend code and payment routes do not need rewriting.
 
-The React project currently contains a public curriculum overview, not lesson bodies or a student dashboard. The API provides protected lesson, access, progress, and certificate operations; the lesson content/editor and learner UI require authored lesson data and can be added without trusting client-side completion state.
+The React project includes the public curriculum overview and authenticated learner dashboard/reader. Lesson bodies remain authored JSON in `content/lessons/`; 42 canonical lessons still need content before the complete-course validator will pass.

@@ -46,8 +46,39 @@ paymentSchema.index({ application: 1, environment: 1, user: 1, status: 1, create
 const progressSchema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
   completedChapters: [{ type: String }], completionPercentage: { type: Number, default: 0, min: 0, max: 100 }, lastAccessedChapter: String, completedAt: Date, lastAccessedAt: Date,
+  chapterProgress: [{
+    _id: false,
+    chapterId: { type: String, required: true },
+    status: { type: String, enum: ['not_started', 'in_progress', 'completed'], required: true },
+    startedAt: Date,
+    completedAt: Date,
+    requiredExerciseAcknowledgments: { type: [String], default: [] },
+  }],
+  currentChapterId: String,
+  canonicalCompletionPercentage: { type: Number, default: 0, min: 0, max: 100 },
+  canonicalCompletedAt: Date,
 }, timestamps)
 progressSchema.index({ user: 1, course: 1 }, { unique: true })
+
+const assessmentAttemptSchema = new Schema({
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
+  chapterId: { type: String, required: true },
+  assessmentId: { type: String, required: true },
+  optionId: { type: String, required: true },
+  isCorrect: { type: Boolean, required: true },
+  score: { type: Number, required: true, min: 0, max: 1 },
+  correctAnswers: { type: Number, required: true, min: 0, max: 1 },
+  totalQuestions: { type: Number, required: true, default: 1 },
+  passed: { type: Boolean, required: true },
+  attemptNumber: { type: Number, required: true, min: 1 },
+  contentVersion: { type: String, required: true },
+  submittedAt: { type: Date, required: true, default: Date.now },
+}, timestamps)
+assessmentAttemptSchema.index(
+  { user: 1, course: 1, chapterId: 1, assessmentId: 1, attemptNumber: 1 },
+  { unique: true },
+)
 
 const certificateSchema = new Schema({
   certificateId: { type: String, unique: true, required: true }, user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -63,5 +94,6 @@ export const Course = model('Course', courseSchema)
 export const Pricing = model('Pricing', pricingSchema)
 export const Payment = model('Payment', paymentSchema)
 export const Progress = model('CourseProgress', progressSchema)
+export const AssessmentAttempt = model('AssessmentAttempt', assessmentAttemptSchema)
 export const Certificate = model('Certificate', certificateSchema)
 export const AuditLog = model('AuditLog', auditSchema)

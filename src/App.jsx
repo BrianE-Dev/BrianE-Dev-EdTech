@@ -12,6 +12,10 @@ import { curriculum, totalChapters } from './data/curriculum.js'
 import { api } from './services/api.js'
 import AdminLogin from './components/AdminLogin.jsx'
 import AdminDashboard from './components/AdminDashboard.jsx'
+import LearnerLogin from './components/learner/LearnerLogin.jsx'
+import LearnerRegister from './components/learner/LearnerRegister.jsx'
+import LearnerDashboard from './components/learner/LearnerDashboard.jsx'
+import CourseReader from './components/learner/CourseReader.jsx'
 import './App.css'
 
 function LandingPage() {
@@ -30,6 +34,7 @@ function LandingPage() {
   const [pricingError, setPricingError] = useState('')
   const [paymentMessage, setPaymentMessage] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
 
@@ -58,7 +63,7 @@ function LandingPage() {
 
   useEffect(() => {
     api('/pricing').then(setPricing).catch((error) => setPricingError(error.message))
-    api('/auth/me').then(({ user }) => setIsAdmin(user.role === 'super_admin')).catch(() => setIsAdmin(false))
+    api('/auth/me').then(({ user }) => { setIsAuthenticated(true); setIsAdmin(user.role === 'super_admin') }).catch(() => { setIsAuthenticated(false); setIsAdmin(false) })
     const params = new URLSearchParams(window.location.search)
     const reference = params.get('reference') || params.get('trxref')
     if (params.get('payment') === 'return' && reference) {
@@ -71,6 +76,10 @@ function LandingPage() {
 
   const closeMenu = () => setMenuOpen(false)
   const purchaseCourse = async () => {
+    if (!isAuthenticated) {
+      window.location.assign(`/learn/login?returnTo=${encodeURIComponent('/learn')}`)
+      return
+    }
     setPaymentBusy(true); setPricingError('')
     try {
       const { authorizationUrl } = await api('/brianedev/payments/initialize', { method: 'POST', body: JSON.stringify({ productId: 'ai-powered-developer-productivity' }) })
@@ -98,7 +107,7 @@ function LandingPage() {
         </nav>
         <div className="nav-actions">
           {isAdmin && <a className="sign-in" href="/admin">Dashboard</a>}
-          <a className="sign-in" href="/login">Sign in</a>
+          <a className="sign-in" href="/learn/login">Learner sign in</a>
           <button className="theme-toggle" type="button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15}/><span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button>
           <a className="button button-small button-primary" href="#pricing">Enroll Now <Icon name="arrow" size={14}/></a>
         </div>
@@ -166,6 +175,10 @@ function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
   if (path === '/login') return <AdminLogin />
   if (path === '/admin' || path.startsWith('/admin/')) return <AdminDashboard />
+  if (path === '/learn/login') return <LearnerLogin />
+  if (path === '/learn/register') return <LearnerRegister />
+  if (path === '/learn') return <LearnerDashboard />
+  if (/^\/courses\/[^/]+\/learn\/chapter-[a-z0-9-]+$/.test(path)) return <CourseReader />
   return <LandingPage />
 }
 

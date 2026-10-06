@@ -106,7 +106,7 @@ export const assessmentSchema = assessmentBaseSchema.superRefine((assessment, co
 })
 
 // Client-facing data must be parsed through this key-free schema.
-export const publicAssessmentSchema = assessmentBaseSchema.omit({ correctOptionId: true }).strict()
+export const publicAssessmentSchema = assessmentBaseSchema.omit({ correctOptionId: true }).extend({ explanation: z.never().optional() }).strict()
 
 const lessonFields = {
   schemaVersion: z.literal(LESSON_SCHEMA_VERSION),

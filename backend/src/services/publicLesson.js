@@ -1,4 +1,4 @@
-import { publicLessonSchema } from '../../../src/data/schemas/lessonSchema.js'
+import { lessonSchema, publicLessonSchema } from '../../../src/data/schemas/lessonSchema.js'
 
 const protectedAnswerFields = new Set(['correctoptionid', 'correctanswer', 'answer', 'answerkey', 'solution', 'solutionkey'])
 
@@ -11,6 +11,14 @@ export function sanitizeProtectedAnswers(value) {
 }
 
 export function toPublicLesson(repositoryLesson) {
-  const sanitized = sanitizeProtectedAnswers(repositoryLesson)
-  return publicLessonSchema.parse(sanitized)
+  const validatedSource = lessonSchema.parse(repositoryLesson)
+  const sanitized = sanitizeProtectedAnswers(validatedSource)
+  const withoutExplanations = {
+    ...sanitized,
+    assessments: sanitized.assessments.map(({ explanation, ...assessment }) => {
+      void explanation
+      return assessment
+    }),
+  }
+  return publicLessonSchema.parse(withoutExplanations)
 }
