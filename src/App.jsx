@@ -6,7 +6,7 @@ import FeatureCard from './components/FeatureCard.jsx'
 import Icon from './components/Icon.jsx'
 import PricingCard from './components/PricingCard.jsx'
 import SectionHeading from './components/SectionHeading.jsx'
-import { features, plans, questions } from './data/homepage.js'
+import { courseFormats, features, plans, questions } from './data/homepage.js'
 import { curriculum, totalChapters } from './data/curriculum.js'
 import { api } from './services/api.js'
 import AdminLogin from './components/AdminLogin.jsx'
@@ -171,8 +171,10 @@ function LandingPage() {
         </section>
 
         <section id="courses" className="architecture-section section-wrap section-block">
-          <SectionHeading eyebrow="COURSE CONTENT" title={curriculum.title} description={curriculum.description}/>
-          <div className="method-grid">{curriculum.formats.map((format, index) => <article key={format.title}><span>CONTENT FORMAT {String(index + 1).padStart(2, '0')}</span><h3>{format.title}</h3><p>{format.description}</p></article>)}</div>
+          <SectionHeading eyebrow="COURSE CONTENT" title="AI-Powered Developer Productivity for Software Engineers" description="Learn how to integrate AI into real software engineering workflows—from planning and reasoning to implementation, debugging, testing, documentation, refactoring, and everyday development work."/>
+          <p className="course-content-context">Lessons use practical software contexts to show not only <strong>what to do with AI</strong>, but <strong>how to reason about the work and evaluate the results.</strong></p>
+          <div className="method-grid course-format-grid">{courseFormats.map((format, index) => <article key={format.title}><span>CONTENT FORMAT {String(index + 1).padStart(2, '0')}</span><h3>{format.title}</h3><p>{format.description}</p></article>)}</div>
+          <div className="course-content-notes"><article><span className="eyebrow">LEARNING APPROACH</span><p>Every lesson connects the <strong>concept</strong>, the <strong>software context</strong>, and the <strong>engineering reasoning</strong> behind the workflow.</p><p>Read the explanation. Examine the code. Study the AI interaction. Understand the reasoning. Then adapt the approach to your own development work.</p></article><article><span className="eyebrow">AUDIO NARRATION</span><h3>Prefer to listen while reviewing?</h3><p>TTS narration gives you another way to consume the written lessons while keeping the complete technical content available for deeper reading.</p></article></div>
         </section>
         <section id="pricing" className="pricing-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Get access to the complete AI-powered developer productivity course.</p></div>{paymentMessage && <p className="payment-message" role="status">{paymentMessage}</p>}<div className="pricing-grid">{regionalPrice ? <PricingCard item={regionalPrice} selected busy={paymentBusy} error={pricingError} onSelect={purchaseCourse}/> : <p className="pricing-error" role="alert">{pricingError || 'Loading current regional pricing…'}</p>}</div><p className="pricing-note"><Icon name="lock" size={13}/> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> TTS narration</p></section>
 
