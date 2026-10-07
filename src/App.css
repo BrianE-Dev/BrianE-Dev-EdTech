@@ -343,6 +343,6 @@ h1,h2,h3 { font-family: var(--display); }
 @media (max-width: 700px) { .method-grid.course-format-grid { grid-template-columns: 1fr 1fr; }.course-content-notes { grid-template-columns: 1fr; }.course-content-context { font-size: 10px; } }
 @media (min-width: 701px) and (max-width: 1050px) { .method-grid.course-format-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 .topbar { height: 84px; }.brand-logo { display: block; width: 230px; height: 52px; max-width: calc(100vw - 220px); object-fit: cover; object-position: center 70%; }.brand-logo-light { display: none; }html[data-theme='light'] .brand-logo-light { display: block; }html[data-theme='light'] .brand-logo-dark { display: none; }
-@media (min-width: 1200px) { .brand-logo { width: 350px; height: 70px; max-width: calc(100vw - 850px); } }
+@media (min-width: 1200px) { .brand-logo { width: 180px; height: 52px; max-width: calc(100vw - 850px); } }
 @media (min-width: 701px) and (max-width: 1199px) { .brand-logo { width: 230px; height: 52px; max-width: calc(100vw - 430px); } }
 @media (max-width: 700px) { .topbar { height: 58px; }.brand-logo { width: 122px; height: 36px; max-width: calc(100vw - 165px); } }
