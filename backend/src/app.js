@@ -13,6 +13,10 @@ app.use(express.json({ limit: '1mb', verify: (req, _res, buffer) => { req.rawBod
 app.use(cookieParser())
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api/payments', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
+const paymentRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false })
+app.use('/api/brianedev/payments/initialize', paymentRateLimit)
+app.use('/api/brianedev/payments/verify', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use('/api/brianedev/payments/paystack/webhook', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api', api)
 app.use((error, _req, res, next) => {
   void next

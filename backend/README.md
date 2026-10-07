@@ -12,13 +12,15 @@ Node.js, Express, Mongoose REST API for persistent course commerce and learning 
 
 Both the API and seed load `backend/.env` by its file location, regardless of the current working directory. The API validates Paystack configuration and connects to MongoDB before listening; startup fails with an actionable error if either configuration or MongoDB is invalid/unavailable. Logs never include credential values or the MongoDB URI. The seed command does not require Paystack credentials, disconnects in a `finally` block, and reports the seeded course section/chapter counts and regional pricing count on success. A MongoDB connection is required to verify seed persistence; frontend build/lint checks alone do not establish that database contents were written.
 
-Seed prices are configurable setup defaults: International is USD 15 with a 40% percentage discount (USD 9); Nigeria is independently set to NGN 15,000 with a 40% discount (NGN 9,000). The Nigerian value is not exchange-rate-derived. Discounts and dates are calculated by the API; React only displays the returned amount. Edit the regional configurations in the admin panel after creating an administrator.
+Seed prices are configurable setup defaults: Nigeria is independently set to NGN 15,000 with a 40% discount (NGN 9,000). The old INTL/USD record is retained for historical administration only; new course purchases use only the NG/NGN record. These are setup defaults and do not overwrite existing MongoDB pricing. The Nigerian value is not exchange-rate-derived. Discounts and dates are calculated by the API; React only displays the returned amount. Edit the Nigerian configuration in the admin panel after creating an administrator.
 
 ## Super Admin
 
 There is no default or publicly accessible admin account. To create one for development, set `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (use a unique strong password), and optionally `SEED_ADMIN_NAME` in `backend/.env`, run `npm run seed`, then remove those variables. Registration always assigns the `user` role. Admin APIs check the persisted role. Use the React `/super-admin` page to sign in; only a persisted `super_admin` account can open `/admin`, the commerce dashboard. Configure production static hosting to route these paths to the React app entry point.
 
 ## Paystack
+
+Paystack is currently the only provider. New course purchases are available only to customers in Nigeria and use NGN. Registration is free and grants preview access; full-course access depends on successful server-side Paystack verification. The server loads the authoritative amount from MongoDB pricing, verifies Paystack transactions before marking local payments paid, and validates webhook signatures against the raw request body before re-verifying transactions with Paystack.
 
 Use the existing DevPortix Paystack business and its credentials; BrianE-Dev does not require a separate Paystack business. Select environment through `APP_ENV=development` (TEST keys) or `APP_ENV=production` (LIVE keys). No credentials are hard-coded. On startup, the backend requires `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_SECRET`, and `PAYSTACK_BASE_URL`. Known `pk_test_`/`sk_test_` and `pk_live_`/`sk_live_` prefixes are checked against `APP_ENV`; unknown future key formats are not rejected solely by prefix. `PAYSTACK_BASE_URL` must be `https://api.paystack.co` for either environment. Error messages identify variable names but never print key or secret values.
 
@@ -42,9 +44,9 @@ Production deployment should set `APP_ENV=production`, `NODE_ENV=production`, pr
 
 - `GET /api/health`
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
-- `GET /api/pricing` (uses trusted Cloudflare/Vercel country headers; defaults to the Nigeria/NGN price when no country header is available; non-Nigeria requests use international USD)
+- `GET /api/pricing` (returns the authoritative Nigeria/NGN price for all visitors; new purchases are Nigerian-only)
 - `GET /api/courses`, `GET /api/courses/:slug` (public course and canonical curriculum metadata only)
-- `POST /api/brianedev/payments/initialize` with `{ "productId": "ai-powered-developer-productivity" }`, `POST /api/brianedev/payments/verify` with `{ "reference": "BDE-..." }`, `POST /api/brianedev/payments/paystack/webhook` (compatibility aliases remain under `/api/payments/*`)
+- `POST /api/brianedev/payments/initialize` (authenticated; course and amount are selected server-side), `POST /api/brianedev/payments/verify` with `{ "reference": "BDE-..." }`, `POST /api/brianedev/payments/paystack/webhook` (compatibility aliases remain under `/api/payments/*`)
 - `GET /api/me/purchases`, `GET /api/me/progress/:courseId`, `GET /api/me/certificates`
 - `GET /api/courses/:courseId/progress` (stable curriculum chapter progress; requires authentication and paid purchase)
 - `GET /api/courses/:slug/lessons/chapter-ai-assisted-developer/preview` (public, deterministic Chapter 1 preview only; no progress, exercise, TTS, or assessment payload)
@@ -89,7 +91,7 @@ After checkout, the React return handler sends the reference to `/api/brianedev/
 - Set Paystack's webhook URL to the deployed API endpoint.
 - Run the seed command once against the intended database; avoid development seed credentials in production.
 - Promote the first Super Admin through a trusted database/operations process. Never add admin role assignment to public registration.
-- Configure Cloudflare/Vercel or another trusted reverse proxy to supply country headers before forwarding them. Do not accept browser-supplied country values for pricing. Requests without a country header default to the Nigeria/NGN price.
+- Country headers do not select purchase currency or price; all new course purchases use the configured Nigeria/NGN price.
 
 ## Vercel + Render deployment
 

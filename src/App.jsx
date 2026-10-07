@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Brand from './components/Brand.jsx'
 import CurriculumCard from './components/CurriculumCard.jsx'
 import FaqList from './components/FaqList.jsx'
@@ -9,6 +9,7 @@ import SectionHeading from './components/SectionHeading.jsx'
 import { courseFormats, features, plans, questions } from './data/homepage.js'
 import { curriculum, totalChapters } from './data/curriculum.js'
 import { api } from './services/api.js'
+import { getPaymentReturnState } from './services/paymentReturn.js'
 import AdminLogin from './components/AdminLogin.jsx'
 import AdminDashboard from './components/AdminDashboard.jsx'
 import LearnerLogin from './components/learner/LearnerLogin.jsx'
@@ -31,10 +32,20 @@ function LandingPage() {
   const [pricing, setPricing] = useState(null)
   const [paymentBusy, setPaymentBusy] = useState(false)
   const [pricingError, setPricingError] = useState('')
-  const [paymentMessage, setPaymentMessage] = useState('')
+  const [paymentReturn, setPaymentReturn] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
+
+  const verifyPaymentReturn = useCallback(async (reference) => {
+    setPaymentReturn({ state: 'checking', message: 'Checking payment status with Paystack…', reference })
+    try {
+      const result = await api('/brianedev/payments/verify', { method: 'POST', body: JSON.stringify({ reference }) })
+      setPaymentReturn({ ...getPaymentReturnState(reference, result), reference })
+    } catch {
+      setPaymentReturn({ ...getPaymentReturnState(reference, null), reference })
+    }
+  }, [])
 
   useEffect(() => {
     const hero = heroRef.current
@@ -63,14 +74,12 @@ function LandingPage() {
     api('/pricing').then(setPricing).catch((error) => setPricingError(error.message))
     api('/auth/me').then(({ user }) => setIsAdmin(user.role === 'super_admin')).catch(() => setIsAdmin(false))
     const params = new URLSearchParams(window.location.search)
-    const reference = params.get('reference') || params.get('trxref')
-    if (params.get('payment') === 'return' && reference) {
-      api('/brianedev/payments/verify', { method: 'POST', body: JSON.stringify({ reference }) })
-        .then(() => setPaymentMessage('Payment confirmed. Your course access is ready.'))
-        .catch((error) => setPaymentMessage(error.message))
-        .finally(() => window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`))
+    if (params.get('payment') === 'return') {
+      const reference = params.get('reference') || params.get('trxref') || ''
+      window.setTimeout(() => verifyPaymentReturn(reference), 0)
+      window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`)
     }
-  }, [])
+  }, [verifyPaymentReturn])
 
   const closeMenu = () => setMenuOpen(false)
   const purchaseCourse = async () => {
@@ -176,7 +185,7 @@ function LandingPage() {
           <div className="method-grid course-format-grid">{courseFormats.map((format, index) => <article key={format.title}><span>CONTENT FORMAT {String(index + 1).padStart(2, '0')}</span><h3>{format.title}</h3><p>{format.description}</p></article>)}</div>
           <div className="course-content-notes"><article><span className="eyebrow">LEARNING APPROACH</span><p>Every lesson connects the <strong>concept</strong>, the <strong>software context</strong>, and the <strong>engineering reasoning</strong> behind the workflow.</p><p>Read the explanation. Examine the code. Study the AI interaction. Understand the reasoning. Then adapt the approach to your own development work.</p></article><article><span className="eyebrow">AUDIO NARRATION</span><h3>Prefer to listen while reviewing?</h3><p>TTS narration gives you another way to consume the written lessons while keeping the complete technical content available for deeper reading.</p></article></div>
         </section>
-        <section id="pricing" className="pricing-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Get access to the complete AI-powered developer productivity course.</p></div>{paymentMessage && <p className="payment-message" role="status">{paymentMessage}</p>}<div className="pricing-grid">{regionalPrice ? <PricingCard item={regionalPrice} selected busy={paymentBusy} error={pricingError} onSelect={purchaseCourse}/> : <p className="pricing-error" role="alert">{pricingError || 'Loading current regional pricing…'}</p>}</div><p className="pricing-note"><Icon name="lock" size={13}/> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> TTS narration</p></section>
+        <section id="pricing" className="pricing-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Get access to the complete AI-powered developer productivity course.</p></div>{paymentReturn && <div className={`payment-message payment-message-${paymentReturn.state}`} role={paymentReturn.state === 'error' ? 'alert' : 'status'}>{paymentReturn.message}{paymentReturn.state !== 'confirmed' && <button type="button" className="payment-retry" onClick={() => verifyPaymentReturn(paymentReturn.reference)} disabled={paymentReturn.state === 'checking'}>{paymentReturn.state === 'checking' ? 'Checking…' : 'Retry verification'}</button>}</div>}<div className="pricing-grid">{regionalPrice ? <PricingCard item={regionalPrice} selected busy={paymentBusy} error={pricingError} onSelect={purchaseCourse}/> : <p className="pricing-error" role="alert">{pricingError || 'Loading current Nigerian pricing…'}</p>}</div><p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> TTS narration</p></section>
 
         <section id="faq" className="faq-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">FAQ</span><h2>Frequently Asked Inquiries</h2><p>Clear answers about the curriculum, learning format, and access.</p></div><FaqList items={questions} openIndex={openFaq} onToggle={setOpenFaq}/></section>
 

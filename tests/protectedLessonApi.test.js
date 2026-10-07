@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import bcrypt from 'bcryptjs'
+import crypto from 'node:crypto'
 import { createServer } from 'node:http'
 import jwt from 'jsonwebtoken'
 import test from 'node:test'
@@ -17,6 +18,7 @@ const [{ default: app }, models] = await Promise.all([
 ])
 const { curriculum } = await import('../src/data/curriculum.js')
 const { getLessonByChapterId } = await import('../backend/src/services/lessonRepository.js')
+const { getPaymentReturnState } = await import('../src/services/paymentReturn.js')
 const { AssessmentAttempt, Certificate, Course, Payment, Pricing, Progress, User } = models
 
 const course = {
@@ -65,9 +67,10 @@ let priceRows
 let paymentRows
 let paystackRequest
 let paystackVerification
+let paystackVerifyCalls
 
 function query(data) {
-  return { select() { return this }, lean: async () => data }
+  return { select() { return this }, lean: async () => data, then(resolve, reject) { return Promise.resolve(data).then(resolve, reject) } }
 }
 
 test.before(async () => {
@@ -92,7 +95,10 @@ test.before(async () => {
     paymentRows.set(row.reference, row)
     return row
   }
-  Payment.findOne = async (filter) => paymentRows.get(filter.reference) || null
+  Payment.findOne = async (filter) => {
+    const row = paymentRows.get(filter.reference)
+    return row && Object.entries(filter).every(([key, value]) => String(row[key]) === String(value)) ? row : null
+  }
   Payment.findOneAndUpdate = async (filter, update) => {
     const row = [...paymentRows.values()].find((payment) => payment.id === filter._id)
     if (!row || ['paid', 'successful'].includes(row.status)) return null
@@ -140,12 +146,13 @@ test.before(async () => {
   Pricing.findOne = async ({ region }) => priceRows[region] || null
   paystackRequest = null
   paystackVerification = null
+  paystackVerifyCalls = 0
   globalThis.fetch = async (url, options = {}) => {
     if (String(url).startsWith('https://api.paystack.co/transaction/initialize')) {
       paystackRequest = JSON.parse(options.body)
       return Response.json({ status: true, data: { authorization_url: 'https://checkout.paystack.com/test' } })
     }
-    if (String(url).includes('https://api.paystack.co/transaction/verify/')) return Response.json({ status: true, data: paystackVerification })
+    if (String(url).includes('https://api.paystack.co/transaction/verify/')) { paystackVerifyCalls += 1; return Response.json({ status: true, data: paystackVerification }) }
     return originalFetch(url, options)
   }
   Certificate.find = async () => []
@@ -193,7 +200,7 @@ function apiJson(path, { userId = userDbId, method = 'GET', body, headers = {} }
   })
 }
 
-test('default NG pricing and Paystack checkout use the same configured NGN amount; INTL remains USD', async () => {
+test('Nigerian pricing and Paystack checkout use the configured NGN amount regardless of visitor country', async () => {
   paid = false
   userRows.get(userDbId).country = 'US'
   const defaultPricingResponse = await apiJson('/pricing')
@@ -245,10 +252,131 @@ test('default NG pricing and Paystack checkout use the same configured NGN amoun
   priceRows.NG.discountValue = 0
   const noDiscount = await (await apiJson('/pricing')).json()
   assert.equal(noDiscount.currentPrice, 23750)
-  const intl = await (await apiJson('/pricing', { userId: null, headers: { 'x-vercel-ip-country': 'US' } })).json()
-  assert.equal(intl.region, 'INTL')
-  assert.equal(intl.currency, 'USD')
-  assert.equal(intl.currentPrice, 9)
+  const nonNigeriaVisitorPrice = await (await apiJson('/pricing', { userId: null, headers: { 'x-vercel-ip-country': 'US' } })).json()
+  assert.equal(nonNigeriaVisitorPrice.region, 'NG')
+  assert.equal(nonNigeriaVisitorPrice.currency, 'NGN')
+  assert.equal(nonNigeriaVisitorPrice.currentPrice, 23750)
+})
+
+test('payment initialization requires authentication and always uses server-side NGN pricing', async () => {
+  Object.assign(priceRows.NG, { originalPrice: 15000, discountValue: 40, discountEnabled: true, active: true, currency: 'NGN' })
+  const anonymous = await apiJson('/brianedev/payments/initialize', { userId: null, method: 'POST', body: { productId: 'anything', amount: 1, currency: 'USD', region: 'INTL', userId: secondUserId } })
+  assert.equal(anonymous.status, 401)
+
+  const response = await apiJson('/brianedev/payments/initialize', {
+    method: 'POST',
+    body: { productId: 'ai-powered-developer-productivity', courseId: 'another-course', amount: 1, currency: 'USD', region: 'INTL', userId: secondUserId },
+    headers: { 'x-vercel-ip-country': 'US' },
+  })
+  assert.equal(response.status, 200)
+  const { reference } = await response.json()
+  const payment = paymentRows.get(reference)
+  assert.equal(payment.user, userDbId)
+  assert.equal(payment.course, course.id)
+  assert.equal(payment.region, 'NG')
+  assert.equal(payment.currency, 'NGN')
+  assert.equal(payment.amount, 9000)
+  assert.equal(paystackRequest.amount, 900000)
+  assert.equal(paystackRequest.currency, 'NGN')
+
+  const originalCurrency = priceRows.NG.currency
+  priceRows.NG.currency = 'USD'
+  assert.equal((await apiJson('/brianedev/payments/initialize', { method: 'POST', body: {} })).status, 503)
+  priceRows.NG.currency = originalCurrency
+})
+
+test('payment verification rejects unknown and other-user references, reports pending, and verifies successful transactions idempotently', async () => {
+  Object.assign(priceRows.NG, { originalPrice: 15000, discountValue: 40, discountEnabled: true, active: true, currency: 'NGN' })
+  assert.equal((await apiJson('/brianedev/payments/verify', { method: 'POST', body: { reference: 'BDE-UNKNOWN' } })).status, 404)
+
+  const created = await (await apiJson('/brianedev/payments/initialize', { method: 'POST', body: {} })).json()
+  const row = paymentRows.get(created.reference)
+  assert.equal((await apiJson('/brianedev/payments/verify', { userId: secondUserId, method: 'POST', body: { reference: created.reference } })).status, 404)
+  assert.equal(row.status, 'pending')
+
+  paystackVerification = { status: 'pending', reference: created.reference, amount: 900000, currency: 'NGN', id: 70 }
+  const pending = await (await apiJson('/brianedev/payments/verify', { method: 'POST', body: { reference: created.reference } })).json()
+  assert.equal(pending.status, 'pending')
+  assert.equal(row.status, 'pending')
+
+  paystackVerification = { status: 'success', reference: created.reference, amount: 900000, currency: 'NGN', id: 70 }
+  const paidResponse = await apiJson('/brianedev/payments/verify', { method: 'POST', body: { reference: created.reference } })
+  assert.equal((await paidResponse.json()).status, 'paid')
+  const paidAt = row.paidAt
+  const repeat = await apiJson('/brianedev/payments/verify', { method: 'POST', body: { reference: created.reference } })
+  assert.equal((await repeat.json()).status, 'paid')
+  assert.equal(row.paidAt, paidAt)
+  assert.equal([...paymentRows.values()].filter((payment) => payment.reference === created.reference).length, 1)
+})
+
+test('verification rejects amount, currency, reference, and failed-status mismatches without granting access', async () => {
+  Object.assign(priceRows.NG, { originalPrice: 15000, discountValue: 40, discountEnabled: true, active: true, currency: 'NGN' })
+  for (const transaction of [
+    { status: 'success', amount: 899999, currency: 'NGN' },
+    { status: 'success', amount: 900000, currency: 'USD' },
+    { status: 'success', amount: 900000, currency: 'NGN', reference: 'BDE-WRONG-REFERENCE' },
+    { status: 'failed', amount: 900000, currency: 'NGN' },
+    { status: 'abandoned', amount: 900000, currency: 'NGN' },
+  ]) {
+    const { reference } = await (await apiJson('/brianedev/payments/initialize', { method: 'POST', body: {} })).json()
+    paystackVerification = { reference, id: 88, ...transaction }
+    const response = await apiJson('/brianedev/payments/verify', { method: 'POST', body: { reference } })
+    if (['failed', 'abandoned'].includes(transaction.status)) {
+      assert.equal(response.status, 200)
+      assert.equal((await response.json()).status, 'failed')
+    } else assert.notEqual(response.status, 200)
+    assert.notEqual(paymentRows.get(reference).status, 'paid')
+  }
+})
+
+test('Paystack webhook validates raw-body HMAC, server-verifies and safely handles duplicate/unknown events', async () => {
+  Object.assign(priceRows.NG, { originalPrice: 15000, discountValue: 40, discountEnabled: true, active: true, currency: 'NGN' })
+  paystackVerifyCalls = 0
+  const created = await (await apiJson('/brianedev/payments/initialize', { method: 'POST', body: {} })).json()
+  const event = { event: 'charge.success', data: { reference: created.reference } }
+  const raw = JSON.stringify(event)
+  const endpoint = `${baseUrl}/api/brianedev/payments/paystack/webhook`
+  const invalid = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', 'x-paystack-signature': 'invalid' }, body: raw })
+  assert.equal(invalid.status, 401)
+  assert.equal(paystackVerifyCalls, 0)
+
+  const sign = (body) => crypto.createHmac('sha512', process.env.PAYSTACK_WEBHOOK_SECRET).update(body).digest('hex')
+  const unknownEvent = JSON.stringify({ event: 'charge.success', data: { reference: 'BDE-NOT-LOCAL' } })
+  const unknown = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', 'x-paystack-signature': sign(unknownEvent) }, body: unknownEvent })
+  assert.equal(unknown.status, 404)
+  assert.equal(paymentRows.has('BDE-NOT-LOCAL'), false)
+
+  paystackVerification = { status: 'success', reference: created.reference, amount: 900000, currency: 'NGN', id: 71 }
+  const valid = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', 'x-paystack-signature': sign(raw) }, body: raw })
+  assert.equal(valid.status, 200)
+  assert.equal(paymentRows.get(created.reference).status, 'paid')
+  const callsAfterFirstDelivery = paystackVerifyCalls
+  const duplicate = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', 'x-paystack-signature': sign(raw) }, body: raw })
+  assert.equal(duplicate.status, 200)
+  assert.equal(paymentRows.get(created.reference).status, 'paid')
+  assert.equal(paystackVerifyCalls, callsAfterFirstDelivery + 1)
+  assert.equal([...paymentRows.values()].filter((payment) => payment.reference === created.reference).length, 1)
+
+  for (const mismatch of [
+    { status: 'success', amount: 899999, currency: 'NGN' },
+    { status: 'success', amount: 900000, currency: 'USD' },
+    { status: 'success', amount: 900000, currency: 'NGN', reference: 'BDE-WEBHOOK-MISMATCH' },
+  ]) {
+    const next = await (await apiJson('/brianedev/payments/initialize', { method: 'POST', body: {} })).json()
+    const mismatchEvent = JSON.stringify({ event: 'charge.success', data: { reference: next.reference } })
+    paystackVerification = { reference: next.reference, id: 72, ...mismatch }
+    const rejected = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', 'x-paystack-signature': sign(mismatchEvent) }, body: mismatchEvent })
+    assert.equal(rejected.status, 409)
+    assert.notEqual(paymentRows.get(next.reference).status, 'paid')
+  }
+})
+
+test('payment return state only confirms an explicit paid result', () => {
+  assert.equal(getPaymentReturnState('BDE-valid', { status: 'paid' }).state, 'confirmed')
+  assert.equal(getPaymentReturnState('BDE-valid', { status: 'pending' }).state, 'pending')
+  assert.equal(getPaymentReturnState('BDE-valid', { status: 'failed' }).state, 'error')
+  assert.equal(getPaymentReturnState('', { status: 'paid' }).state, 'error')
+  assert.notEqual(getPaymentReturnState('BDE-valid', { status: 'processing' }).state, 'confirmed')
 })
 
 test('paid lesson API returns purchase-required for unauthenticated and unpaid visitors', async () => {
@@ -535,6 +663,7 @@ test('learner login, invalid credentials, registration role isolation, and admin
   assert.equal(me.status, 200)
   assert.equal((await me.json()).user.role, 'user')
 
+  const paymentCountBeforeRegistration = paymentRows.size
   const registration = await apiJson('/auth/register', {
     method: 'POST',
     body: { name: 'New Learner', email: 'new@example.test', password: 'new-learner-password', role: 'super_admin' },
@@ -543,6 +672,7 @@ test('learner login, invalid credentials, registration role isolation, and admin
   const registered = await registration.json()
   assert.equal(registered.user.role, 'user')
   assert.equal(userRows.get(registered.user.id).role, 'user')
+  assert.equal(paymentRows.size, paymentCountBeforeRegistration)
 
   paid = false
   progressRecords.clear()

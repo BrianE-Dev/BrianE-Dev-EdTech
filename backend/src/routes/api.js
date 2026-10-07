@@ -26,16 +26,19 @@ const sessionCookie = { httpOnly: true, secure: isSecureCookie, sameSite: isSecu
 const COURSE_SLUG = 'ai-powered-developer-productivity'
 const COURSE_PRODUCT_ID = COURSE_SLUG
 
-function pricingRegion(req) {
-  const requestCountry = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
-  const country = requestCountry || 'NG'
-  return country?.toUpperCase() === 'NG' ? 'NG' : 'INTL'
-}
-
 async function completePayment(payment, transaction) {
   if (payment.application !== 'brianedev' || payment.productId !== COURSE_PRODUCT_ID || payment.productType !== 'course') throw Object.assign(new Error('Payment does not belong to a BrianE-Dev course'), { status: 409 })
-  if (payment.provider !== 'paystack' || payment.environment !== getPaystackConfig().appEnvironment) throw Object.assign(new Error('Payment environment does not match this backend'), { status: 409 })
-  if (transaction.status !== 'success' || transaction.reference !== payment.paystackReference || transaction.reference !== payment.reference || transaction.amount !== Math.round(payment.amount * 100) || transaction.currency !== payment.currency) {
+  if (payment.provider !== 'paystack' || payment.environment !== getPaystackConfig().appEnvironment || payment.region !== 'NG' || payment.currency !== 'NGN') throw Object.assign(new Error('Payment does not match the Nigerian Paystack purchase policy'), { status: 409 })
+  if (transaction.reference !== payment.paystackReference || transaction.reference !== payment.reference) throw Object.assign(new Error('Payment reference verification failed'), { status: 409 })
+  if (transaction.status !== 'success') {
+    const pendingStatuses = ['pending', 'processing', 'ongoing', 'queued']
+    if (!pendingStatuses.includes(transaction.status) && !['paid', 'successful'].includes(payment.status)) {
+      payment.status = 'failed'
+      await payment.save()
+    }
+    return payment
+  }
+  if (transaction.amount !== Math.round(payment.amount * 100) || transaction.currency !== payment.currency) {
     if (!['paid', 'successful'].includes(payment.status)) {
       payment.status = 'failed'
       await payment.save()
@@ -72,9 +75,9 @@ router.post('/auth/logout', (_req, res) => res.clearCookie('session', { ...sessi
 router.get('/auth/me', authenticate, (req, res) => res.json({ user: { id: req.user.id, name: req.user.name, email: req.user.email, role: req.user.role } }))
 
 router.get('/pricing', authenticateOptional, async (req, res) => {
-  const region = pricingRegion(req)
-  const config = await Pricing.findOne({ region })
+  const config = await Pricing.findOne({ region: 'NG' })
   if (!config) return res.status(503).json({ error: 'Pricing is not configured' })
+  if (config.currency !== 'NGN') return res.status(503).json({ error: 'Nigerian pricing must be configured in NGN' })
   const { _id, region: key, currency, originalPrice, currentPrice, discount, discountType, discountValue, promotionActive } = getFinalPrice(config)
   res.set('Cache-Control', 'no-store')
   res.json({ id: _id, region: key, currency, originalPrice, currentPrice, discount, discountType, discountValue, discountEnabled: promotionActive, promotionActive })
@@ -119,20 +122,19 @@ router.get('/courses/:slug', async (req, res) => {
 
 async function initializeCoursePayment(req, res) {
   const { appEnvironment } = getPaystackConfig()
-  const productId = z.string().min(1).parse(req.body.productId ?? req.body.courseSlug)
-  if (productId !== COURSE_PRODUCT_ID) return res.status(404).json({ error: 'Product not found' })
   const course = await Course.findOne({ slug: COURSE_SLUG, published: true })
   if (!course) return res.status(404).json({ error: 'Course not found' })
   const hasAccess = await Payment.exists({ user: req.user.id, course: course.id, status: { $in: ['paid', 'successful'] }, application: 'brianedev', environment: appEnvironment })
   if (hasAccess) return res.status(409).json({ error: 'Course already purchased' })
-  const region = pricingRegion(req)
+  const region = 'NG'
   const config = await Pricing.findOne({ region })
   if (!config) return res.status(503).json({ error: 'Pricing is not configured' })
+  if (config.currency !== 'NGN') return res.status(503).json({ error: 'Nigerian pricing must be configured in NGN' })
   const price = getFinalPrice(config)
   const random = crypto.randomBytes(6).toString('hex').toUpperCase()
   const date = new Date().toISOString().slice(0, 10).replaceAll('-', '')
   const reference = `BDE-${date}-${random}`
-  const regionName = region === 'NG' ? 'nigeria' : 'international'
+  const regionName = 'nigeria'
   const metadata = {
     application: 'brianedev', application_name: 'BrianE-Dev', product_type: 'course', product_id: COURSE_PRODUCT_ID,
     product_name: course.title, user_id: req.user.id, region: regionName, currency: price.currency,
@@ -156,7 +158,7 @@ async function initializeCoursePayment(req, res) {
           { display_name: 'Application', variable_name: 'application', value: 'BrianE-Dev' },
           { display_name: 'Product', variable_name: 'product', value: course.title },
           { display_name: 'User ID', variable_name: 'user_id', value: req.user.id },
-          { display_name: 'Region', variable_name: 'region', value: regionName === 'nigeria' ? 'Nigeria' : 'International' },
+          { display_name: 'Region', variable_name: 'region', value: 'Nigeria' },
         ],
       },
     })
@@ -169,13 +171,14 @@ router.post('/brianedev/payments/initialize', authenticate, initializeCoursePaym
 
 async function verifyCoursePayment(req, res) {
   const reference = z.string().min(6).max(100).parse(req.body.reference)
-  const filter = { reference, application: 'brianedev', environment: getPaystackConfig().appEnvironment }
-  if (req.user) filter.user = req.user.id
+  const filter = { reference, application: 'brianedev', environment: getPaystackConfig().appEnvironment, provider: 'paystack', productType: 'course', productId: COURSE_PRODUCT_ID, region: 'NG', currency: 'NGN', user: req.user.id }
   const payment = await Payment.findOne(filter)
   if (!payment) return res.status(404).json({ error: 'Payment not found' })
+  const course = await Course.findOne({ slug: COURSE_SLUG, published: true })
+  if (!course || String(payment.course) !== String(course._id || course.id)) return res.status(409).json({ error: 'Payment course association is invalid' })
   const transaction = await verifyTransaction(reference)
   await completePayment(payment, transaction)
-  res.json({ status: payment.status, courseId: payment.course })
+  res.json({ status: payment.status === 'paid' || payment.status === 'successful' ? 'paid' : payment.status === 'failed' ? 'failed' : 'pending', courseId: payment.course })
 }
 router.post('/payments/verify', authenticate, verifyCoursePayment)
 router.post('/brianedev/payments/verify', authenticate, verifyCoursePayment)
@@ -183,12 +186,15 @@ router.post('/brianedev/payments/verify', authenticate, verifyCoursePayment)
 async function paystackWebhook(req, res) {
   const signature = req.get('x-paystack-signature')
   const { webhookSecret, appEnvironment } = getPaystackConfig()
+  if (!Buffer.isBuffer(req.rawBody)) return res.status(400).json({ error: 'Webhook request body is invalid' })
   const expected = crypto.createHmac('sha512', webhookSecret).update(req.rawBody).digest('hex')
   if (!signature || Buffer.byteLength(signature) !== Buffer.byteLength(expected) || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return res.status(401).json({ error: 'Invalid webhook signature' })
   if (req.body.event !== 'charge.success') return res.sendStatus(200)
   const reference = req.body.data?.reference
-  const payment = await Payment.findOne({ reference, application: 'brianedev', environment: appEnvironment, provider: 'paystack', productId: COURSE_PRODUCT_ID })
+  const payment = await Payment.findOne({ reference, application: 'brianedev', environment: appEnvironment, provider: 'paystack', productType: 'course', productId: COURSE_PRODUCT_ID, region: 'NG', currency: 'NGN' })
   if (!payment) return res.status(404).json({ error: 'Payment reference not found' })
+  const course = await Course.findOne({ slug: COURSE_SLUG, published: true })
+  if (!course || String(payment.course) !== String(course._id || course.id)) return res.status(409).json({ error: 'Payment course association is invalid' })
   const transaction = await verifyTransaction(reference)
   await completePayment(payment, transaction)
   res.sendStatus(200)
