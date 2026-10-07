@@ -336,3 +336,6 @@ h1,h2,h3 { font-family: var(--display); }
 .course-preview-card strong { color: #e2eaf5; font: 600 21px var(--display); }
 .course-preview-card > span:last-child { justify-content: space-between; padding-top: 12px; border-top: 1px solid #28394e; }
 @media(max-width:700px) { .course-preview-section { grid-template-columns: 1fr; gap: 17px; padding: 17px; }.course-preview-copy h2 { font-size: 24px; }.course-preview-card { gap: 12px; padding: 15px; } }
+:root { --feature-intro-title-size: 18px; }
+.feature-intro h2 { margin: 7px 0 0; color: #e2eaf5; font-size: var(--feature-intro-title-size); line-height: 1.25; }
+@media (min-width: 701px) and (max-width: 1050px) { .feature-intro { display: grid; grid-template-columns: 1fr 1.5fr; align-items: end; }.feature-intro .eyebrow { grid-column: 1/-1; }.feature-intro h2 { margin: 0; }.feature-intro p { max-width: none; } }

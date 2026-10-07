@@ -8,12 +8,12 @@ export const questions = [
 ]
 
 export const plans = [
-  { id: 'individual', label: 'INDIVIDUAL COURSE ACCESS', name: 'Individual Course Pass', price: '$249', period: 'one-time', desc: 'Unlock all 43 lessons and the complete course materials.', features: ['All 43 written lessons and code examples', 'Lesson assessments and required activities', 'Saved progress across the full curriculum', 'Certificate eligibility after all course requirements are met', 'Downloadable course ebook', 'Optional browser speech synthesis'], action: 'Enroll Now', popular: true },
+  { id: 'individual', label: 'INDIVIDUAL COURSE ACCESS', name: 'Individual Course Pass', period: 'one-time', desc: 'Unlock all 43 lessons and the complete course materials.', features: ['All 43 written lessons and code examples', 'Lesson assessments and required activities', 'Saved progress across the full curriculum', 'Certificate eligibility after all course requirements are met', 'Downloadable course ebook', 'Optional browser speech synthesis'], action: 'Enroll Now', popular: true },
   { id: 'team', label: 'TEAM COURSE ACCESS', name: 'Engineering Team Course', price: '$1,490', period: 'per team / year', desc: 'AI-powered developer productivity learning for engineering teams.', features: [`Course content across all ${totalChapters} chapters`, 'Written lessons and code examples', 'Real-world scenarios, AI prompts, and workflows', 'TTS audio narration'], action: 'Explore Team Plans' },
 ]
 
 export const features = [
-  { icon: 'book', tone: 'cyan', title: 'Written Lessons & Code Examples', description: 'Clear, deliberate explanations with real-world examples, prompts, workflows, and working code patterns.', footer: 'READ AT YOUR PACE' },
-  { icon: 'grid', tone: 'green', title: 'AI-Powered Workflows', description: 'Learn practical ways to use AI across planning, debugging, refactoring, documentation, testing, and other stages of the software lifecycle.', footer: 'WORK SMARTER' },
-  { icon: 'headphones', tone: 'amber', title: 'TTS Audio Narration', description: 'Listen to lessons and stay in flow while reviewing technical concepts, workflows, and AI-assisted development practices.', footer: 'LEARN YOUR WAY' },
+  { icon: 'book', tone: 'cyan', title: 'Written Lessons & Code Examples', description: 'Technical concepts explained clearly through practical software scenarios, code examples, prompts, and developer workflows.', footer: 'READ AT YOUR PACE' },
+  { icon: 'grid', tone: 'green', title: 'AI-Assisted Workflows', description: 'Learn how to use AI across the software lifecycle—from planning and implementation to debugging, refactoring, testing, documentation, and technical problem solving.', footer: 'WORK SMARTER' },
+  { icon: 'headphones', tone: 'amber', title: 'Audio Narration', description: 'Listen to lessons when you want an alternative to reading. Use narration to review technical concepts and workflows while keeping the full written lesson available for deeper study.', footer: 'LEARN YOUR WAY' },
 ]

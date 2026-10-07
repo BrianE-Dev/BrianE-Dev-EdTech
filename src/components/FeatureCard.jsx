@@ -6,7 +6,7 @@ export default function FeatureCard({ icon, tone, title, description, footer }) 
       <span className={`feature-icon ${tone}`}><Icon name={icon}/></span>
       <h3>{title}</h3>
       <p>{description}</p>
-      <span className="feature-foot">{footer}<i>↗</i></span>
+      <span className="feature-foot">{footer}<i>&#8599;</i></span>
     </article>
   )
 }

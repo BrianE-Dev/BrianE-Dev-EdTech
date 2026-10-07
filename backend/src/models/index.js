@@ -21,7 +21,7 @@ const courseSchema = new Schema({
 const pricingSchema = new Schema({
   region: { type: String, required: true, unique: true, enum: ['NG', 'INTL'] }, countries: [String],
   currency: { type: String, required: true, enum: ['NGN', 'USD'] }, originalPrice: { type: Number, required: true, min: 0 },
-  currentPrice: { type: Number, required: true, min: 0 }, discountType: { type: String, enum: ['percentage', 'fixed'], default: 'percentage' },
+  currentPrice: { type: Number, min: 0 }, discountType: { type: String, enum: ['percentage', 'fixed'], default: 'percentage' },
   discountValue: { type: Number, default: 0, min: 0 }, discountEnabled: { type: Boolean, default: false }, active: { type: Boolean, default: true },
   startDate: Date, endDate: Date, updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
 }, timestamps)

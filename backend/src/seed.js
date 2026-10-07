@@ -31,7 +31,7 @@ try {
 
   await Pricing.bulkWrite([
     { updateOne: { filter: { region: 'INTL' }, update: { $setOnInsert: { region: 'INTL', countries: [], currency: 'USD', originalPrice: 15, currentPrice: 9, discountType: 'percentage', discountValue: 40, discountEnabled: true, active: true } }, upsert: true } },
-    { updateOne: { filter: { region: 'NG' }, update: { $setOnInsert: { region: 'NG', countries: ['NG'], currency: 'NGN', originalPrice: 15000, currentPrice: 9000, discountType: 'percentage', discountValue: 40, discountEnabled: true, active: true } }, upsert: true } },
+    { updateOne: { filter: { region: 'NG' }, update: { $setOnInsert: { region: 'NG', countries: ['NG'], currency: 'NGN', originalPrice: 15000, discountType: 'percentage', discountValue: 40, discountEnabled: true, active: true } }, upsert: true } },
   ])
 
   if (process.env.SEED_ADMIN_EMAIL && process.env.SEED_ADMIN_PASSWORD) {

@@ -28,7 +28,7 @@ const COURSE_PRODUCT_ID = COURSE_SLUG
 
 function pricingRegion(req) {
   const requestCountry = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
-  const country = requestCountry || req.user?.country
+  const country = requestCountry || req.user?.country || 'NG'
   return country?.toUpperCase() === 'NG' ? 'NG' : 'INTL'
 }
 

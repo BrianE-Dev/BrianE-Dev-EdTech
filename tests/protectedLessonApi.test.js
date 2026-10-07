@@ -32,6 +32,7 @@ const secondUserId = '507f1f77bcf86cd799439013'
 const adminUserId = '507f1f77bcf86cd799439014'
 const testPassword = 'learner-test-password'
 const userRows = new Map()
+const originalFetch = globalThis.fetch
 let paid = false
 let server
 let baseUrl
@@ -43,6 +44,9 @@ const originals = {
   courseFindOne: Course.findOne,
   courseFind: Course.find,
   paymentExists: Payment.exists,
+  paymentCreate: Payment.create,
+  paymentFindOne: Payment.findOne,
+  paymentFindOneAndUpdate: Payment.findOneAndUpdate,
   paymentFind: Payment.find,
   progressFindOne: Progress.findOne,
   progressCreate: Progress.create,
@@ -51,11 +55,16 @@ const originals = {
   assessmentCreate: AssessmentAttempt.create,
   assessmentExists: AssessmentAttempt.exists,
   pricingFind: Pricing.find,
+  pricingFindOne: Pricing.findOne,
   certificateFind: Certificate.find,
   certificateFindOne: Certificate.findOne,
 }
 let progressRecords
 let attemptRecords
+let priceRows
+let paymentRows
+let paystackRequest
+let paystackVerification
 
 function query(data) {
   return { select() { return this }, lean: async () => data }
@@ -77,6 +86,19 @@ test.before(async () => {
   Course.findOne = () => query(course)
   Course.find = () => query([course])
   Payment.exists = async () => paid ? { _id: 'paid-record' } : null
+  paymentRows = new Map()
+  Payment.create = async (input) => {
+    const row = { ...input, status: 'pending', id: `payment-${paymentRows.size + 1}`, toObject() { return { ...this } }, save: async function save() { paymentRows.set(this.reference, this); return this } }
+    paymentRows.set(row.reference, row)
+    return row
+  }
+  Payment.findOne = async (filter) => paymentRows.get(filter.reference) || null
+  Payment.findOneAndUpdate = async (filter, update) => {
+    const row = [...paymentRows.values()].find((payment) => payment.id === filter._id)
+    if (!row || ['paid', 'successful'].includes(row.status)) return null
+    Object.assign(row, update.$set)
+    return row
+  }
   Payment.find = () => ({ populate: async () => [] })
   progressRecords = new Map()
   Progress.findOne = async (filter = {}) => progressRecords.get(`${filter.user}:${filter.course}`) || null
@@ -111,6 +133,21 @@ test.before(async () => {
   }
   AssessmentAttempt.exists = async (filter) => attemptRecords.some((item) => item.user === filter.user && item.course === filter.course && item.chapterId === filter.chapterId && item.assessmentId === filter.assessmentId && item.passed === filter.passed)
   Pricing.find = () => ({ sort: async () => [] })
+  priceRows = {
+    NG: { _id: 'ng-price', region: 'NG', currency: 'NGN', originalPrice: 15000, discountType: 'percentage', discountValue: 40, discountEnabled: true, active: true, toObject() { return { ...this } } },
+    INTL: { _id: 'intl-price', region: 'INTL', currency: 'USD', originalPrice: 15, discountType: 'percentage', discountValue: 40, discountEnabled: true, active: true, toObject() { return { ...this } } },
+  }
+  Pricing.findOne = async ({ region }) => priceRows[region] || null
+  paystackRequest = null
+  paystackVerification = null
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).startsWith('https://api.paystack.co/transaction/initialize')) {
+      paystackRequest = JSON.parse(options.body)
+      return Response.json({ status: true, data: { authorization_url: 'https://checkout.paystack.com/test' } })
+    }
+    if (String(url).includes('https://api.paystack.co/transaction/verify/')) return Response.json({ status: true, data: paystackVerification })
+    return originalFetch(url, options)
+  }
   Certificate.find = async () => []
   Certificate.findOne = () => ({ select: async () => null })
   server = createServer(app)
@@ -126,6 +163,9 @@ test.after(async () => {
   Course.findOne = originals.courseFindOne
   Course.find = originals.courseFind
   Payment.exists = originals.paymentExists
+  Payment.create = originals.paymentCreate
+  Payment.findOne = originals.paymentFindOne
+  Payment.findOneAndUpdate = originals.paymentFindOneAndUpdate
   Payment.find = originals.paymentFind
   Progress.findOne = originals.progressFindOne
   Progress.create = originals.progressCreate
@@ -134,6 +174,8 @@ test.after(async () => {
   AssessmentAttempt.create = originals.assessmentCreate
   AssessmentAttempt.exists = originals.assessmentExists
   Pricing.find = originals.pricingFind
+  Pricing.findOne = originals.pricingFindOne
+  globalThis.fetch = originalFetch
   Certificate.find = originals.certificateFind
   Certificate.findOne = originals.certificateFindOne
 })
@@ -143,13 +185,68 @@ function sessionCookie(userId = userDbId) {
   return `session=${token}`
 }
 
-function apiJson(path, { userId = userDbId, method = 'GET', body } = {}) {
+function apiJson(path, { userId = userDbId, method = 'GET', body, headers = {} } = {}) {
   return fetch(`${baseUrl}/api${path}`, {
     method,
-    headers: { ...(userId ? { cookie: sessionCookie(userId) } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
+    headers: { ...(userId ? { cookie: sessionCookie(userId) } : {}), ...(body ? { 'content-type': 'application/json' } : {}), ...headers },
     ...(body ? { body: JSON.stringify(body) } : {}),
   })
 }
+
+test('default NG pricing and Paystack checkout use the same configured NGN amount; INTL remains USD', async () => {
+  paid = false
+  const defaultPricingResponse = await apiJson('/pricing', { userId: null })
+  const defaultPricing = await defaultPricingResponse.json()
+  assert.equal(defaultPricingResponse.status, 200)
+  assert.equal(defaultPricing.region, 'NG')
+  assert.equal(defaultPricing.currency, 'NGN')
+  assert.equal(defaultPricing.currentPrice, 9000)
+  assert.match(new Intl.NumberFormat('en-NG', { style: 'currency', currency: defaultPricing.currency, maximumFractionDigits: 2 }).format(defaultPricing.currentPrice), /^₦/)
+
+  priceRows.NG.originalPrice = 23750
+  priceRows.NG.discountValue = 20
+  const changedPricing = await (await apiJson('/pricing', { userId: null })).json()
+  assert.equal(changedPricing.originalPrice, 23750)
+  assert.equal(changedPricing.currentPrice, 19000)
+  assert.equal(changedPricing.discount, 4750)
+  assert.equal(changedPricing.discountValue, 20)
+  assert.equal(changedPricing.currency, 'NGN')
+
+  const initializedResponse = await apiJson('/brianedev/payments/initialize', {
+    method: 'POST', body: { productId: 'ai-powered-developer-productivity' }, headers: { 'x-vercel-ip-country': 'NG' },
+  })
+  assert.equal(initializedResponse.status, 200)
+  const { reference, authorizationUrl } = await initializedResponse.json()
+  assert.equal(authorizationUrl, 'https://checkout.paystack.com/test')
+  assert.equal(paystackRequest.amount, changedPricing.currentPrice * 100)
+  assert.equal(paystackRequest.currency, changedPricing.currency)
+  const payment = paymentRows.get(reference)
+  assert.equal(payment.amount, changedPricing.currentPrice)
+  assert.equal(payment.currency, changedPricing.currency)
+  assert.equal(payment.region, 'NG')
+
+  paystackVerification = { status: 'success', reference, amount: 1900000, currency: 'NGN', id: 42 }
+  const verifiedResponse = await apiJson('/brianedev/payments/verify', { method: 'POST', body: { reference } })
+  assert.equal(verifiedResponse.status, 200)
+  assert.equal(payment.status, 'paid')
+  assert.equal(payment.transactionId, '42')
+
+  const secondInitialized = await (await apiJson('/brianedev/payments/initialize', {
+    method: 'POST', body: { productId: 'ai-powered-developer-productivity' }, headers: { 'x-vercel-ip-country': 'NG' },
+  })).json()
+  paystackVerification = { status: 'success', reference: secondInitialized.reference, amount: 1899900, currency: 'NGN', id: 43 }
+  const rejectedVerification = await apiJson('/brianedev/payments/verify', { method: 'POST', body: { reference: secondInitialized.reference } })
+  assert.equal(rejectedVerification.status, 409)
+  assert.equal(paymentRows.get(secondInitialized.reference).status, 'failed')
+
+  priceRows.NG.discountValue = 0
+  const noDiscount = await (await apiJson('/pricing', { userId: null })).json()
+  assert.equal(noDiscount.currentPrice, 23750)
+  const intl = await (await apiJson('/pricing', { userId: null, headers: { 'x-vercel-ip-country': 'US' } })).json()
+  assert.equal(intl.region, 'INTL')
+  assert.equal(intl.currency, 'USD')
+  assert.equal(intl.currentPrice, 9)
+})
 
 test('paid lesson API returns purchase-required for unauthenticated and unpaid visitors', async () => {
   paid = false
