@@ -190,7 +190,7 @@ function LandingPage() {
 
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
-  if (path === '/login') return <AdminLogin />
+  if (path === '/super-admin') return <AdminLogin />
   if (path === '/admin' || path.startsWith('/admin/')) return <AdminDashboard />
   if (path === '/learn/login') return <LearnerLogin />
   if (path === '/learn/register') return <LearnerRegister />

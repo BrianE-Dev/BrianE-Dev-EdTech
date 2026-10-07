@@ -34,7 +34,7 @@ The current frontend is a responsive React 19 application built with Vite. It co
 - Light and dark themes; the saved preference is stored in local storage, with the operating-system theme used on first visit
 - A hero entrance animation that replays when the hero re-enters the viewport and respects reduced-motion preferences
 
-The React app includes free learner account registration and login at `/learn/register` and `/learn/login`, a learner dashboard at `/learn`, and lesson routes at `/courses/:courseSlug/learn/:chapterId`. Registration creates an account only; it does not create a purchase or course entitlement. Chapter 1 offers a server-filtered public preview, while full lessons, assessments, progress, ebook downloads, and certificate eligibility require a verified purchase through the existing Paystack flow. Super Admin sign-in is at `/login`, with the protected commerce dashboard at `/admin`.
+The React app includes free learner account registration and login at `/learn/register` and `/learn/login`, a learner dashboard at `/learn`, and lesson routes at `/courses/:courseSlug/learn/:chapterId`. Registration creates an account only; it does not create a purchase or course entitlement. Chapter 1 offers a server-filtered public preview, while full lessons, assessments, progress, ebook downloads, and certificate eligibility require a verified purchase through the existing Paystack flow. Super Admin sign-in is at `/super-admin`, with the protected commerce dashboard at `/admin`.
 
 The separate Express/Mongoose API persists users, courses, regional pricing, payments, progress, certificates, and audit records. Authored lesson JSON is validated and read from the repository; MongoDB stores commerce and learner/application state. Full lesson and progress endpoints require a verified purchase in the active Paystack environment. Assessment answers are scored server-side and answer keys are removed from learner responses. Certificate endpoints require the certificate owner, paid access, and completion of the canonical course requirements. See [`backend/README.md`](backend/README.md) for backend setup and API details.
 
@@ -118,7 +118,7 @@ After Paystack returns the user, React submits the reference to `POST /api/brian
 
 Keep `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_SECRET`, `JWT_SECRET`, and `MONGODB_URI` in the backend environment or deployment secret manager. Use TEST keys and a TEST webhook secret for local development; use LIVE keys and the LIVE webhook secret only in production. Never put server secrets in Vite variables or React code, and do not expose the public key unless a future frontend checkout method requires it. Use HTTPS, configure Paystack to send webhooks to the deployed API URL, and configure a trusted edge proxy to overwrite location headers. Full setup, environment variables, and production notes are in [`backend/README.md`](backend/README.md).
 
-Deployment configuration is provided by `vercel.json` and `render.yaml`. Vercel serves the React build, rewrites `/api/*` to Render, and falls back to the app entry point for routes such as `/login` and `/admin`. Render runs the Express API and connects to MongoDB Atlas. The browser calls the same-origin `/api` path, which keeps cookie authentication compatible across the two hosts. Initial Render configuration uses Paystack TEST mode while setting `NODE_ENV=production` for secure HTTPS cookies. Follow [`backend/README.md`](backend/README.md) for Vercel/Render environment setup and the later LIVE switch.
+Deployment configuration is provided by `vercel.json` and `render.yaml`. Vercel serves the React build, rewrites `/api/*` to Render, and falls back to the app entry point for routes such as `/super-admin` and `/admin`. Render runs the Express API and connects to MongoDB Atlas. The browser calls the same-origin `/api` path, which keeps cookie authentication compatible across the two hosts. Initial Render configuration uses Paystack TEST mode while setting `NODE_ENV=production` for secure HTTPS cookies. Follow [`backend/README.md`](backend/README.md) for Vercel/Render environment setup and the later LIVE switch.
 
 ### Learner access, progress, and certificates
 
@@ -126,7 +126,7 @@ Paid purchase records control full lesson and progress API access. Lesson delive
 
 ### Admin commerce
 
-Super Admin sign-in is available at `/login`, and the protected dashboard is at `/admin`. The dashboard shows transaction/payment/certificate counts and includes the commerce panel for pricing changes, transactions, purchases, and issued certificates. Accounts are created through the seed/admin setup; public registration does not grant admin privileges. Pricing writes are validated server-side and audited with previous and new values. Admin role authorization uses the persisted user record; no browser-supplied role can grant access. Payment records are not editable through the admin API. Production static hosting must route `/login` and `/admin` to the React app entry point.
+Super Admin sign-in is available at `/super-admin`, and the protected dashboard is at `/admin`. The dashboard shows transaction/payment/certificate counts and includes the commerce panel for pricing changes, transactions, purchases, and issued certificates. Accounts are created through the seed/admin setup; public registration does not grant admin privileges. Pricing writes are validated server-side and audited with previous and new values. Admin role authorization uses the persisted user record; no browser-supplied role can grant access. Payment records are not editable through the admin API. Production static hosting must route `/super-admin` and `/admin` to the React app entry point.
 
 ## Content and ebook status
 
@@ -138,7 +138,7 @@ Chapter 1 has a server-enforced public preview defined by stable block IDs. The 
 
 ## Frontend routes and API capabilities
 
-Frontend routes are `/` (marketing, curriculum, pricing), `/learn/register`, `/learn/login`, `/learn` (learner dashboard), `/courses/:courseSlug/learn/:chapterId` (lesson reader), `/login` (Super Admin sign-in), and `/admin` (Super Admin dashboard). Static hosting must serve the React entry point for these deep links.
+Frontend routes are `/` (marketing, curriculum, pricing), `/learn/register`, `/learn/login`, `/learn` (learner dashboard), `/courses/:courseSlug/learn/:chapterId` (lesson reader), `/super-admin` (Super Admin sign-in), and `/admin` (Super Admin dashboard). Static hosting must serve the React entry point for these deep links.
 
 Learner API capabilities include authentication, public course metadata, public Chapter 1 preview delivery, purchase lookup, protected course progress and full lesson delivery, exercise acknowledgments, assessment submission, protected lesson image and ebook delivery, certificate listing and owner-only PDF download, and public certificate verification. Ebook status exposes availability without exposing the file. Payment and admin route details are listed in [`backend/README.md`](backend/README.md).
 

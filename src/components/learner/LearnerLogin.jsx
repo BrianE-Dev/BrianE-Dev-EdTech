@@ -27,7 +27,7 @@ export default function LearnerLogin() {
   }
 
   return <main className="learner-auth-page">
-    <header><a href="/" aria-label="BrianE-Dev homepage"><Brand /></a><a href="/login">Super Admin sign in</a></header>
+    <header><a href="/" aria-label="BrianE-Dev homepage"><Brand /></a><a href="/super-admin">Super Admin sign in</a></header>
     <section className="learner-auth-card">
       <span className="eyebrow">BRIANE-DEV / LEARNER ACCESS</span>
       <h1>Welcome back</h1>

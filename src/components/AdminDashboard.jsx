@@ -16,7 +16,7 @@ export default function AdminDashboard() {
         const { user: currentUser } = await api('/auth/me')
         if (currentUser.role !== 'super_admin') {
           await api('/auth/logout', { method: 'POST' })
-          window.location.replace('/login?denied=1')
+          window.location.replace('/super-admin?denied=1')
           return
         }
         const [transactions, certificates] = await Promise.all([api('/admin/transactions'), api('/admin/certificates')])
@@ -26,7 +26,7 @@ export default function AdminDashboard() {
         }
       } catch (requestError) {
         if (active) {
-          if (requestError.message.toLowerCase().includes('authentication')) window.location.replace('/login')
+          if (requestError.message.toLowerCase().includes('authentication')) window.location.replace('/super-admin')
           else setError(requestError.message)
         }
       } finally {
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
   }, [])
 
   async function logout() {
-    try { await api('/auth/logout', { method: 'POST' }) } finally { window.location.assign('/login') }
+    try { await api('/auth/logout', { method: 'POST' }) } finally { window.location.assign('/super-admin') }
   }
 
   if (busy) return <main className="admin-loading"><span className="eyebrow">BRIANE-DEV / ADMIN</span><p>Checking administrator access…</p></main>

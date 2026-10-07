@@ -16,7 +16,7 @@ Seed prices are configurable setup defaults: International is USD 15 with a 40% 
 
 ## Super Admin
 
-There is no default or publicly accessible admin account. To create one for development, set `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (use a unique strong password), and optionally `SEED_ADMIN_NAME` in `backend/.env`, run `npm run seed`, then remove those variables. Registration always assigns the `user` role. Admin APIs check the persisted role. Use the React `/login` page to sign in; only a persisted `super_admin` account can open `/admin`, the commerce dashboard. Configure production static hosting to route these paths to the React app entry point.
+There is no default or publicly accessible admin account. To create one for development, set `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (use a unique strong password), and optionally `SEED_ADMIN_NAME` in `backend/.env`, run `npm run seed`, then remove those variables. Registration always assigns the `user` role. Admin APIs check the persisted role. Use the React `/super-admin` page to sign in; only a persisted `super_admin` account can open `/admin`, the commerce dashboard. Configure production static hosting to route these paths to the React app entry point.
 
 ## Paystack
 
@@ -112,4 +112,4 @@ In Vercel, keep the project root at the repository root. The checked-in rewrite 
 
 For LIVE mode later, update Render to `APP_ENV=production`, replace both Paystack keys and the webhook secret with their LIVE values, configure the LIVE webhook in Paystack, and confirm the production Atlas URI. The Render service remains on `NODE_ENV=production`; frontend code and payment routes do not need rewriting.
 
-The React project includes the public curriculum overview and authenticated learner dashboard/reader. Lesson bodies remain authored JSON in `content/lessons/`; 42 canonical lessons still need content before the complete-course validator will pass.
+The React project includes the public curriculum overview and authenticated learner dashboard/reader. Lesson bodies remain authored JSON in `content/lessons/`; all 43 canonical lessons have authored content.

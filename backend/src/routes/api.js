@@ -27,7 +27,8 @@ const COURSE_SLUG = 'ai-powered-developer-productivity'
 const COURSE_PRODUCT_ID = COURSE_SLUG
 
 function pricingRegion(req) {
-  const country = req.user?.country || (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
+  const requestCountry = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
+  const country = requestCountry || req.user?.country
   return country?.toUpperCase() === 'NG' ? 'NG' : 'INTL'
 }
 
