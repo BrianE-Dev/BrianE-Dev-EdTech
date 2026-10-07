@@ -36,6 +36,7 @@ function LandingPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
+  const resumedCheckout = useRef(false)
 
   const verifyPaymentReturn = useCallback(async (reference) => {
     setPaymentReturn({ state: 'checking', message: 'Checking payment status with Paystack…', reference })
@@ -82,7 +83,7 @@ function LandingPage() {
   }, [verifyPaymentReturn])
 
   const closeMenu = () => setMenuOpen(false)
-  const purchaseCourse = async () => {
+  const purchaseCourse = useCallback(async () => {
     setPaymentBusy(true); setPricingError('')
     try {
       await api('/auth/me')
@@ -91,12 +92,24 @@ function LandingPage() {
     } catch (error) {
       setPaymentBusy(false)
       if (error.status === 401) {
+        if (resumedCheckout.current) {
+          setPricingError('Your sign-in could not be verified. Please sign in again, then retry enrollment.')
+          return
+        }
+        sessionStorage.setItem('briane-dev-resume-checkout', '1')
         window.location.assign(`/learn/login?returnTo=${encodeURIComponent('/#pricing')}`)
         return
       }
       setPricingError(error.message)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (sessionStorage.getItem('briane-dev-resume-checkout') !== '1') return
+    sessionStorage.removeItem('briane-dev-resume-checkout')
+    resumedCheckout.current = true
+    purchaseCourse()
+  }, [purchaseCourse])
   const regionalPrice = pricing ? {
     ...plans[0],
     price: new Intl.NumberFormat(pricing.currency === 'NGN' ? 'en-NG' : undefined, { style: 'currency', currency: pricing.currency, maximumFractionDigits: 2 }).format(pricing.currentPrice),
