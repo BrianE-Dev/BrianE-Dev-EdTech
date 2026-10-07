@@ -32,13 +32,28 @@ export function toPublicPreviewLesson(repositoryLesson) {
   }
 
   const previewBlockIds = new Set(validatedSource.preview.blockIds)
+  const previewBlocks = validatedSource.blocks.filter((block) => previewBlockIds.has(block.id))
+  const previewTtsText = previewBlocks.map((block) => {
+    switch (block.type) {
+      case 'heading':
+      case 'paragraph': return block.text
+      case 'list':
+      case 'ordered-list': return block.items.join('. ')
+      case 'code': return block.code
+      case 'callout': return `${block.title}. ${block.text}`
+      case 'quote': return [block.text, block.attribution].filter(Boolean).join('. ')
+      case 'table': return [block.headers, ...block.rows].flat().join('. ')
+      case 'image': return [block.alt, block.caption].filter(Boolean).join('. ')
+      default: return ''
+    }
+  }).filter(Boolean).join('\n')
   const lessonWithoutPreviewMetadata = { ...validatedSource }
   delete lessonWithoutPreviewMetadata.preview
   return toPublicLesson({
     ...lessonWithoutPreviewMetadata,
     objectives: [],
-    blocks: validatedSource.blocks.filter((block) => previewBlockIds.has(block.id)),
-    ttsText: null,
+    blocks: previewBlocks,
+    ttsText: previewTtsText || null,
     exercises: [],
     assessments: [],
   })

@@ -149,12 +149,12 @@ function LandingPage() {
           <div className="course-preview-copy">
             <span className="eyebrow">START HERE / FREE COURSE PREVIEW</span>
             <h2 id="course-preview-title">See how the course teaches.</h2>
-            <p>Open the free Chapter 1 preview to experience a real lesson and explore the learner view before enrolling.</p>
+            <p>Open the free Chapter 1 preview to read a real lesson and try its narration controls before enrolling.</p>
           </div>
           <a className="course-preview-card" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">
             <span className="course-preview-card-label"><Icon name="book" size={14}/> CHAPTER 1 / FREE PREVIEW</span>
             <strong>The AI-Assisted Developer</strong>
-            <span>Read the lesson preview <Icon name="arrow" size={14}/></span>
+            <span>Open Chapter 1 and try narration <Icon name="arrow" size={14}/></span>
           </a>
         </section>
 

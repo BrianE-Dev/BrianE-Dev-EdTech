@@ -42,7 +42,7 @@ Production deployment should set `APP_ENV=production`, `NODE_ENV=production`, pr
 
 - `GET /api/health`
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
-- `GET /api/pricing` (uses authenticated country first, then Cloudflare/Vercel country headers, then international USD fallback)
+- `GET /api/pricing` (uses trusted Cloudflare/Vercel country headers; defaults to the Nigeria/NGN price when no country header is available; non-Nigeria requests use international USD)
 - `GET /api/courses`, `GET /api/courses/:slug` (public course and canonical curriculum metadata only)
 - `POST /api/brianedev/payments/initialize` with `{ "productId": "ai-powered-developer-productivity" }`, `POST /api/brianedev/payments/verify` with `{ "reference": "BDE-..." }`, `POST /api/brianedev/payments/paystack/webhook` (compatibility aliases remain under `/api/payments/*`)
 - `GET /api/me/purchases`, `GET /api/me/progress/:courseId`, `GET /api/me/certificates`
@@ -89,7 +89,7 @@ After checkout, the React return handler sends the reference to `/api/brianedev/
 - Set Paystack's webhook URL to the deployed API endpoint.
 - Run the seed command once against the intended database; avoid development seed credentials in production.
 - Promote the first Super Admin through a trusted database/operations process. Never add admin role assignment to public registration.
-- Configure Cloudflare/Vercel or another trusted reverse proxy to overwrite country headers before forwarding them. Do not accept browser-supplied country values for pricing. Unknown visitors use international USD.
+- Configure Cloudflare/Vercel or another trusted reverse proxy to supply country headers before forwarding them. Do not accept browser-supplied country values for pricing. Requests without a country header default to the Nigeria/NGN price.
 
 ## Vercel + Render deployment
 

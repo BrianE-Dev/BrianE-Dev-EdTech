@@ -28,7 +28,7 @@ const COURSE_PRODUCT_ID = COURSE_SLUG
 
 function pricingRegion(req) {
   const requestCountry = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
-  const country = requestCountry || req.user?.country || 'NG'
+  const country = requestCountry || 'NG'
   return country?.toUpperCase() === 'NG' ? 'NG' : 'INTL'
 }
 
@@ -76,6 +76,7 @@ router.get('/pricing', authenticateOptional, async (req, res) => {
   const config = await Pricing.findOne({ region })
   if (!config) return res.status(503).json({ error: 'Pricing is not configured' })
   const { _id, region: key, currency, originalPrice, currentPrice, discount, discountType, discountValue, promotionActive } = getFinalPrice(config)
+  res.set('Cache-Control', 'no-store')
   res.json({ id: _id, region: key, currency, originalPrice, currentPrice, discount, discountType, discountValue, discountEnabled: promotionActive, promotionActive })
 })
 

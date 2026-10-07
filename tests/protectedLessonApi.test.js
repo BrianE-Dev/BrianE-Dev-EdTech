@@ -195,9 +195,11 @@ function apiJson(path, { userId = userDbId, method = 'GET', body, headers = {} }
 
 test('default NG pricing and Paystack checkout use the same configured NGN amount; INTL remains USD', async () => {
   paid = false
-  const defaultPricingResponse = await apiJson('/pricing', { userId: null })
+  userRows.get(userDbId).country = 'US'
+  const defaultPricingResponse = await apiJson('/pricing')
   const defaultPricing = await defaultPricingResponse.json()
   assert.equal(defaultPricingResponse.status, 200)
+  assert.equal(defaultPricingResponse.headers.get('cache-control'), 'no-store')
   assert.equal(defaultPricing.region, 'NG')
   assert.equal(defaultPricing.currency, 'NGN')
   assert.equal(defaultPricing.currentPrice, 9000)
@@ -205,7 +207,7 @@ test('default NG pricing and Paystack checkout use the same configured NGN amoun
 
   priceRows.NG.originalPrice = 23750
   priceRows.NG.discountValue = 20
-  const changedPricing = await (await apiJson('/pricing', { userId: null })).json()
+  const changedPricing = await (await apiJson('/pricing')).json()
   assert.equal(changedPricing.originalPrice, 23750)
   assert.equal(changedPricing.currentPrice, 19000)
   assert.equal(changedPricing.discount, 4750)
@@ -232,15 +234,16 @@ test('default NG pricing and Paystack checkout use the same configured NGN amoun
   assert.equal(payment.transactionId, '42')
 
   const secondInitialized = await (await apiJson('/brianedev/payments/initialize', {
-    method: 'POST', body: { productId: 'ai-powered-developer-productivity' }, headers: { 'x-vercel-ip-country': 'NG' },
+    method: 'POST', body: { productId: 'ai-powered-developer-productivity' },
   })).json()
+  assert.equal(paymentRows.get(secondInitialized.reference).region, 'NG')
   paystackVerification = { status: 'success', reference: secondInitialized.reference, amount: 1899900, currency: 'NGN', id: 43 }
   const rejectedVerification = await apiJson('/brianedev/payments/verify', { method: 'POST', body: { reference: secondInitialized.reference } })
   assert.equal(rejectedVerification.status, 409)
   assert.equal(paymentRows.get(secondInitialized.reference).status, 'failed')
 
   priceRows.NG.discountValue = 0
-  const noDiscount = await (await apiJson('/pricing', { userId: null })).json()
+  const noDiscount = await (await apiJson('/pricing')).json()
   assert.equal(noDiscount.currentPrice, 23750)
   const intl = await (await apiJson('/pricing', { userId: null, headers: { 'x-vercel-ip-country': 'US' } })).json()
   assert.equal(intl.region, 'INTL')
@@ -290,7 +293,11 @@ test('public and authenticated unpaid visitors receive only the Chapter 1 previe
     ])
     assert.deepEqual(body.lesson.assessments, [])
     assert.deepEqual(body.lesson.exercises, [])
-    assert.equal(body.lesson.ttsText, null)
+    assert.ok(body.lesson.ttsText)
+    assert.ok(body.lesson.ttsText.includes('AI as a collaborator in engineering work'))
+    assert.ok(body.lesson.ttsText.includes('Keep the task bounded'))
+    assert.equal(body.lesson.ttsText.includes('Give useful context and constraints'), false)
+    assert.equal(body.lesson.ttsText.includes('Goal: Explain why parseUser'), false)
     assert.equal(JSON.stringify(body).includes('correctOptionId'), false)
     assert.equal(JSON.stringify(body).includes('assessment-ai-assisted-developer-review-loop'), false)
     assert.equal(JSON.stringify(body).includes('assessment-explanation'), false)
