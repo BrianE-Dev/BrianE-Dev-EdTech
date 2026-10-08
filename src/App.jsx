@@ -66,6 +66,21 @@ function LandingPage() {
   }, [theme])
 
   useEffect(() => {
+    const scrollToHash = () => {
+      const targetId = window.location.hash.slice(1)
+      if (!targetId) return
+      document.getElementById(decodeURIComponent(targetId))?.scrollIntoView()
+    }
+
+    const frame = window.requestAnimationFrame(scrollToHash)
+    window.addEventListener('hashchange', scrollToHash)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('hashchange', scrollToHash)
+    }
+  }, [])
+
+  useEffect(() => {
     document.title = `${curriculum.title} | BrianE-Dev`
     const description = document.querySelector('meta[name="description"]')
     if (description) description.content = curriculum.description
