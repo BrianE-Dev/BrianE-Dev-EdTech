@@ -94,7 +94,7 @@ GEMINI_TTS_VOICE=Kore
 GEMINI_TTS_LANGUAGE=en-US
 ```
 
-The model, voice, and language are part of the narration cache identity. The default model is Gemini 3.8 Flash-Lite TTS. It accepts text-only input and returns WAV audio; lesson text is sent in deterministic logical chunks below the model's input limit. Code blocks are represented by short contextual narration rather than spoken verbatim, and assessment answer keys and internal IDs are excluded. See Google's [Gemini speech generation guide](https://ai.google.dev/gemini-api/docs/speech-generation) for current model/API details.
+The model, voice, and language are part of the narration cache identity. The default model is Gemini 3.8 Flash-Lite TTS. It accepts text-only input and returns WAV audio; lesson text is sent in deterministic logical chunks below the model's input limit. Code blocks are represented by short contextual narration rather than spoken verbatim, and assessment answer keys and internal IDs are excluded. See Google's [Gemini speech generation guide](https://ai.google.dev/gemini-api/docs/speech-generation) for current model/API details. Requests default to 1,800 characters per chunk with a 15-second pause between chunks; configure `GEMINI_TTS_CHUNK_CHARS` (clamped to 500–3,000) and `GEMINI_TTS_REQUEST_DELAY_MS` in the backend environment to tune these values. HTTP 429 responses are retried up to three times, honoring `Retry-After` when supplied.
 
 ### Persistent object storage
 

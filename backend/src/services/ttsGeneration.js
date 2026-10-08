@@ -5,7 +5,9 @@ import { getLessonByChapterId } from './lessonRepository.js'
 import { buildTtsTranscript, hashTranscript } from './ttsTranscript.js'
 import { createTtsStorage } from './ttsStorage.js'
 
-const CHUNK_LIMIT = 5200
+const CHUNK_LIMIT = Math.max(500, Math.min(3000, Number(process.env.GEMINI_TTS_CHUNK_CHARS) || 1800))
+const REQUEST_DELAY_MS = Math.max(0, Number(process.env.GEMINI_TTS_REQUEST_DELAY_MS) || 15000)
+const MAX_RATE_LIMIT_RETRIES = 3
 const STALE_GENERATION_MS = 15 * 60 * 1000
 const ttsStyle = 'Clear, friendly, professional instructional narration. Speak at a steady, natural pace.'
 
@@ -90,24 +92,30 @@ export function combineWavBuffers(waves) {
 async function requestGeminiAudio(text, config) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`
   let response
-  try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text, speech_metadata: { style: ttsStyle } }] }],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: { languageCode: config.language, voiceConfig: { voice: config.voice } },
-        },
-      }),
-      signal: AbortSignal.timeout(120000),
-    })
-  } catch {
-    throw new Error('Gemini TTS request could not reach the speech service')
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text, speech_metadata: { style: ttsStyle } }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: { languageCode: config.language, voiceConfig: { voice: config.voice } },
+          },
+        }),
+        signal: AbortSignal.timeout(120000),
+      })
+    } catch {
+      throw new Error('Gemini TTS request could not reach the speech service')
+    }
+    if (response.status !== 429 || attempt === MAX_RATE_LIMIT_RETRIES) break
+    const retryAfter = Number(response.headers.get('retry-after'))
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 120000) : REQUEST_DELAY_MS * (attempt + 1)
+    await new Promise((resolve) => setTimeout(resolve, waitMs))
   }
   if (!response.ok) {
-    const reason = response.status === 429 ? 'Gemini TTS quota or rate limit was reached' : response.status === 401 || response.status === 403 ? 'Gemini TTS credentials were rejected' : `Gemini TTS request failed (${response.status})`
+    const reason = response.status === 429 ? 'Gemini TTS quota or rate limit was reached after retries' : response.status === 401 || response.status === 403 ? 'Gemini TTS credentials were rejected' : `Gemini TTS request failed (${response.status})`
     throw new Error(reason)
   }
   const result = await response.json()
@@ -173,7 +181,10 @@ export async function generateChapterAudio(courseId, lesson, { generatedBy, forc
   try {
     const chunks = splitTtsTranscript(transcript)
     const generated = []
-    for (const chunk of chunks) generated.push(await generateAudio(chunk, config))
+    for (let index = 0; index < chunks.length; index += 1) {
+      if (index > 0 && REQUEST_DELAY_MS) await new Promise((resolve) => setTimeout(resolve, REQUEST_DELAY_MS))
+      generated.push(await generateAudio(chunks[index], config))
+    }
     const combined = combineWavBuffers(generated)
     const generationId = crypto.randomUUID()
     const prefix = storagePrefix(identity, generationId)
