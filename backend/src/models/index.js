@@ -3,6 +3,18 @@ import mongoose from 'mongoose'
 const { Schema, model } = mongoose
 const timestamps = { timestamps: true }
 
+const learnerProfileSchema = new Schema({
+  phone: { type: String, trim: true, maxlength: 40, default: '' },
+  dateOfBirth: { type: String, maxlength: 10, default: '' },
+  gender: { type: String, enum: ['', 'female', 'male', 'non_binary', 'prefer_not_to_say'], default: '' },
+  country: { type: String, trim: true, maxlength: 100, default: '' },
+  state: { type: String, trim: true, maxlength: 100, default: '' },
+  city: { type: String, trim: true, maxlength: 100, default: '' },
+  address: { type: String, trim: true, maxlength: 240, default: '' },
+  occupation: { type: String, trim: true, maxlength: 120, default: '' },
+  organization: { type: String, trim: true, maxlength: 120, default: '' },
+}, { _id: false })
+
 const userSchema = new Schema({
   name: { type: String, required: true, trim: true, maxlength: 120 },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -10,6 +22,7 @@ const userSchema = new Schema({
   role: { type: String, enum: ['user', 'super_admin'], default: 'user' },
   country: { type: String, uppercase: true, maxlength: 2 },
   currency: { type: String, enum: ['NGN', 'USD'], default: 'USD' },
+  profile: { type: learnerProfileSchema, default: () => ({}) },
 }, timestamps)
 
 const courseSchema = new Schema({

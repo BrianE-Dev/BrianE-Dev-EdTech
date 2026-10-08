@@ -23,6 +23,9 @@ export async function api(path, options = {}) {
 const jsonBody = (value) => JSON.stringify(value)
 
 export const getCurrentUser = () => api('/auth/me')
+export const getLearnerProfile = () => api('/me/profile')
+export const saveLearnerProfile = (profile) => api('/me/profile', { method: 'PUT', body: jsonBody(profile) })
+export const getAdminLearners = () => api('/admin/learners')
 export const loginLearner = (email, password) => api('/auth/login', { method: 'POST', body: jsonBody({ email, password }) })
 export const registerLearner = (name, email, password) => api('/auth/register', { method: 'POST', body: jsonBody({ name, email, password }) })
 export const logoutUser = () => api('/auth/logout', { method: 'POST' })

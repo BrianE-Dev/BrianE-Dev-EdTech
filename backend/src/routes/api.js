@@ -74,6 +74,44 @@ router.post('/auth/login', async (req, res) => {
 router.post('/auth/logout', (_req, res) => res.clearCookie('session', { ...sessionCookie, maxAge: undefined }).json({ ok: true }))
 router.get('/auth/me', authenticate, (req, res) => res.json({ user: { id: req.user.id, name: req.user.name, email: req.user.email, role: req.user.role } }))
 
+const profileSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  phone: z.string().trim().max(40).default(''),
+  dateOfBirth: z.string().trim().max(10).refine((value) => !value || (/^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(value).toISOString().slice(0, 10) === value), 'Enter a valid date of birth'),
+  gender: z.enum(['', 'female', 'male', 'non_binary', 'prefer_not_to_say']).default(''),
+  country: z.string().trim().max(100).default(''),
+  state: z.string().trim().max(100).default(''),
+  city: z.string().trim().max(100).default(''),
+  address: z.string().trim().max(240).default(''),
+  occupation: z.string().trim().max(120).default(''),
+  organization: z.string().trim().max(120).default(''),
+}).strict()
+
+function publicLearnerProfile(user) {
+  return {
+    name: user.name,
+    email: user.email,
+    profile: {
+      phone: user.profile?.phone || '',
+      dateOfBirth: user.profile?.dateOfBirth || '',
+      gender: user.profile?.gender || '',
+      country: user.profile?.country || '',
+      state: user.profile?.state || '',
+      city: user.profile?.city || '',
+      address: user.profile?.address || '',
+      occupation: user.profile?.occupation || '',
+      organization: user.profile?.organization || '',
+    },
+  }
+}
+
+router.get('/me/profile', authenticate, (req, res) => res.json(publicLearnerProfile(req.user)))
+router.put('/me/profile', authenticate, async (req, res) => {
+  const { name, ...profile } = profileSchema.parse(req.body)
+  const user = await User.findByIdAndUpdate(req.user.id, { $set: { name, profile } }, { new: true, runValidators: true })
+  res.json(publicLearnerProfile(user))
+})
+
 router.get('/pricing', authenticateOptional, async (req, res) => {
   const config = await Pricing.findOne({ region: 'NG' })
   if (!config) return res.status(503).json({ error: 'Pricing is not configured' })
@@ -502,6 +540,10 @@ router.put('/admin/pricing/:region', authenticate, requireAdmin, async (req, res
   await previous.save()
   await AuditLog.create({ admin: req.user.id, action: 'pricing.updated', resource: region, previousValue, newValue: previous.toObject() })
   res.json(previous)
+})
+router.get('/admin/learners', authenticate, requireAdmin, async (_req, res) => {
+  const learners = await User.find({ role: 'user' }).select('name email profile createdAt updatedAt').sort({ createdAt: -1 }).limit(1000).lean()
+  res.json(learners.map((learner) => ({ id: String(learner._id), ...publicLearnerProfile(learner), createdAt: learner.createdAt })))
 })
 router.get('/admin/transactions', authenticate, requireAdmin, async (_req, res) => res.json(await Payment.find({ application: 'brianedev', environment: getPaystackConfig().appEnvironment }).sort({ createdAt: -1 }).limit(500).populate('user', 'name email').populate('course', 'title')))
 router.get('/admin/purchases', authenticate, requireAdmin, async (_req, res) => res.json(await Payment.find({ application: 'brianedev', environment: getPaystackConfig().appEnvironment }).sort({ createdAt: -1 }).populate('user', 'name email').populate('course', 'title').lean()))

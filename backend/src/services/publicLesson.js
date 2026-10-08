@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import { lessonSchema, publicLessonSchema } from '../../../src/data/schemas/lessonSchema.js'
 
 const protectedAnswerFields = new Set(['correctoptionid', 'correctanswer', 'answer', 'answerkey', 'solution', 'solutionkey'])
@@ -8,6 +9,15 @@ export function sanitizeProtectedAnswers(value) {
   return Object.fromEntries(Object.entries(value)
     .filter(([key]) => !protectedAnswerFields.has(key.toLowerCase().replaceAll(/[_-]/g, '')))
     .map(([key, nested]) => [key, sanitizeProtectedAnswers(nested)]))
+}
+
+function shuffleAssessmentOptions(options) {
+  const shuffled = [...options]
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1)
+    ;[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]]
+  }
+  return shuffled
 }
 
 export function toPublicLesson(repositoryLesson) {
@@ -22,7 +32,14 @@ export function toPublicLesson(repositoryLesson) {
       return assessment
     }),
   }
-  return publicLessonSchema.parse(withoutExplanations)
+  const randomizedAssessments = {
+    ...withoutExplanations,
+    assessments: withoutExplanations.assessments.map((assessment) => ({
+      ...assessment,
+      options: shuffleAssessmentOptions(assessment.options),
+    })),
+  }
+  return publicLessonSchema.parse(randomizedAssessments)
 }
 
 export function toPublicPreviewLesson(repositoryLesson) {
