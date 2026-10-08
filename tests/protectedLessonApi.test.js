@@ -715,6 +715,11 @@ test('learner login, invalid credentials, registration role isolation, and admin
   assert.equal(learnerAdminMutation.status, 403)
   const adminAccess = await apiJson('/admin/pricing', { userId: adminUserId })
   assert.equal(adminAccess.status, 200)
+  const adminFinalChapterResponse = await apiJson(`/courses/${course.id}/lessons/chapter-the-ai-powered-developer-putting-everything-together`, { userId: adminUserId })
+  assert.equal(adminFinalChapterResponse.status, 200)
+  const adminFinalChapter = await adminFinalChapterResponse.json()
+  assert.equal(adminFinalChapter.access.isSuperAdmin, true)
+  assert.equal(adminFinalChapter.progress, null)
   paid = true
   const adminProgress = await apiJson(`/courses/${course.id}/progress`, { userId: adminUserId })
   assert.equal(adminProgress.status, 200)

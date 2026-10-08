@@ -51,6 +51,7 @@ Production deployment should set `APP_ENV=production`, `NODE_ENV=production`, pr
 - `GET /api/courses/:courseId/progress` (stable curriculum chapter progress; requires authentication and paid purchase)
 - `GET /api/courses/:slug/lessons/chapter-ai-assisted-developer/preview` (public, deterministic Chapter 1 preview only; no progress, exercise, TTS, or assessment payload)
 - `GET /api/courses/:courseId/lessons/:chapterId` (requires a verified purchase; unpaid and anonymous callers receive `403 COURSE_PURCHASE_REQUIRED`; preserves `course` and `lesson` and adds chapter navigation, progress, and access metadata)
+- `GET /api/courses/:courseId/lessons/:chapterId/audio/status` and `GET /api/courses/:courseId/lessons/:chapterId/audio` (authenticated; paid learners and Super Admins only; stored audio playback never generates audio)
 - `POST /api/courses/:courseId/lessons/:chapterId/progress` with `{ "status": "in_progress" | "completed" }`
 - `POST /api/courses/:courseId/lessons/:chapterId/exercises/:exerciseId/complete` (records learner acknowledgment for required exercises)
 - `POST /api/courses/:courseId/lessons/:chapterId/assessment` with `{ "answers": [{ "questionId": "assessment-id", "optionId": "option-id" }] }`
@@ -62,6 +63,7 @@ Production deployment should set `APP_ENV=production`, `NODE_ENV=production`, pr
 - `GET /api/courses/:courseId/ebook/status` (public ebook title and availability only)
 - `GET /api/courses/:courseId/ebook` (download; requires a verified purchase; serves `content/ebooks/briane-dev-course.pdf`)
 - Super Admin: `GET /api/admin/pricing`, `PUT /api/admin/pricing/:region`, `GET /api/admin/transactions`, `GET /api/admin/purchases`, `GET /api/admin/certificates`
+- Super Admin TTS: `GET /api/admin/tts/courses/:courseId/status`, `POST /api/admin/tts/courses/:courseId/generate-missing`, `POST /api/admin/tts/courses/:courseId/chapters/:chapterId/generate`
 
 Authentication uses an HTTP-only, same-site cookie. Production must use HTTPS. Configure the exact frontend origin in `CLIENT_URL`; multiple origins may be comma-separated. Sensitive routes have rate limits and request validation. Payments are immutable through the admin API. Pricing writes create audit records. Mongoose uses unique indexes for emails, course slugs, pricing regions, payment references, Paystack references, and certificate IDs; compound indexes support environment-isolated payment administration and one-progress/one-certificate-per-user/course lookups.
 
@@ -69,11 +71,53 @@ Authentication uses an HTTP-only, same-site cookie. Production must use HTTPS. C
 
 `src/data/curriculum.js` remains the canonical curriculum metadata source. All 43 authored lesson JSON files live in `content/lessons/<chapterId>.json`; MongoDB continues to hold course commerce and learner/application state, not authored lesson bodies. `backend/src/services/lessonRepository.js` resolves the stable `chapterId`, reads that exact filename, and runs the Zod and curriculum/title/filename checks before returning content. `npm run validate:content:complete` requires all 43 canonical lessons.
 
-The public preview route is limited to Chapter 1 and uses that lesson's explicit stable block ID allowlist. It returns only those blocks and omits objectives, narration, exercises, assessments, answers, and progress. The full lesson route checks for a paid BrianE-Dev purchase in the active Paystack environment before loading the lesson; anonymous and authenticated unpaid callers receive a machine-readable purchase-required denial with no lesson body. It strips answer keys and explanations before returning paid lesson content. Assessment submissions are scored on the server; attempts store selected option, outcome, score, and stable content identifiers but never answer keys. Learners receive only aggregate score and pass status.
+The public preview route is limited to Chapter 1 and uses that lesson's explicit stable block ID allowlist. It returns only those blocks and omits objectives, narration, exercises, assessments, answers, and progress. The full lesson route requires a paid BrianE-Dev purchase in the active Paystack environment for ordinary learners; authenticated Super Admins bypass this learner purchase restriction. Anonymous and authenticated unpaid learners receive a machine-readable purchase-required denial with no lesson body. It strips answer keys and explanations before returning learner lesson content. Assessment submissions are scored on the server; attempts store selected option, outcome, score, and stable content identifiers but never answer keys. Learners receive only aggregate score and pass status.
 
 The existing `CourseProgress` document has additive stable-ID chapter state (`chapterProgress`), `currentChapterId`, and separate canonical completion fields. Existing legacy fields remain in place and are not translated from array indexes. Required exercises are completed by an explicit learner acknowledgment stored by exercise ID. Course completion requires all canonical chapters complete and all required activities satisfied; a certificate is created once when the course is certificate-eligible. Assessment retries are unlimited and recorded with a unique per-assessment attempt number.
 
 The React learner experience is available at `/learn/login`, `/learn/register`, `/learn`, and `/courses/:courseSlug/learn/:chapterId`. Registration creates a free account and never creates a payment or course entitlement. The reader attempts paid delivery and falls back to the public server-filtered Chapter 1 preview only when access is denied; other unpaid chapters display a purchase gate. Preview reading creates no progress. Lesson images are served only to purchasers, only when their exact path is referenced by that validated lesson, and only when they resolve inside `content/`. The dashboard distinguishes preview-only accounts from paid learners and shows stable-ID progress, ebook access, and issued certificate actions. Ebook downloads are served from `content/ebooks/briane-dev-course.pdf` only after a verified purchase check. Browser speech synthesis is optional and does not affect progress. Certificate download requires authentication, ownership, paid access, and canonical completion; the verification endpoint is public and returns only intended certificate details.
+
+## Super Admin course access and generated narration
+
+The persisted `super_admin` role is checked server-side. Super Admins can request any published BrianE-Dev lesson and chapter without a purchase record, and chapter navigation does not depend on learner progress or assessment completion. The reader marks this access as privileged and does not create learner progress simply by opening a lesson. Ordinary learner purchase, progress, and assessment rules remain in force. Admin APIs, including narration generation, require an authenticated Super Admin session.
+
+The learner reader uses stored chapter narration when available. It does not call Gemini on playback. An authenticated paid learner or Super Admin can request `GET /api/courses/:courseId/lessons/:chapterId/audio`; if narration has not been generated, the API returns `404 AUDIO_NOT_GENERATED`. The matching `/audio/status` endpoint reports availability without downloading audio. The free Chapter 1 preview continues to use browser speech synthesis.
+
+### Gemini configuration
+
+Set these variables only in the backend environment (for production, the backend service's secret/environment settings). Never create `VITE_GEMINI_API_KEY` or put a Gemini key in Vercel/frontend variables.
+
+```env
+GEMINI_API_KEY=<server-only API key>
+GEMINI_TTS_MODEL=gemini-3.8-flash-lite-tts
+GEMINI_TTS_VOICE=Kore
+GEMINI_TTS_LANGUAGE=en-US
+```
+
+The model, voice, and language are part of the narration cache identity. The default model is Gemini 3.8 Flash-Lite TTS. It accepts text-only input and returns WAV audio; lesson text is sent in deterministic logical chunks below the model's input limit. Code blocks are represented by short contextual narration rather than spoken verbatim, and assessment answer keys and internal IDs are excluded. See Google's [Gemini speech generation guide](https://ai.google.dev/gemini-api/docs/speech-generation) for current model/API details.
+
+### Persistent object storage
+
+Production audio must use persistent S3-compatible object storage; Render's local filesystem is rejected when `NODE_ENV=production`. Audio binaries live in object storage, while MongoDB stores transcript/generation metadata and storage keys. For Amazon S3, set the region, bucket, and access credentials. For an S3-compatible service such as Cloudflare R2, also set its HTTPS endpoint and signing region.
+
+```env
+TTS_STORAGE_PROVIDER=s3
+TTS_S3_ENDPOINT=
+TTS_S3_BUCKET=
+TTS_S3_REGION=
+TTS_S3_ACCESS_KEY_ID=
+TTS_S3_SECRET_ACCESS_KEY=
+```
+
+For local development only, `TTS_STORAGE_PROVIDER=local` stores audio under the ignored `backend/.local-tts/` directory. Do not use that provider in production. Object keys include sanitized course/chapter IDs, transcript hash, model, voice, language, and a version ID. New audio is written to separate versioned keys and Mongo metadata switches only after all chunks are stored, so failed regeneration leaves prior ready audio intact.
+
+### Generate and monitor course audio
+
+Open **Super Admin → Course audio** in `/admin`. **Generate missing audio** produces only chapters with no valid recording; it leaves older valid recordings in place when a chapter has changed. **Regenerate changed audio** creates recordings for missing or stale chapters whose lesson version, transcript hash, model, voice, or language differs. Generation is sequential and uses a persisted MongoDB batch job. If the API process restarts, it resumes the running job and skips successful chapters. Failed chapters are reported and can be retried by starting the appropriate batch again.
+
+The batch API is `POST /api/admin/tts/courses/:courseId/generate-missing` with `{ "mode": "missing" }`, `{ "mode": "changed" }`, or an explicit `{ "mode": "force" }`. Force mode is not the default and intentionally regenerates every chapter. `GET /api/admin/tts/courses/:courseId/status` reports chapter states, batch state, and safe error messages. One chapter can be generated with `POST /api/admin/tts/courses/:courseId/chapters/:chapterId/generate`; its optional `{ "force": true }` body explicitly regenerates that chapter.
+
+Cache identity includes course, stable chapter ID, lesson content version, normalized transcript SHA-256, Gemini model, voice, and language. Identical inputs with audio present are a cache hit and do not call Gemini. Changed inputs are stale and are regenerated in `changed` mode. Playback endpoints only read stored audio and never call Gemini. Generation endpoints have rate limits and Super Admin authorization; the Gemini key is never returned or logged.
 
 Run `npm run ebook:build` to regenerate the protected ebook from the canonical curriculum and lesson JSON. The build script requires an installed Chrome/Edge/Chromium executable; set `PDF_BROWSER` to override automatic discovery. No backend runtime PDF dependency or new database model is required.
 

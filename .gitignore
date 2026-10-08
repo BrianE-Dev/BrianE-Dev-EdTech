@@ -14,6 +14,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+backend/.local-tts/
+briane-devWorkspace.code-workspace
 
 # Editor directories and files
 .vscode/*

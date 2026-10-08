@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import Brand from './Brand.jsx'
 import CommerceAdmin from './CommerceAdmin.jsx'
+import CourseAudioAdmin from './CourseAudioAdmin.jsx'
 import { api, getAdminLearners } from '../services/api.js'
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null)
   const [summary, setSummary] = useState({ transactions: 0, paid: 0, certificates: 0, learners: 0 })
   const [learners, setLearners] = useState([])
+  const [courseId, setCourseId] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(true)
 
@@ -20,9 +22,10 @@ export default function AdminDashboard() {
           window.location.replace('/super-admin?denied=1')
           return
         }
-        const [transactions, certificates, learnerRows] = await Promise.all([api('/admin/transactions'), api('/admin/certificates'), getAdminLearners()])
+        const [transactions, certificates, learnerRows, courses] = await Promise.all([api('/admin/transactions'), api('/admin/certificates'), getAdminLearners(), api('/courses')])
         if (active) {
           setUser(currentUser)
+          setCourseId(courses.find((item) => item.slug === 'ai-powered-developer-productivity')?.id || '')
           setSummary({ transactions: transactions.length, paid: transactions.filter((item) => ['paid', 'successful'].includes(item.status)).length, certificates: certificates.length, learners: learnerRows.length })
           setLearners(learnerRows)
         }
@@ -60,6 +63,7 @@ export default function AdminDashboard() {
       <div className="admin-learners-heading"><div><span className="eyebrow">LEARNER ACCOUNTS</span><h2 id="admin-learners-title">Learner biodata</h2></div><p>Profile details saved by learners.</p></div>
       {learners.length ? <div className="admin-learners-grid">{learners.map((learner) => <article className="admin-learner-card" key={learner.id}><header><div><h3>{learner.name}</h3><a href={'mailto:' + learner.email}>{learner.email}</a></div><span>{learner.profile.occupation || 'Learner'}</span></header><dl>{[['Phone', learner.profile.phone], ['Date of birth', learner.profile.dateOfBirth], ['Gender', learner.profile.gender.replaceAll('_', ' ')], ['Country', learner.profile.country], ['State / region', learner.profile.state], ['City', learner.profile.city], ['Address', learner.profile.address], ['Organization', learner.profile.organization]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || '—'}</dd></div>)}</dl></article>)}</div> : <p className="admin-learners-empty">No learner accounts yet.</p>}
     </section>
+    {courseId && <CourseAudioAdmin courseId={courseId}/>}
     <CommerceAdmin standalone />
   </main>
 }

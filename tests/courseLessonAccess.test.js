@@ -20,4 +20,8 @@ test('lesson access denies missing user or course and checks existing paid Brian
 
   const noPurchase = { exists: async () => null }
   assert.equal(await canAccessCourseLesson({ id: 'user-db-id' }, course, { PaymentModel: noPurchase, appEnvironment: 'development' }), false)
+  let adminPaymentQueries = 0
+  const adminPaymentModel = { exists: async () => { adminPaymentQueries += 1; return null } }
+  assert.equal(await canAccessCourseLesson({ id: 'admin-db-id', role: 'super_admin' }, course, { PaymentModel: adminPaymentModel, appEnvironment: 'development' }), true)
+  assert.equal(adminPaymentQueries, 0)
 })

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { User } from '../models/index.js'
+import { isSuperAdmin } from '../utils/authorization.js'
 
 export async function authenticate(req, res, next) {
   try {
@@ -13,6 +14,6 @@ export async function authenticate(req, res, next) {
 }
 
 export function requireAdmin(req, res, next) {
-  if (req.user?.role !== 'super_admin') return res.status(403).json({ error: 'Super Admin access required' })
+  if (!isSuperAdmin(req.user)) return res.status(403).json({ error: 'Super Admin access required' })
   next()
 }

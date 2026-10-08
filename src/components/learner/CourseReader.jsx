@@ -5,6 +5,7 @@ import ChapterNavigation from './ChapterNavigation.jsx'
 import LessonAssessment from './LessonAssessment.jsx'
 import LessonBlockRenderer from './LessonBlockRenderer.jsx'
 import LessonTts from './LessonTts.jsx'
+import LessonAudioPlayer from './LessonAudioPlayer.jsx'
 import PurchaseGate from './PurchaseGate.jsx'
 
 function readRoute() {
@@ -108,7 +109,7 @@ export default function CourseReader() {
   }
 
   async function signOut() {
-    try { await logoutUser() } finally { window.location.assign('/learn/login') }
+    try { await logoutUser() } finally { window.location.assign(state.data?.response?.access?.isSuperAdmin ? '/super-admin' : '/learn/login') }
   }
 
   if (state.status === 'purchase-required') {
@@ -141,37 +142,38 @@ export default function CourseReader() {
   const { course, response } = state.data
   const { lesson, chapter, navigation, progress } = response
   const isPreview = response.access?.isPreview === true
+  const isSuperAdmin = response.access?.isSuperAdmin === true
   const learnerProgress = progress || { status: 'not_started', percent: 0, requiredExerciseAcknowledgments: [] }
   const acknowledged = new Set(learnerProgress.requiredExerciseAcknowledgments || [])
   const hasRequiredActivities = lesson.assessments.some((assessment) => assessment.required)
     || lesson.exercises.some((exercise) => exercise.required)
 
   return <main className="learner-app reader-app">
-    <header className="learner-header"><a href={isPreview ? '/' : '/learn'} aria-label="Back to learning space"><Brand /></a><div>{isPreview ? <><a href="/#pricing">Course pricing</a><a href="/learn/login">Sign in</a></> : <><a href="/learn">My learning</a><button type="button" onClick={signOut}>Sign out</button></>}</div></header>
+    <header className="learner-header"><a href={isPreview ? '/' : isSuperAdmin ? '/admin' : '/learn'} aria-label="Back to learning space"><Brand /></a><div>{isPreview ? <><a href="/#pricing">Course pricing</a><a href="/learn/login">Sign in</a></> : <>{isSuperAdmin ? <a href="/admin">Admin dashboard</a> : <a href="/learn">My learning</a>}<button type="button" onClick={signOut}>Sign out</button></>}</div></header>
     <div className="reader-layout">
       <aside className="reader-sidebar">
         <a className="reader-course-link" href={isPreview ? '/#curriculum' : '/learn'}>{isPreview ? '← Course curriculum' : '← Learning space'}</a>
         <span className="eyebrow">SECTION {String(chapter.sectionNumber).padStart(2, '0')}</span>
         <h2>{chapter.sectionTitle}</h2>
-        {isPreview ? <span className="preview-badge">Free preview · not saved to progress</span> : <><div className="reader-sidebar-progress"><span>Course progress</span><strong>{learnerProgress.percent}%</strong><div className="learner-progress-track"><span style={{ width: `${learnerProgress.percent}%` }}/></div></div>
+        {isSuperAdmin ? <span className="preview-badge">Super Admin access · progress is not tracked</span> : isPreview ? <span className="preview-badge">Free preview · not saved to progress</span> : <><div className="reader-sidebar-progress"><span>Course progress</span><strong>{learnerProgress.percent}%</strong><div className="learner-progress-track"><span style={{ width: `${learnerProgress.percent}%` }}/></div></div>
           <span className={`reader-status reader-status-${learnerProgress.status}`}>{learnerProgress.status.replace('_', ' ')}</span></>}
       </aside>
       <article className="reader-main">
         <header className="reader-lesson-header"><span className="eyebrow">CHAPTER {String(chapter.number).padStart(2, '0')} / {course.title}</span>{isPreview && <span className="preview-badge">Free preview</span>}<h1>{lesson.title}</h1><p>{chapter.sectionTitle}</p></header>
         {lesson.objectives.length > 0 && <section className="reader-objectives"><h2>In this chapter</h2><ul>{lesson.objectives.map((objective, index) => <li key={index}>{objective}</li>)}</ul></section>}
-        <LessonTts/>
+        {isPreview ? <LessonTts/> : <LessonAudioPlayer courseId={course.id} chapterId={lesson.chapterId}/>}
         <LessonBlockRenderer blocks={lesson.blocks} courseId={course.id} chapterId={lesson.chapterId}/>
         {isPreview && <PurchaseGate preview/>}
         {!isPreview && lesson.exercises.length > 0 && <section className="reader-exercises"><span className="eyebrow">PRACTICE</span><h2>Exercises</h2>{lesson.exercises.map((exercise) => <article className="reader-exercise" key={exercise.id}>
           <div><h3>{exercise.title}</h3><p>{exercise.objective}</p></div>
-          {exercise.required ? <label className="reader-exercise-ack"><input type="checkbox" checked={acknowledged.has(exercise.id)} disabled={acknowledged.has(exercise.id)} onChange={() => acknowledgeExercise(exercise.id)}/><span>I completed this exercise. This is my acknowledgment, not an automated skill assessment.</span></label> : <span className="reader-optional-label">Optional</span>}
+          {exercise.required ? isSuperAdmin ? <span className="reader-optional-label">Admin access does not require exercise acknowledgment.</span> : <label className="reader-exercise-ack"><input type="checkbox" checked={acknowledged.has(exercise.id)} disabled={acknowledged.has(exercise.id)} onChange={() => acknowledgeExercise(exercise.id)}/><span>I completed this exercise. This is my acknowledgment, not an automated skill assessment.</span></label> : <span className="reader-optional-label">Optional</span>}
           <details><summary>Exercise instructions</summary><ol>{exercise.instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}</ol>{exercise.constraints.length > 0 && <><h4>Constraints</h4><ul>{exercise.constraints.map((constraint, index) => <li key={index}>{constraint}</li>)}</ul></>}<p><strong>Expected outcome:</strong> {exercise.expectedOutcome}</p></details>
         </article>)}</section>}
         {!isPreview && <LessonAssessment courseId={course.id} chapterId={lesson.chapterId} assessments={lesson.assessments} onCompleted={refreshAfterAssessment}/>}
-        {!isPreview && state.error && <p className="reader-error" role="alert">{state.error}</p>}
-        {!isPreview && learnerProgress.status !== 'completed' && hasRequiredActivities && <section className="reader-completion"><div><strong>Complete the required activities</strong><p>This chapter completes automatically when you pass the required assessment and acknowledge required exercises.</p></div></section>}
-        {!isPreview && learnerProgress.status !== 'completed' && !hasRequiredActivities && <section className="reader-completion"><div><strong>Finished this chapter?</strong><p>There are no required activities for this lesson.</p></div><button className="button button-primary" type="button" disabled={state.completionBusy} onClick={markComplete}>{state.completionBusy ? 'Saving…' : 'Mark chapter complete'}</button></section>}
-        {!isPreview && learnerProgress.status === 'completed' && <p className="reader-completed-banner" role="status">Chapter completed and saved to your progress.</p>}
+        {!isPreview && !isSuperAdmin && state.error && <p className="reader-error" role="alert">{state.error}</p>}
+        {!isPreview && !isSuperAdmin && learnerProgress.status !== 'completed' && hasRequiredActivities && <section className="reader-completion"><div><strong>Complete the required activities</strong><p>This chapter completes automatically when you pass the required assessment and acknowledge required exercises.</p></div></section>}
+        {!isPreview && !isSuperAdmin && learnerProgress.status !== 'completed' && !hasRequiredActivities && <section className="reader-completion"><div><strong>Finished this chapter?</strong><p>There are no required activities for this lesson.</p></div><button className="button button-primary" type="button" disabled={state.completionBusy} onClick={markComplete}>{state.completionBusy ? 'Saving…' : 'Mark chapter complete'}</button></section>}
+        {!isPreview && !isSuperAdmin && learnerProgress.status === 'completed' && <p className="reader-completed-banner" role="status">Chapter completed and saved to your progress.</p>}
         <ChapterNavigation courseSlug={course.slug} previous={navigation.previous} next={navigation.next}/>
       </article>
     </div>

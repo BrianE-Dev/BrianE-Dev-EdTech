@@ -21,6 +21,7 @@ const paymentRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standa
 app.use('/api/brianedev/payments/initialize', paymentRateLimit)
 app.use('/api/brianedev/payments/verify', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api/brianedev/payments/paystack/webhook', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use('/api/admin/tts', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api', api)
 app.use((error, _req, res, next) => {
   void next

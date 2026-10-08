@@ -1,5 +1,13 @@
 export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api')
 
+async function responseJson(response) {
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
 export async function api(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -7,10 +15,7 @@ export async function api(path, options = {}) {
     cache: 'no-store',
     headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
   })
-  let body = null
-  if (response.status !== 204) {
-    try { body = await response.json() } catch { body = null }
-  }
+  const body = response.status === 204 ? null : await responseJson(response)
   if (!response.ok) {
     const error = new Error(typeof body?.error === 'string' ? body.error : 'Request failed')
     error.status = response.status
@@ -34,6 +39,18 @@ export const getCourse = (slug) => api(`/courses/${encodeURIComponent(slug)}`)
 export const getCourseProgress = (courseId) => api(`/courses/${encodeURIComponent(courseId)}/progress`)
 export const getLesson = (courseId, chapterId) => api(`/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}`)
 export const getLessonPreview = (courseSlug, chapterId) => api(`/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(chapterId)}/preview`)
+export const getLessonAudioStatus = (courseId, chapterId) => api(`/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/audio/status`)
+export async function getLessonAudio(courseId, chapterId) {
+  const response = await fetch(`${API_URL}/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/audio`, { credentials: 'include', cache: 'no-store' })
+  if (!response.ok) {
+    const body = await responseJson(response)
+    const error = new Error(typeof body?.error === 'string' ? body.error : 'Lesson audio could not be loaded')
+    error.status = response.status
+    error.code = body?.code
+    throw error
+  }
+  return response.blob()
+}
 export const updateLessonProgress = (courseId, chapterId, status) => api(
   `/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/progress`,
   { method: 'POST', body: jsonBody({ status }) },

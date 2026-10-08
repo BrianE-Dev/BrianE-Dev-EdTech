@@ -19,6 +19,9 @@ import { LessonAssetNotFoundError, resolveLessonImage } from '../services/lesson
 import { getChapterMetadata } from '../services/curriculumNavigation.js'
 import { CourseEbookNotFoundError, resolveCourseEbook } from '../services/courseEbookRepository.js'
 import { createCertificatePdf } from '../services/certificatePdf.js'
+import { generateChapterAudio, getCourseAudioStatus, isReadyChapterAudio, loadReadyChapterAudio, startCourseAudioBatch } from '../services/ttsGeneration.js'
+import { isSuperAdmin } from '../utils/authorization.js'
+import { createTtsStorage } from '../services/ttsStorage.js'
 
 const router = Router()
 const isSecureCookie = process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production'
@@ -321,6 +324,30 @@ router.get('/courses/:slug/lessons/:chapterId/preview', authenticateOptional, as
   } catch (error) { next(error) }
 })
 
+router.get('/courses/:courseId/lessons/:chapterId/audio/status', authenticate, async (req, res, next) => {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const available = await isReadyChapterAudio(String(course._id || course.id), lesson)
+    res.json({ available, status: available ? 'ready' : 'missing' })
+  } catch (error) { next(error) }
+})
+
+router.get('/courses/:courseId/lessons/:chapterId/audio', authenticate, async (req, res, next) => {
+  try {
+    const course = await getPaidCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const audio = await loadReadyChapterAudio(String(course._id || course.id), lesson)
+    if (!audio) return apiFailure(res, 404, 'Lesson audio has not been generated yet.', 'AUDIO_NOT_GENERATED')
+    res.set({ 'Content-Type': audio.mimeType, 'Content-Length': String(audio.buffer.length), 'Cache-Control': 'private, max-age=3600' })
+    res.send(audio.buffer)
+  } catch (error) { next(error) }
+})
+
 router.get('/courses/:courseId/lessons/:chapterId', authenticateOptional, async (req, res, next) => {
   try {
     const course = await getPaidCourse(req, res)
@@ -328,13 +355,14 @@ router.get('/courses/:courseId/lessons/:chapterId', authenticateOptional, async 
     const lesson = await loadCanonicalLesson(req.params.chapterId, res)
     if (!lesson) return
     const metadata = getChapterMetadata(lesson.chapterId)
-    const progress = await openLessonProgress({ user: req.user, course, chapterId: lesson.chapterId })
+    const privileged = isSuperAdmin(req.user)
+    const progress = privileged ? null : await openLessonProgress({ user: req.user, course, chapterId: lesson.chapterId })
     res.json({
       course: course.title,
       lesson: toPublicLesson(lesson),
       ...metadata,
-      progress: progressState(progress, lesson.chapterId),
-      access: { level: 'full', isPreview: false, isPurchased: true, purchaseRequired: false },
+      progress: privileged ? null : progressState(progress, lesson.chapterId),
+      access: { level: 'full', isPreview: false, isPurchased: true, purchaseRequired: false, isSuperAdmin: privileged },
     })
   } catch (error) { next(error) }
 })
@@ -524,6 +552,50 @@ router.get('/me/certificates/:certificateId/download', authenticate, async (req,
 })
 
 router.get('/admin/pricing', authenticate, requireAdmin, async (_req, res) => res.json(await Pricing.find().sort({ region: 1 })))
+
+async function adminTtsCourse(req, res) {
+  const course = await findCourse(req.params.courseId)
+  if (!course || course.slug !== COURSE_SLUG || !course.published) {
+    apiFailure(res, 404, 'Course not found', 'COURSE_NOT_FOUND')
+    return null
+  }
+  return course
+}
+
+router.get('/admin/tts/courses/:courseId/status', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const course = await adminTtsCourse(req, res)
+    if (!course) return
+    res.json(await getCourseAudioStatus(String(course._id || course.id)))
+  } catch (error) { next(error) }
+})
+
+router.post('/admin/tts/courses/:courseId/generate-missing', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const course = await adminTtsCourse(req, res)
+    if (!course) return
+    const input = z.object({ mode: z.enum(['missing', 'changed', 'force']).default('missing') }).strict().parse(req.body || {})
+    if (!process.env.GEMINI_API_KEY?.trim()) return apiFailure(res, 503, 'Gemini TTS is not configured.', 'TTS_NOT_CONFIGURED')
+    createTtsStorage()
+    const { job, alreadyRunning } = await startCourseAudioBatch(String(course._id || course.id), input.mode, req.user.id)
+    res.status(alreadyRunning ? 200 : 202).json({ jobId: String(job._id), status: job.status, mode: job.mode, alreadyRunning })
+  } catch (error) { next(error) }
+})
+
+router.post('/admin/tts/courses/:courseId/chapters/:chapterId/generate', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const course = await adminTtsCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const input = z.object({ force: z.boolean().default(false) }).strict().parse(req.body || {})
+    if (!process.env.GEMINI_API_KEY?.trim()) return apiFailure(res, 503, 'Gemini TTS is not configured.', 'TTS_NOT_CONFIGURED')
+    createTtsStorage()
+    const result = await generateChapterAudio(String(course._id || course.id), lesson, { generatedBy: req.user.id, force: input.force })
+    res.status(result.status === 'generating' ? 202 : 200).json(result)
+  } catch (error) { next(error) }
+})
+
 router.put('/admin/pricing/:region', authenticate, requireAdmin, async (req, res) => {
   const region = z.enum(['NG', 'INTL']).parse(req.params.region)
   const schema = z.object({ region: z.enum(['NG', 'INTL']).optional(), currency: z.enum(['NGN', 'USD']).optional(), originalPrice: z.number().positive(), discountType: z.enum(['percentage', 'fixed']), discountValue: z.number().min(0), discountEnabled: z.boolean(), active: z.boolean(), startDate: z.iso.datetime().nullable().optional(), endDate: z.iso.datetime().nullable().optional() })

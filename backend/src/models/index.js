@@ -102,6 +102,46 @@ certificateSchema.index({ user: 1, course: 1 }, { unique: true })
 
 const auditSchema = new Schema({ admin: { type: Schema.Types.ObjectId, ref: 'User', required: true }, action: String, resource: String, previousValue: Schema.Types.Mixed, newValue: Schema.Types.Mixed }, timestamps)
 
+const ttsAudioSchema = new Schema({
+  courseId: { type: String, required: true },
+  chapterId: { type: String, required: true },
+  lessonVersion: { type: String, required: true },
+  transcriptHash: { type: String, required: true },
+  model: { type: String, required: true },
+  voice: { type: String, required: true },
+  language: { type: String, required: true },
+  status: { type: String, enum: ['pending', 'generating', 'ready', 'failed'], required: true, default: 'pending' },
+  storageKey: String,
+  chunks: [{ order: Number, storageKey: String, mimeType: String, durationSeconds: Number }],
+  mimeType: String,
+  durationSeconds: Number,
+  chunkCount: { type: Number, default: 0 },
+  generatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  error: { type: String, maxlength: 500 },
+  generationStartedAt: Date,
+  generationCompletedAt: Date,
+  lastAttemptAt: Date,
+}, timestamps)
+ttsAudioSchema.index({ courseId: 1, chapterId: 1, transcriptHash: 1, model: 1, voice: 1, language: 1, lessonVersion: 1 }, { unique: true })
+ttsAudioSchema.index({ courseId: 1, chapterId: 1, updatedAt: -1 })
+
+const ttsBatchJobSchema = new Schema({
+  courseId: { type: String, required: true, unique: true },
+  status: { type: String, enum: ['pending', 'running', 'completed', 'completed_with_errors', 'failed'], required: true, default: 'pending' },
+  mode: { type: String, enum: ['missing', 'changed', 'force'], required: true },
+  total: { type: Number, default: 0 },
+  ready: { type: Number, default: 0 },
+  generating: { type: Number, default: 0 },
+  failed: { type: Number, default: 0 },
+  missing: { type: Number, default: 0 },
+  stale: { type: Number, default: 0 },
+  currentChapterId: String,
+  results: [{ chapterId: String, status: String, error: String }],
+  startedAt: Date,
+  completedAt: Date,
+  initiatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+}, timestamps)
+
 export const User = model('User', userSchema)
 export const Course = model('Course', courseSchema)
 export const Pricing = model('Pricing', pricingSchema)
@@ -110,3 +150,5 @@ export const Progress = model('CourseProgress', progressSchema)
 export const AssessmentAttempt = model('AssessmentAttempt', assessmentAttemptSchema)
 export const Certificate = model('Certificate', certificateSchema)
 export const AuditLog = model('AuditLog', auditSchema)
+export const TtsAudio = model('TtsAudio', ttsAudioSchema)
+export const TtsBatchJob = model('TtsBatchJob', ttsBatchJobSchema)

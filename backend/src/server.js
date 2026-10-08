@@ -10,4 +10,6 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Err
 getPaystackConfig()
 await connectDatabase()
 const { default: app } = await import('./app.js')
+const { resumeCourseAudioBatches } = await import('./services/ttsGeneration.js')
+await resumeCourseAudioBatches()
 app.listen(port, '0.0.0.0', () => console.log(`BrianE-Dev API listening on ${port}`))
