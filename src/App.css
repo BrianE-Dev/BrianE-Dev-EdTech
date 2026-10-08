@@ -147,6 +147,7 @@ h1,h2,h3 { font-family: var(--display); }
 :root[data-theme='light'] .site-footer > span,:root[data-theme='light'] .site-footer > div a { color: #60738a; }
 :root[data-theme='light'] .theme-toggle,:root[data-theme='light'] .menu-toggle { color: #405670; border-color: #cad6e2; background: #f1f5f9; }
 :root[data-theme='light'] .theme-toggle:hover { color: #087f9a; border-color: #70bdcc; }
+:root[data-theme='light'] .button-primary { color: #fff; }
 :root[data-theme='light'] .main-nav.is-open { border-color: #d4dfe9; background: rgba(249,251,253,.99); }
 :root[data-theme='light'] .main-nav a { border-color: #e2e8ef; }
 :root[data-theme='light'] .mobile-dock { border-color: #d0dbe6; background: rgba(250,252,254,.97); }
