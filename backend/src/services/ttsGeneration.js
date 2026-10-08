@@ -140,6 +140,11 @@ async function audioExists(record, storage) {
   return Boolean(record?.chunks?.length && await Promise.all(record.chunks.map((chunk) => storage.exists(chunk.storageKey))).then((results) => results.every(Boolean)))
 }
 
+async function latestReadyAudio({ courseId, chapterId, transcriptHash }, AudioModel) {
+  const query = AudioModel.findOne({ courseId: String(courseId), chapterId, transcriptHash, status: 'ready' })
+  return typeof query?.sort === 'function' ? query.sort({ updatedAt: -1 }) : query
+}
+
 function storagePrefix(identity, generationId) {
   return [
     'brianedev', 'tts', safeComponent(identity.courseId), safeComponent(identity.chapterId),
@@ -212,18 +217,24 @@ export async function generateChapterAudio(courseId, lesson, { generatedBy, forc
 
 export async function loadReadyChapterAudio(courseId, lesson, { AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env } = {}) {
   const transcript = buildTtsTranscript(lesson)
-  const identity = identityFor(courseId, lesson, hashTranscript(transcript), ttsConfig(env, { requireApiKey: false }))
-  const record = await AudioModel.findOne(identity)
+  const transcriptHash = hashTranscript(transcript)
+  const identity = identityFor(courseId, lesson, transcriptHash, ttsConfig(env, { requireApiKey: false }))
+  let record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId, transcriptHash }, AudioModel)
+  if (!record || !await audioExists(record, storage)) record = await AudioModel.findOne(identity)
   if (!record || record.status !== 'ready' || !await audioExists(record, storage)) return null
   const ordered = [...record.chunks].sort((left, right) => left.order - right.order)
   const buffers = await Promise.all(ordered.map((chunk) => storage.read(chunk.storageKey)))
-  return { buffer: combineWavBuffers(buffers), mimeType: record.mimeType || 'audio/wav', record }
+  const mimeType = record.mimeType || 'audio/wav'
+  const buffer = mimeType.startsWith('audio/wav') ? combineWavBuffers(buffers) : Buffer.concat(buffers)
+  return { buffer, mimeType, record }
 }
 
 export async function isReadyChapterAudio(courseId, lesson, { AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env } = {}) {
   const transcript = buildTtsTranscript(lesson)
-  const identity = identityFor(courseId, lesson, hashTranscript(transcript), ttsConfig(env, { requireApiKey: false }))
-  const record = await AudioModel.findOne(identity)
+  const transcriptHash = hashTranscript(transcript)
+  const identity = identityFor(courseId, lesson, transcriptHash, ttsConfig(env, { requireApiKey: false }))
+  let record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId, transcriptHash }, AudioModel)
+  if (!record || !await audioExists(record, storage)) record = await AudioModel.findOne(identity)
   return Boolean(record?.status === 'ready' && await audioExists(record, storage))
 }
 
@@ -239,7 +250,11 @@ export async function getCourseAudioStatus(courseId, { AudioModel = TtsAudio, st
       return { lesson, transcript, transcriptHash: hashTranscript(transcript) }
     })()
     const identity = identityFor(courseId, lesson, transcriptHash, config)
-    const record = await AudioModel.findOne(identity)
+    let record = await AudioModel.findOne(identity)
+    if (!record || record.status !== 'ready' || !await audioExists(record, storage)) {
+      const savedAlternate = await AudioModel.findOne({ courseId: String(courseId), chapterId: chapter.id, transcriptHash, status: 'ready' }).sort({ updatedAt: -1 })
+      if (savedAlternate && await audioExists(savedAlternate, storage)) record = savedAlternate
+    }
     let status = 'missing'
     if (record?.status === 'generating') status = 'generating'
     else if (record?.status === 'failed') status = 'failed'

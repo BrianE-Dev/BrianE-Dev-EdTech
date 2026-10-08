@@ -1,10 +1,10 @@
-import { Router } from 'express'
+import express, { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import mongoose from 'mongoose'
-import { AuditLog, Certificate, CertificateTemplate, Course, Payment, Pricing, Progress, User } from '../models/index.js'
+import { AuditLog, Certificate, CertificateTemplate, Course, Payment, Pricing, Progress, TtsAudio, User } from '../models/index.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
 import { getFinalPrice } from '../utils/pricing.js'
 import { getPaystackConfig } from '../config/paystack.js'
@@ -20,6 +20,7 @@ import { getChapterMetadata } from '../services/curriculumNavigation.js'
 import { CourseEbookNotFoundError, resolveCourseEbook } from '../services/courseEbookRepository.js'
 import { createCertificatePdf } from '../services/certificatePdf.js'
 import { generateChapterAudio, getCourseAudioStatus, isReadyChapterAudio, loadReadyChapterAudio, startCourseAudioBatch } from '../services/ttsGeneration.js'
+import { buildTtsTranscript, hashTranscript } from '../services/ttsTranscript.js'
 import { isSuperAdmin } from '../utils/authorization.js'
 import { createTtsStorage } from '../services/ttsStorage.js'
 
@@ -634,6 +635,76 @@ router.post('/admin/tts/courses/:courseId/chapters/:chapterId/generate', authent
     createTtsStorage()
     const result = await generateChapterAudio(String(course._id || course.id), lesson, { generatedBy: req.user.id, force: input.force })
     res.status(result.status === 'generating' ? 202 : 200).json(result)
+  } catch (error) { next(error) }
+})
+
+router.get('/admin/tts/courses/:courseId/chapters/:chapterId/browser-transcript', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const course = await adminTtsCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const transcript = buildTtsTranscript(lesson)
+    if (!transcript) return apiFailure(res, 422, 'This chapter has no narratable content.', 'TTS_TRANSCRIPT_EMPTY')
+    res.json({ chapterId: lesson.chapterId, transcript, transcriptHash: hashTranscript(transcript), voice: 'Microsoft Susan', language: 'en-GB' })
+  } catch (error) { next(error) }
+})
+
+router.post('/admin/tts/courses/:courseId/chapters/:chapterId/browser-susan', authenticate, requireAdmin, express.raw({ type: 'audio/*', limit: '50mb' }), async (req, res, next) => {
+  try {
+    const course = await adminTtsCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const mimeType = req.get('content-type')?.split(';')[0].trim().toLowerCase()
+    if (!/^audio\/(webm|ogg|mp4|mpeg|wav)$/.test(mimeType || '') || !Buffer.isBuffer(req.body) || req.body.length < 1024) {
+      return apiFailure(res, 400, 'A browser audio recording is required.', 'INVALID_BROWSER_AUDIO')
+    }
+    const durationSeconds = z.coerce.number().int().min(1).max(3600).parse(req.get('x-audio-duration-seconds'))
+    const courseId = String(course._id || course.id)
+    const identity = {
+      courseId,
+      chapterId: lesson.chapterId,
+      lessonVersion: lesson.contentVersion,
+      transcriptHash: hashTranscript(buildTtsTranscript(lesson)),
+      model: 'browser-speechsynthesis',
+      voice: 'Microsoft Susan',
+      language: 'en-GB',
+    }
+    const storage = createTtsStorage()
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000)
+    const previous = await TtsAudio.findOne(identity)
+    let record
+    try {
+      record = await TtsAudio.findOneAndUpdate({
+        ...identity,
+        $or: [{ status: { $ne: 'generating' } }, { updatedAt: { $lt: cutoff } }],
+      }, {
+        $setOnInsert: identity,
+        $set: { status: 'generating', generatedBy: req.user.id, error: null, generationStartedAt: new Date(), lastAttemptAt: new Date() },
+      }, { upsert: true, new: true, setDefaultsOnInsert: true })
+    } catch (error) {
+      if (error.code === 11000) return apiFailure(res, 409, 'Browser audio is already being saved for this chapter.', 'AUDIO_GENERATION_IN_PROGRESS')
+      throw error
+    }
+    if (!record) return apiFailure(res, 409, 'Browser audio could not be claimed for this chapter.', 'AUDIO_GENERATION_IN_PROGRESS')
+    const generationId = crypto.randomUUID()
+    const storageKey = ['brianedev', 'tts', encodeURIComponent(courseId), lesson.chapterId, identity.transcriptHash, 'browser-speechsynthesis', 'microsoft-susan', 'en-GB', 'versions', generationId, 'audio'].join('/')
+    try {
+      await storage.upload(storageKey, req.body, mimeType)
+      await TtsAudio.findOneAndUpdate(identity, { $set: {
+        status: 'ready', storageKey, chunks: [{ order: 1, storageKey, mimeType, durationSeconds }], mimeType,
+        durationSeconds, chunkCount: 1, generationCompletedAt: new Date(), generatedBy: req.user.id, error: null,
+      } }, { new: true })
+      return res.status(201).json({ chapterId: lesson.chapterId, status: 'ready', voice: 'Microsoft Susan', language: 'en-GB', durationSeconds, bytes: req.body.length })
+    } catch (error) {
+      const failureMessage = (error.message || 'Browser audio save failed').slice(0, 450)
+      await TtsAudio.findOneAndUpdate(identity, { $set: previous?.status === 'ready'
+        ? { status: 'ready', storageKey: previous.storageKey, chunks: previous.chunks, mimeType: previous.mimeType, durationSeconds: previous.durationSeconds, chunkCount: previous.chunkCount, generationCompletedAt: previous.generationCompletedAt, error: failureMessage }
+        : { status: 'failed', error: failureMessage },
+      })
+      throw error
+    }
   } catch (error) { next(error) }
 })
 

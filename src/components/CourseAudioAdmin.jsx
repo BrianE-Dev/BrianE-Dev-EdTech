@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../services/api.js'
+import BrowserSusanTts from './BrowserSusanTts.jsx'
 
 export default function CourseAudioAdmin({ courseId }) {
   const [status, setStatus] = useState(null)
@@ -44,7 +45,7 @@ export default function CourseAudioAdmin({ courseId }) {
   }
 
   return <section className="admin-audio-section" aria-labelledby="admin-audio-title">
-    <div className="admin-audio-heading"><div><span className="eyebrow">COURSE CONTENT / AUDIO</span><h2 id="admin-audio-title">Course audio</h2><p>Generate and cache one narration per chapter. Playback never calls Gemini.</p></div><button className="button button-secondary" type="button" onClick={refresh}>Refresh</button></div>
+    <div className="admin-audio-heading"><div><span className="eyebrow">COURSE CONTENT / AUDIO</span><h2 id="admin-audio-title">Course audio</h2><p>Generate Gemini narration or save a browser recording with Microsoft Susan. For browser recording, choose “This Tab” and enable “Share tab audio”. Playback uses saved audio and never calls Gemini.</p></div><button className="button button-secondary" type="button" onClick={refresh}>Refresh</button></div>
     {error && <p className="admin-form-error" role="alert">{error}</p>}
     {notice && <p className="admin-audio-notice" role="status">{notice}</p>}
     {!status ? <p>Loading chapter audio status…</p> : <>
@@ -52,7 +53,7 @@ export default function CourseAudioAdmin({ courseId }) {
       {status.batch?.status === 'running' && <p className="admin-audio-notice" role="status">Batch running{status.batch.currentChapterId ? ` · ${status.batch.currentChapterId}` : ''}.</p>}
       {status.batch && status.batch.status !== 'running' && <p className="admin-audio-batch-state">Last batch: {status.batch.status.replaceAll('_', ' ')} ({status.batch.mode}).</p>}
       <div className="admin-audio-actions"><button className="button button-primary" type="button" disabled={busy || status.batch?.status === 'running'} onClick={() => start('missing')}>{busy ? 'Starting…' : 'Generate missing audio'}</button><button className="button button-secondary" type="button" disabled={busy || status.batch?.status === 'running'} onClick={() => start('changed')}>Regenerate changed audio</button></div>
-      <details className="admin-audio-chapters"><summary>Chapter status and generation ({status.total})</summary><ol>{status.chapters.map((chapter) => <li key={chapter.chapterId}><span>{String(chapter.number).padStart(2, '0')} · {chapter.title}</span><strong className={`is-${chapter.status}`}>{chapter.status}</strong><div className="admin-audio-chapter-actions"><button type="button" className="button button-secondary" disabled={busy || chapter.status === 'generating' || status.batch?.status === 'running'} onClick={() => startChapter(chapter.chapterId)}>{chapter.status === 'ready' ? 'Generate / check' : 'Generate this chapter'}</button>{chapter.status === 'ready' && <button type="button" className="button button-secondary" disabled={busy || status.batch?.status === 'running'} onClick={() => startChapter(chapter.chapterId, true)}>Regenerate</button>}</div>{chapter.error && <small>{chapter.error}</small>}</li>)}</ol></details>
+      <details className="admin-audio-chapters"><summary>Chapter status and generation ({status.total})</summary><ol>{status.chapters.map((chapter) => <li key={chapter.chapterId}><span>{String(chapter.number).padStart(2, '0')} · {chapter.title}</span><strong className={`is-${chapter.status}`}>{chapter.status}</strong><div className="admin-audio-chapter-actions"><button type="button" className="button button-secondary" disabled={busy || chapter.status === 'generating' || status.batch?.status === 'running'} onClick={() => startChapter(chapter.chapterId)}>{chapter.status === 'ready' ? 'Generate / check' : 'Generate this chapter'}</button>{chapter.status === 'ready' && <button type="button" className="button button-secondary" disabled={busy || status.batch?.status === 'running'} onClick={() => startChapter(chapter.chapterId, true)}>Regenerate</button>}<BrowserSusanTts courseId={courseId} chapterId={chapter.chapterId} disabled={busy || chapter.status === 'generating' || status.batch?.status === 'running'} onBusyChange={setBusy} onSaved={refresh}/></div>{chapter.error && <small>{chapter.error}</small>}</li>)}</ol></details>
     </>}
   </section>
 }
