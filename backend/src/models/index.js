@@ -20,6 +20,7 @@ const userSchema = new Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true, select: false },
   role: { type: String, enum: ['user', 'super_admin'], default: 'user' },
+  disabledAt: { type: Date, default: null },
   country: { type: String, uppercase: true, maxlength: 2 },
   currency: { type: String, enum: ['NGN', 'USD'], default: 'USD' },
   profile: { type: learnerProfileSchema, default: () => ({}) },
@@ -100,6 +101,17 @@ const certificateSchema = new Schema({
 }, timestamps)
 certificateSchema.index({ user: 1, course: 1 }, { unique: true })
 
+const certificateTemplateSchema = new Schema({
+  key: { type: String, unique: true, default: 'global' },
+  brandName: { type: String, trim: true, maxlength: 80, default: 'BRIANE-DEV' },
+  heading: { type: String, trim: true, maxlength: 100, default: 'CERTIFICATE OF COMPLETION' },
+  introduction: { type: String, trim: true, maxlength: 180, default: 'This certificate is presented to' },
+  courseLead: { type: String, trim: true, maxlength: 120, default: 'for completing the course' },
+  signatoryName: { type: String, trim: true, maxlength: 120, default: 'BrianE-Dev' },
+  signatureDataUrl: { type: String, default: '' },
+  footer: { type: String, trim: true, maxlength: 180, default: 'Certificate of successful course completion' },
+}, timestamps)
+
 const auditSchema = new Schema({ admin: { type: Schema.Types.ObjectId, ref: 'User', required: true }, action: String, resource: String, previousValue: Schema.Types.Mixed, newValue: Schema.Types.Mixed }, timestamps)
 
 const ttsAudioSchema = new Schema({
@@ -149,6 +161,7 @@ export const Payment = model('Payment', paymentSchema)
 export const Progress = model('CourseProgress', progressSchema)
 export const AssessmentAttempt = model('AssessmentAttempt', assessmentAttemptSchema)
 export const Certificate = model('Certificate', certificateSchema)
+export const CertificateTemplate = model('CertificateTemplate', certificateTemplateSchema)
 export const AuditLog = model('AuditLog', auditSchema)
 export const TtsAudio = model('TtsAudio', ttsAudioSchema)
 export const TtsBatchJob = model('TtsBatchJob', ttsBatchJobSchema)

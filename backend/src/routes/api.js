@@ -4,7 +4,7 @@ import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import mongoose from 'mongoose'
-import { AuditLog, Certificate, Course, Payment, Pricing, Progress, User } from '../models/index.js'
+import { AuditLog, Certificate, CertificateTemplate, Course, Payment, Pricing, Progress, User } from '../models/index.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
 import { getFinalPrice } from '../utils/pricing.js'
 import { getPaystackConfig } from '../config/paystack.js'
@@ -70,6 +70,7 @@ router.post('/auth/login', async (req, res) => {
   const input = z.object({ email: z.email(), password: z.string().min(1) }).parse(req.body)
   const user = await User.findOne({ email: input.email.toLowerCase() }).select('+passwordHash')
   if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) return res.status(401).json({ error: 'Invalid email or password' })
+  if (user.disabledAt) return res.status(403).json({ error: 'This learner account has been disabled.' })
   const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
   res.cookie('session', token, sessionCookie).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } })
 })
@@ -127,7 +128,7 @@ router.get('/pricing', authenticateOptional, async (req, res) => {
 function authenticateOptional(req, _res, next) {
   const token = req.cookies?.session
   if (!token) return next()
-  try { jwt.verify(token, process.env.JWT_SECRET, (error, payload) => { if (!error) User.findById(payload.sub).then((user) => { req.user = user; next() }).catch(next); else next() }) } catch { next() }
+  try { jwt.verify(token, process.env.JWT_SECRET, (error, payload) => { if (!error) User.findById(payload.sub).then((user) => { req.user = user?.disabledAt ? null : user; next() }).catch(next); else next() }) } catch { next() }
 }
 
 function publicCourseMetadata(course) {
@@ -151,12 +152,14 @@ function publicCourseMetadata(course) {
   }
 }
 
-router.get('/courses', async (_req, res) => {
-  const courses = await Course.find({ published: true }).select('title slug description').lean()
+router.get('/courses', authenticateOptional, async (req, res) => {
+  const filter = isSuperAdmin(req.user) ? {} : { published: true }
+  const courses = await Course.find(filter).select('title slug description').lean()
   res.json(courses.map(publicCourseMetadata))
 })
-router.get('/courses/:slug', async (req, res) => {
-  const course = await Course.findOne({ slug: req.params.slug, published: true }).select('title slug description').lean()
+router.get('/courses/:slug', authenticateOptional, async (req, res) => {
+  const filter = { slug: req.params.slug, ...(isSuperAdmin(req.user) ? {} : { published: true }) }
+  const course = await Course.findOne(filter).select('title slug description').lean()
   if (!course) return res.status(404).json({ error: 'Course not found' })
   res.json(publicCourseMetadata(course))
 })
@@ -425,6 +428,7 @@ router.post('/courses/:courseId/lessons/:chapterId/exercises/:exerciseId/complet
 
 router.post('/courses/:courseId/lessons/:chapterId/assessment', authenticate, async (req, res, next) => {
   try {
+    if (isSuperAdmin(req.user)) return apiFailure(res, 403, 'Super Admin can read the course but cannot submit learner assessments.', 'ADMIN_ASSESSMENT_DISABLED')
     const course = await getPaidCourse(req, res)
     if (!course) return
     const lesson = await loadCanonicalLesson(req.params.chapterId, res)
@@ -540,7 +544,8 @@ router.get('/me/certificates/:certificateId/download', authenticate, async (req,
     }
     const clientUrl = process.env.CLIENT_URL?.split(',').map((origin) => origin.trim()).find(Boolean) || 'http://localhost:5173'
     const verificationUrl = new URL(`/api/certificates/verify/${encodeURIComponent(certificate.certificateId)}`, clientUrl).toString()
-    const pdf = createCertificatePdf(certificate, verificationUrl)
+    const template = await CertificateTemplate.findOne({ key: 'global' }).lean() || {}
+    const pdf = createCertificatePdf(certificate, verificationUrl, template)
     const safeId = certificate.certificateId.replace(/[^a-z0-9-]/gi, '')
     res.set({
       'Content-Type': 'application/pdf',
@@ -552,6 +557,42 @@ router.get('/me/certificates/:certificateId/download', authenticate, async (req,
 })
 
 router.get('/admin/pricing', authenticate, requireAdmin, async (_req, res) => res.json(await Pricing.find().sort({ region: 1 })))
+
+const certificateTemplateDefaults = {
+  brandName: 'BRIANE-DEV ACADEMY OF ADVANCED SOFTWARE ENGINEERING', heading: 'CERTIFICATE OF COMPLETION',
+  introduction: 'This credential is officially conferred upon', courseLead: 'for successfully mastering the curriculum, laboratory practicums, and comprehensive engineering benchmarks of',
+  signatoryName: 'BrianE-Dev', signatureDataUrl: '', footer: 'Certificate of successful course completion',
+}
+async function getCertificateTemplate() {
+  const saved = await CertificateTemplate.findOne({ key: 'global' }).lean()
+  return Object.fromEntries(Object.keys(certificateTemplateDefaults).map((key) => [key, saved?.[key] ?? certificateTemplateDefaults[key]]))
+}
+router.get('/certificates/template', authenticate, async (_req, res) => res.json(await getCertificateTemplate()))
+router.get('/admin/certificate-template', authenticate, requireAdmin, async (_req, res) => res.json(await getCertificateTemplate()))
+router.put('/admin/certificate-template', authenticate, requireAdmin, async (req, res) => {
+  const schema = z.object({
+    brandName: z.string().trim().min(1).max(80), heading: z.string().trim().min(1).max(100),
+    introduction: z.string().trim().min(1).max(180), courseLead: z.string().trim().min(1).max(120),
+    signatoryName: z.string().trim().min(1).max(120), footer: z.string().trim().max(180),
+    signatureDataUrl: z.string().max(2_800_000).refine((value) => !value || /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(value), 'Upload a JPEG signature image.'),
+  }).strict()
+  const input = schema.parse(req.body)
+  const previousValue = await getCertificateTemplate()
+  await CertificateTemplate.findOneAndUpdate({ key: 'global' }, { $set: input, $setOnInsert: { key: 'global' } }, { new: true, upsert: true, runValidators: true })
+  await AuditLog.create({ admin: req.user.id, action: 'certificate-template.updated', resource: 'global', previousValue, newValue: input })
+  res.json(await getCertificateTemplate())
+})
+router.post('/admin/certificates/sample', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const input = z.object({ recipientName: z.string().trim().min(1).max(120), courseId: z.string().min(1) }).strict().parse(req.body)
+    const course = await findCourse(input.courseId)
+    if (!course) return apiFailure(res, 404, 'Course not found', 'COURSE_NOT_FOUND')
+    const certificate = { certificateId: `SAMPLE-${crypto.randomBytes(5).toString('hex').toUpperCase()}`, recipientName: input.recipientName, courseTitle: course.title, issueDate: new Date() }
+    const template = await getCertificateTemplate()
+    const pdf = createCertificatePdf(certificate, 'Sample certificate — not verifiable', template)
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'inline; filename="BrianE-Dev-Sample-Certificate.pdf"', 'Cache-Control': 'private, no-store' }).send(pdf)
+  } catch (error) { next(error) }
+})
 
 async function adminTtsCourse(req, res) {
   const course = await findCourse(req.params.courseId)
@@ -614,8 +655,19 @@ router.put('/admin/pricing/:region', authenticate, requireAdmin, async (req, res
   res.json(previous)
 })
 router.get('/admin/learners', authenticate, requireAdmin, async (_req, res) => {
-  const learners = await User.find({ role: 'user' }).select('name email profile createdAt updatedAt').sort({ createdAt: -1 }).limit(1000).lean()
-  res.json(learners.map((learner) => ({ id: String(learner._id), ...publicLearnerProfile(learner), createdAt: learner.createdAt })))
+  const learners = await User.find({ role: 'user' }).select('name email profile disabledAt createdAt updatedAt').sort({ createdAt: -1 }).limit(1000).lean()
+  res.json(learners.map((learner) => ({ id: String(learner._id), ...publicLearnerProfile(learner), disabled: Boolean(learner.disabledAt), createdAt: learner.createdAt })))
+})
+router.patch('/admin/learners/:learnerId/status', authenticate, requireAdmin, async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.learnerId)) return apiFailure(res, 404, 'Learner not found', 'LEARNER_NOT_FOUND')
+  const { disabled } = z.object({ disabled: z.boolean() }).strict().parse(req.body)
+  const learner = await User.findOne({ _id: req.params.learnerId, role: 'user' })
+  if (!learner) return apiFailure(res, 404, 'Learner not found', 'LEARNER_NOT_FOUND')
+  const previousValue = { disabled: Boolean(learner.disabledAt) }
+  learner.disabledAt = disabled ? (learner.disabledAt || new Date()) : null
+  await learner.save()
+  await AuditLog.create({ admin: req.user.id, action: disabled ? 'learner.disabled' : 'learner.enabled', resource: learner.id, previousValue, newValue: { disabled } })
+  res.json({ id: learner.id, disabled: Boolean(learner.disabledAt) })
 })
 router.get('/admin/transactions', authenticate, requireAdmin, async (_req, res) => res.json(await Payment.find({ application: 'brianedev', environment: getPaystackConfig().appEnvironment }).sort({ createdAt: -1 }).limit(500).populate('user', 'name email').populate('course', 'title')))
 router.get('/admin/purchases', authenticate, requireAdmin, async (_req, res) => res.json(await Payment.find({ application: 'brianedev', environment: getPaystackConfig().appEnvironment }).sort({ createdAt: -1 }).populate('user', 'name email').populate('course', 'title').lean()))

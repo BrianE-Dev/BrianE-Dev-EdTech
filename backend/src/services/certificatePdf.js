@@ -1,5 +1,27 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 const PAGE_WIDTH = 842
 const PAGE_HEIGHT = 595
+const certificateLogo = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../public/light-logo.png'))
+
+function pngImageData(png) {
+  if (png.toString('ascii', 1, 4) !== 'PNG' || png[24] !== 8 || png[25] !== 2) throw new Error('Certificate logo must be an 8-bit RGB PNG')
+  const width = png.readUInt32BE(16)
+  const height = png.readUInt32BE(20)
+  const chunks = []
+  let offset = 8
+  while (offset + 12 <= png.length) {
+    const length = png.readUInt32BE(offset)
+    const type = png.toString('ascii', offset + 4, offset + 8)
+    if (type === 'IDAT') chunks.push(png.subarray(offset + 8, offset + 8 + length))
+    offset += 12 + length
+    if (type === 'IEND') break
+  }
+  if (!chunks.length) throw new Error('Certificate logo image data is missing')
+  return { width, height, bytes: Buffer.concat(chunks) }
+}
 
 function safeText(value) {
   return String(value ?? '')
@@ -42,22 +64,26 @@ function wrapName(name, maxLength = 34) {
   return lines.length ? lines : ['Learner']
 }
 
-function pdfObjects(stream) {
+function pdfObjects(stream, logo, signatureBytes = null) {
   const streamBytes = Buffer.from(stream, 'latin1')
-  return [
+  const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>`,
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R /F4 7 0 R >> /XObject << /Logo 10 0 R${signatureBytes ? ' /Signature 11 0 R' : ''} >> >> /Contents 9 0 R >>`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>',
-    `<< /Length ${streamBytes.length} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>',
     '<< /Title (BrianE-Dev Certificate of Completion) /Creator (BrianE-Dev) >>',
+    `<< /Length ${streamBytes.length} >>\nstream\n${stream}\nendstream`,
   ]
+  objects.push(`<< /Type /XObject /Subtype /Image /Width ${logo.width} /Height ${logo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors 3 /BitsPerComponent 8 /Columns ${logo.width} >> /Length ${logo.bytes.length} >>\nstream\n${logo.bytes.toString('latin1')}\nendstream`)
+  if (signatureBytes) objects.push(`<< /Type /XObject /Subtype /Image /Width 600 /Height 200 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${signatureBytes.length} >>\nstream\n${signatureBytes.toString('latin1')}\nendstream`)
+  return objects
 }
 
-function assemblePdf(stream) {
-  const objects = pdfObjects(stream)
+function assemblePdf(stream, logo, signatureBytes = null) {
+  const objects = pdfObjects(stream, logo, signatureBytes)
   let document = '%PDF-1.4\n'
   const offsets = [0]
   objects.forEach((object, index) => {
@@ -71,38 +97,47 @@ function assemblePdf(stream) {
   return Buffer.from(document, 'latin1')
 }
 
-export function createCertificatePdf(certificate, verificationUrl) {
+export function createCertificatePdf(certificate, verificationUrl, template = {}) {
   const navy = '0.047 0.102 0.169'
   const teal = '0.10 0.60 0.60'
-  const gold = '0.80 0.62 0.32'
   const ink = '0.10 0.17 0.24'
   const muted = '0.34 0.42 0.49'
+  const logo = pngImageData(certificateLogo)
+  const watermark = safeText(template.watermark || 'BD')
   const operations = [
     'q',
-    `${navy} rg 0 382 ${PAGE_WIDTH} 213 re f`,
-    `${teal} RG 2 w 26 26 ${PAGE_WIDTH - 52} ${PAGE_HEIGHT - 52} re S`,
-    `${gold} RG 0.7 w 34 34 ${PAGE_WIDTH - 68} ${PAGE_HEIGHT - 68} re S`,
-    `${teal} RG 1 w 58 58 m 145 58 l S 697 58 m 784 58 l S`,
-    textCommand('BRIANE-DEV', PAGE_WIDTH / 2, 527, 15, 'F2', '0.40 0.82 0.80', 'center'),
-    textCommand('CERTIFICATE OF COMPLETION', PAGE_WIDTH / 2, 478, 26, 'F2', '1 1 1', 'center'),
-    textCommand('This certificate is presented to', PAGE_WIDTH / 2, 348, 13, 'F3', muted, 'center'),
+    '0.84 0.88 0.91 RG 0.8 w 12 12 818 571 re S',
+    `${teal} RG 0.8 w 20 20 802 555 re S`,
+    textCommand(watermark, PAGE_WIDTH / 2, 175, 220, 'F4', '0.975 0.978 0.982', 'center'),
+    textCommand(`GLOBAL REGISTRY REF: BDEV-REG-${certificate.certificateId}`, 24, 576, 6.8, 'F1', muted),
+    textCommand(`CERTIFICATE NO: ${certificate.certificateId} / ARCHIVAL RECORD`, PAGE_WIDTH - 24, 576, 6.8, 'F1', muted, 'right'),
+    'q 300 0 0 300 271 290 cm /Logo Do Q',
+    textCommand(template.brandName || 'BRIANE-DEV ACADEMY OF ADVANCED SOFTWARE ENGINEERING', PAGE_WIDTH / 2, 348, 9, 'F1', navy, 'center'),
+    textCommand(template.heading || 'CERTIFICATE OF COMPLETION', PAGE_WIDTH / 2, 307, 29, 'F4', navy, 'center'),
+    `${teal} RG 1.3 w 372 292 m 470 292 l S`,
+    textCommand(template.introduction || 'This credential is officially conferred upon', PAGE_WIDTH / 2, 268, 13, 'F3', ink, 'center'),
   ]
   const nameLines = wrapName(certificate.recipientName || 'Learner')
-  const nameSize = nameLines.length > 1 ? 25 : nameLines[0].length > 27 ? 27 : 32
-  nameLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, 306 - index * 37, nameSize, 'F2', ink, 'center')))
-  const courseTop = nameLines.length > 1 ? 228 : 264
+  const nameSize = nameLines.length > 1 ? 27 : nameLines[0].length > 27 ? 29 : 35
+  nameLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, 225 - index * 36, nameSize, 'F4', ink, 'center')))
+  const courseTop = nameLines.length > 1 ? 164 : 178
+  operations.push(`${teal} RG 0.8 w 319 208 m 362 208 l S 480 208 m 523 208 l S`, `${teal} rg 372 208 7 7 re f`, `${teal} rg 463 208 7 7 re f`)
   const courseLines = wrapName(certificate.courseTitle || 'AI-Powered Developer Productivity for Software Engineers', 38)
-  operations.push(textCommand('for completing the course', PAGE_WIDTH / 2, courseTop, 12, 'F3', muted, 'center'))
-  courseLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, courseTop - 32 - index * 23, 18, 'F2', navy, 'center')))
-  const ruleY = courseTop - 40 - courseLines.length * 23
-  operations.push(`${gold} RG 1.2 w 286 ${ruleY} m 556 ${ruleY} l S`)
+  const leadLines = wrapName(template.courseLead || 'for successfully mastering the curriculum, laboratory practicums, and comprehensive engineering benchmarks of', 94)
+  leadLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, courseTop - index * 15, 10, 'F1', ink, 'center')))
+  courseLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, courseTop - 39 - index * 22, 18, 'F4', navy, 'center')))
   const issueDate = new Date(certificate.issueDate || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+  const signature = template.signatureDataUrl?.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/)
+  const signatureBytes = signature ? Buffer.from(signature[1], 'base64') : null
+  if (signatureBytes?.length > 2_000_000) throw new Error('Certificate signature is too large')
+  if (signatureBytes) operations.push('q 120 0 0 27 361 61 cm /Signature Do Q')
   operations.push(
-    textCommand('Issued by BrianE-Dev', PAGE_WIDTH / 2, 112, 11, 'F2', ink, 'center'),
-    textCommand(`Issue date: ${issueDate}`, PAGE_WIDTH / 2, 92, 9, 'F1', muted, 'center'),
-    textCommand(`Certificate ID: ${certificate.certificateId}`, PAGE_WIDTH / 2, 72, 9, 'F2', ink, 'center'),
-    textCommand(`Verify: ${verificationUrl}`, PAGE_WIDTH / 2, 48, 8.2, 'F1', muted, 'center'),
+    textCommand(template.signatoryName || 'BrianE-Dev', PAGE_WIDTH / 2, 57, 8, 'F2', ink, 'center'),
+    textCommand(template.footer || '', PAGE_WIDTH / 2, 45, 7, 'F3', muted, 'center'),
+    textCommand(`Issue date: ${issueDate}`, 34, 38, 7, 'F1', muted),
+    textCommand(`Certificate ID: ${certificate.certificateId}`, PAGE_WIDTH - 34, 38, 7, 'F1', muted, 'right'),
+    textCommand(`VERIFICATION URL: ${verificationUrl}`, PAGE_WIDTH / 2, 24, 5.8, 'F1', muted, 'center'),
     'Q',
   )
-  return assemblePdf(operations.join('\n'))
+  return assemblePdf(operations.join('\n'), logo, signatureBytes)
 }

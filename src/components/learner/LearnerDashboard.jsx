@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import Brand from '../Brand.jsx'
-import { getCertificateDownloadUrl, getCertificateVerificationUrl, getCertificates, getCourseEbookStatus, getCourseEbookUrl, getCourseProgress, getCurrentUser, getLearnerProfile, getPurchases, logoutUser, saveLearnerProfile } from '../../services/api.js'
+import { api, getCertificateDownloadUrl, getCertificateVerificationUrl, getCertificates, getCourseEbookStatus, getCourseEbookUrl, getCourseProgress, getCurrentUser, getLearnerProfile, getPurchases, logoutUser, saveLearnerProfile } from '../../services/api.js'
 import { curriculum } from '../../data/curriculum.js'
+import CertificatePreview from '../CertificatePreview.jsx'
 
 const emptyProfile = { name: '', phone: '', dateOfBirth: '', gender: '', country: '', state: '', city: '', address: '', occupation: '', organization: '' }
 const navigationItems = [
@@ -22,6 +23,7 @@ export default function LearnerDashboard() {
   const [profileBusy, setProfileBusy] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
   const [profileError, setProfileError] = useState('')
+  const [certificateTemplate, setCertificateTemplate] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -33,6 +35,7 @@ export default function LearnerDashboard() {
           return
         }
         const certificates = purchases.length ? await getCertificates() : []
+        const certificateTemplate = certificates.length ? await api('/certificates/template').catch(() => null) : null
         const courses = await Promise.all(purchases
           .filter((purchase) => purchase.course?.slug)
           .map(async (purchase) => {
@@ -42,6 +45,7 @@ export default function LearnerDashboard() {
           }))
         if (active) {
           setProfileDraft(profileFormValues(savedProfile))
+          setCertificateTemplate(certificateTemplate)
           setState({ status: 'loaded', user, courses, certificates, error: '' })
         }
       } catch (error) {
@@ -118,7 +122,7 @@ export default function LearnerDashboard() {
               <p>{progress.completedChapters} of {progress.totalChapters} chapters complete</p>
               <p className='learner-course-state'>{certificate ? 'Certificate issued' : complete ? 'Course complete - certificate record unavailable' : progress.completedChapters === 0 ? 'Not started' : 'In progress'}</p>
               <section className='learner-entitlement-card'><div><span className='eyebrow'>COURSE EBOOK</span><h3>{ebook.title}</h3><p>{ebook.available ? 'Included with your course purchase.' : 'The PDF is not published yet. Download access will appear here when it is available.'}</p></div>{ebook.available ? <a className='button button-secondary' href={getCourseEbookUrl(course._id || course.id)}>Download ebook</a> : <span className='entitlement-unavailable'>Not published</span>}</section>
-              {complete ? <div className='learner-complete-message'><strong>Course complete</strong>{certificate && <><span>Certificate issued: {certificate.certificateId}</span><div className='learner-certificate-actions'><a className='button button-primary' href={getCertificateDownloadUrl(certificate.certificateId)}>Download certificate</a><a className='learner-text-link' href={getCertificateVerificationUrl(certificate.certificateId)} target='_blank' rel='noreferrer'>Verify certificate</a></div></>}</div>
+              {complete ? <div className='learner-complete-message'><strong>Course complete</strong>{certificate && <><span>Certificate issued: {certificate.certificateId}</span>{certificateTemplate && <details className='learner-certificate-preview'><summary>Preview your certificate</summary><CertificatePreview template={certificateTemplate} recipientName={certificate.recipientName || state.user.name} courseTitle={certificate.courseTitle || course.title} issueDate={certificate.issueDate} certificateId={certificate.certificateId}/></details>}<div className='learner-certificate-actions'><a className='button button-primary' href={getCertificateDownloadUrl(certificate.certificateId)}>Download certificate</a><a className='learner-text-link' href={getCertificateVerificationUrl(certificate.certificateId)} target='_blank' rel='noreferrer'>Verify certificate</a></div></>}</div>
                 : <a className='button button-primary' href={readerUrl || '/courses/' + encodeURIComponent(course.slug) + '/learn/' + encodeURIComponent(progress.chapters[0].chapterId)}>{progress.currentChapterId ? 'Continue Learning' : 'Start Learning'}</a>}
             </article>
           })}

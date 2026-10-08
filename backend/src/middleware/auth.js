@@ -9,6 +9,7 @@ export async function authenticate(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET)
     req.user = await User.findById(payload.sub)
     if (!req.user) return res.status(401).json({ error: 'Authentication required' })
+    if (req.user.disabledAt) return res.status(403).json({ error: 'This learner account has been disabled.' })
     next()
   } catch { res.status(401).json({ error: 'Invalid or expired session' }) }
 }
