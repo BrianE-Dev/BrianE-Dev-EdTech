@@ -3,7 +3,7 @@ import Brand from '../Brand.jsx'
 import { registerLearner } from '../../services/api.js'
 
 function safeReturnPath(value) {
-  return value === '/#pricing' || (typeof value === 'string' && /^\/(learn|courses\/[^/]+\/learn\/chapter-[a-z0-9-]+)(?:[/?#]|$)/.test(value)) ? value : '/learn'
+  return typeof value === 'string' && (/^\/#pricing(?:[?].*)?$/.test(value) || /^\/(learn|courses\/[^/]+\/learn\/chapter-[a-z0-9-]+)(?:[/?#]|$)/.test(value)) ? value : '/learn'
 }
 
 export default function LearnerRegister() {

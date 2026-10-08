@@ -108,7 +108,7 @@ function LandingPage() {
     if (sessionStorage.getItem('briane-dev-resume-checkout') !== '1') return
     sessionStorage.removeItem('briane-dev-resume-checkout')
     resumedCheckout.current = true
-    purchaseCourse()
+    window.setTimeout(() => purchaseCourse(), 0)
   }, [purchaseCourse])
   const regionalPrice = pricing ? {
     ...plans[0],
