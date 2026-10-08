@@ -17,21 +17,6 @@ function getEnglishVoices() {
   return window.speechSynthesis.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith('en'))
 }
 
-function waitForVoices() {
-  const currentVoices = getEnglishVoices()
-  if (currentVoices.length) return Promise.resolve(currentVoices)
-
-  return new Promise((resolve) => {
-    const finish = () => {
-      window.clearTimeout(timeout)
-      window.speechSynthesis.removeEventListener('voiceschanged', finish)
-      resolve(getEnglishVoices())
-    }
-    const timeout = window.setTimeout(finish, 2000)
-    window.speechSynthesis.addEventListener('voiceschanged', finish)
-  })
-}
-
 function getVisibleLessonText() {
   const source = document.querySelector('.reader-main')
   if (!source) return ''
@@ -80,7 +65,7 @@ export default function LessonTts() {
 
   if (!supported) return <p className="reader-tts-unavailable" role="status">Audio narration is not supported in this browser. You can still read the lesson.</p>
 
-  async function play() {
+  function play() {
     if (state === 'paused') {
       window.speechSynthesis.resume()
       setState('playing')
@@ -88,8 +73,7 @@ export default function LessonTts() {
     }
 
     setVoiceMessage('')
-    const availableVoices = await waitForVoices()
-    setVoices(availableVoices)
+    const availableVoices = voices.length ? voices : getEnglishVoices()
     const selectedVoice = availableVoices.find((voice) => voiceId(voice) === selectedVoiceId)
       || findPreferredFemaleVoice(availableVoices)
     if (!selectedVoice) {
@@ -101,17 +85,23 @@ export default function LessonTts() {
     setSelectedVoiceId(voiceId(selectedVoice))
 
     const text = getVisibleLessonText()
-    if (!text) return
+    if (!text) {
+      setVoiceMessage('No lesson text was found to read.')
+      return
+    }
 
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.voice = selectedVoice
     utterance.rate = 0.86
     utterance.pitch = 1.03
+    utterance.onstart = () => setState('playing')
     utterance.onend = () => setState('idle')
-    utterance.onerror = () => setState('idle')
+    utterance.onerror = (event) => {
+      setState('idle')
+      setVoiceMessage('Narration could not start (' + event.error + '). Try another voice.')
+    }
     window.speechSynthesis.speak(utterance)
-    setState('playing')
   }
 
   function pause() {
