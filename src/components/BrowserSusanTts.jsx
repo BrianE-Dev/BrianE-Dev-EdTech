@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { API_URL, api } from '../services/api.js'
+import { api } from '../services/api.js'
 
 async function browserEnglishVoice() {
   let voices = window.speechSynthesis.getVoices()
@@ -85,15 +85,11 @@ export default function BrowserSusanTts({ courseId, chapterId, disabled = false,
       const blob = await recording
       if (blob.size < 1024) throw new Error('No usable tab audio was recorded. Confirm that tab audio was shared and try again.')
 
-      const response = await fetch(`${API_URL}/admin/tts/courses/${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}/browser-susan`, {
-        method: 'POST', credentials: 'include',
+      await api(`/admin/tts/courses/${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}/browser-susan`, {
+        method: 'POST',
         headers: { 'Content-Type': blob.type || mimeType.split(';')[0], 'X-Audio-Duration-Seconds': String(durationSeconds), 'X-Browser-Voice': voice.name, 'X-Browser-Language': voice.lang },
         body: blob,
       })
-      if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        throw new Error(body?.error || 'The browser recording could not be saved to course audio storage.')
-      }
       setNotice(`${voice.name} audio saved for ${chapterId}.`)
       await onSaved()
     } catch (requestError) {
