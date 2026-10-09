@@ -7,24 +7,27 @@ export default function CourseAudioAdmin({ courseId }) {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [hasLoaded, setHasLoaded] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
       const result = await api(`/admin/tts/courses/${encodeURIComponent(courseId)}/status`)
       setStatus(result)
+      setHasLoaded(true)
       setError('')
     } catch (requestError) { setError(requestError.message) }
   }, [courseId])
 
   useEffect(() => {
+    if (!hasLoaded) return undefined
     const timer = window.setTimeout(refresh, 0)
     return () => window.clearTimeout(timer)
-  }, [refresh])
+  }, [hasLoaded, refresh])
   useEffect(() => {
-    if (status?.batch?.status !== 'running') return undefined
+    if (!hasLoaded || status?.batch?.status !== 'running') return undefined
     const timer = window.setInterval(refresh, 4000)
     return () => window.clearInterval(timer)
-  }, [status?.batch?.status, refresh])
+  }, [hasLoaded, status?.batch?.status, refresh])
 
   async function start(mode) {
     setBusy(true); setNotice(''); setError('')
@@ -45,10 +48,10 @@ export default function CourseAudioAdmin({ courseId }) {
   }
 
   return <section className="admin-audio-section" aria-labelledby="admin-audio-title">
-    <div className="admin-audio-heading"><div><span className="eyebrow">COURSE CONTENT / AUDIO</span><h2 id="admin-audio-title">Course audio</h2><p>Generate Gemini narration or save a browser recording with Microsoft Susan. For browser recording, choose “This Tab” and enable “Share tab audio”. Playback uses saved audio and never calls Gemini.</p></div><button className="button button-secondary" type="button" onClick={refresh}>Refresh</button></div>
+    <div className="admin-audio-heading"><div><span className="eyebrow">COURSE CONTENT / AUDIO</span><h2 id="admin-audio-title">Course audio</h2><p>Generate Gemini narration or save a browser recording with an available English speech voice (Susan is preferred when installed). For browser recording, choose “This Tab” and enable “Share tab audio”. Playback uses saved audio and never calls Gemini.</p></div><button className="button button-secondary" type="button" onClick={refresh}>{status ? 'Refresh' : 'Load status'}</button></div>
     {error && <p className="admin-form-error" role="alert">{error}</p>}
     {notice && <p className="admin-audio-notice" role="status">{notice}</p>}
-    {!status ? <p>Loading chapter audio status…</p> : <>
+    {!status ? <p>Chapter audio status has not been loaded.</p> : <>
       <div className="admin-audio-summary"><article><span>READY</span><strong>{status.ready}</strong></article><article><span>MISSING</span><strong>{status.missing}</strong></article><article><span>CHANGED / STALE</span><strong>{status.stale}</strong></article><article><span>FAILED</span><strong>{status.failed}</strong></article><article><span>GENERATING</span><strong>{status.generating}</strong></article></div>
       {status.batch?.status === 'running' && <p className="admin-audio-notice" role="status">Batch running{status.batch.currentChapterId ? ` · ${status.batch.currentChapterId}` : ''}.</p>}
       {status.batch && status.batch.status !== 'running' && <p className="admin-audio-batch-state">Last batch: {status.batch.status.replaceAll('_', ' ')} ({status.batch.mode}).</p>}

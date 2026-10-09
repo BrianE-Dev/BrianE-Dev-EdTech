@@ -1,8 +1,17 @@
 import { useState } from 'react'
 import { API_URL, api } from '../services/api.js'
 
-function browserSusan() {
-  return window.speechSynthesis.getVoices().find((voice) => /\bsusan\b/i.test(voice.name) && voice.lang.toLowerCase().startsWith('en')) || null
+async function browserEnglishVoice() {
+  let voices = window.speechSynthesis.getVoices()
+  if (!voices.length) {
+    await Promise.race([new Promise((resolve) => window.speechSynthesis.addEventListener('voiceschanged', resolve, { once: true })), new Promise((resolve) => window.setTimeout(resolve, 1500))])
+    voices = window.speechSynthesis.getVoices()
+  }
+  const englishVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith('en'))
+  return englishVoices.find((voice) => /\bsusan\b/i.test(voice.name))
+    || englishVoices.find((voice) => voice.lang.toLowerCase() === 'en-gb')
+    || englishVoices[0]
+    || null
 }
 
 function transcriptChunks(text, limit = 2200) {
@@ -26,7 +35,7 @@ function speakTranscript(text, voice) {
     utterance.voice = voice
     utterance.rate = 0.9
     utterance.onend = resolve
-    utterance.onerror = (event) => reject(new Error(`Susan narration stopped (${event.error}).`))
+    utterance.onerror = (event) => reject(new Error(`Browser narration stopped (${event.error}).`))
     window.speechSynthesis.speak(utterance)
   })), Promise.resolve())
 }
@@ -45,12 +54,12 @@ export default function BrowserSusanTts({ courseId, chapterId, disabled = false,
       if (!navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder || !window.speechSynthesis) {
         throw new Error('This browser cannot record tab audio. Use a recent desktop version of Chrome or Edge.')
       }
-      const voice = browserSusan()
-      if (!voice) throw new Error('Microsoft Susan is not available to this browser. Install the English (United Kingdom) Susan voice in your device speech settings, then reload this page.')
-
       displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser' }, audio: true, preferCurrentTab: true, selfBrowserSurface: 'include' })
       const audioTracks = displayStream.getAudioTracks()
       if (!audioTracks.length) throw new Error('No tab audio was shared. Choose “This Tab” and enable “Share tab audio” in the browser prompt.')
+
+      const voice = await browserEnglishVoice()
+      if (!voice) throw new Error('No English speech voice is available in this browser. Add an English voice in device speech settings, then reload this page.')
 
       const transcript = await api(`/admin/tts/courses/${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}/browser-transcript`)
       if (!transcript.transcript) throw new Error('This chapter has no text to narrate.')
@@ -66,7 +75,7 @@ export default function BrowserSusanTts({ courseId, chapterId, disabled = false,
         recorder.onerror = () => reject(new Error('Browser audio recording failed.'))
       })
       recorder.start(1000)
-      setNotice('Recording Microsoft Susan. Keep this tab open until the chapter finishes.')
+      setNotice(`Recording ${voice.name}. Keep this tab open until the chapter finishes.`)
       const startedAt = performance.now()
       await speakTranscript(transcript.transcript, voice)
       if (recorder.state !== 'recording') throw new Error('Tab audio sharing ended before narration finished. Start again and keep sharing this tab.')
@@ -78,14 +87,14 @@ export default function BrowserSusanTts({ courseId, chapterId, disabled = false,
 
       const response = await fetch(`${API_URL}/admin/tts/courses/${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}/browser-susan`, {
         method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': blob.type || mimeType.split(';')[0], 'X-Audio-Duration-Seconds': String(durationSeconds) },
+        headers: { 'Content-Type': blob.type || mimeType.split(';')[0], 'X-Audio-Duration-Seconds': String(durationSeconds), 'X-Browser-Voice': voice.name, 'X-Browser-Language': voice.lang },
         body: blob,
       })
       if (!response.ok) {
         const body = await response.json().catch(() => null)
-        throw new Error(body?.error || 'The Susan recording could not be saved to course audio storage.')
+        throw new Error(body?.error || 'The browser recording could not be saved to course audio storage.')
       }
-      setNotice(`Microsoft Susan audio saved for ${chapterId}.`)
+      setNotice(`${voice.name} audio saved for ${chapterId}.`)
       await onSaved()
     } catch (requestError) {
       window.speechSynthesis?.cancel()
@@ -99,7 +108,7 @@ export default function BrowserSusanTts({ courseId, chapterId, disabled = false,
   }
 
   return <div className="admin-browser-tts-action">
-    <button className="button button-secondary" type="button" disabled={disabled || busy} onClick={captureAndSave}>{busy ? 'Recording Susan…' : 'Save Microsoft Susan audio'}</button>
+    <button className="button button-secondary" type="button" disabled={disabled || busy} onClick={captureAndSave}>{busy ? 'Recording browser voice…' : 'Save browser voice audio'}</button>
     {error && <small role="alert">{error}</small>}
     {notice && <small role="status">{notice}</small>}
   </div>

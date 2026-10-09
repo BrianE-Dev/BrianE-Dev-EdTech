@@ -10,6 +10,7 @@ export default function AdminDashboard() {
   const [summary, setSummary] = useState({ transactions: 0, paid: 0, certificates: 0, learners: 0 })
   const [learners, setLearners] = useState([])
   const [courseId, setCourseId] = useState('')
+  const [showCourseAudio, setShowCourseAudio] = useState(false)
   const [courses, setCourses] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(true)
@@ -67,7 +68,7 @@ export default function AdminDashboard() {
       {learners.length ? <div className="admin-learners-grid">{learners.map((learner) => <article className="admin-learner-card" key={learner.id}><header><div><h3>{learner.name}</h3><a href={'mailto:' + learner.email}>{learner.email}</a></div><span>{learner.profile.occupation || 'Learner'}</span></header><dl>{[['Phone', learner.profile.phone], ['Date of birth', learner.profile.dateOfBirth], ['Gender', learner.profile.gender.replaceAll('_', ' ')], ['Country', learner.profile.country], ['State / region', learner.profile.state], ['City', learner.profile.city], ['Address', learner.profile.address], ['Organization', learner.profile.organization]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || '—'}</dd></div>)}</dl><LearnerStatusControl learner={learner} onChange={(updated) => setLearners((rows) => rows.map((row) => row.id === learner.id ? { ...row, disabled: updated.disabled } : row))}/></article>)}</div> : <p className="admin-learners-empty">No learner accounts yet.</p>}
     </section>
     <section className="admin-courses-section"><div className="admin-learners-heading"><div><span className="eyebrow">COURSES / ADMIN ACCESS</span><h2>Course library</h2></div><p>Read and navigate the course without affecting learner progress or submitting assessments.</p></div><div className="admin-course-grid">{courses.map((course) => <article key={course.id}><span className="eyebrow">{course.sections.reduce((sum, section) => sum + section.chapters.length, 0)} CHAPTERS</span><h3>{course.title}</h3><p>{course.description}</p><a className="button button-primary" href={'/courses/' + encodeURIComponent(course.slug) + '/learn/' + encodeURIComponent(course.sections[0]?.chapters[0]?.id || 'chapter-ai-assisted-developer')}>Open course</a></article>)}</div></section>
-    {courseId && <CourseAudioAdmin courseId={courseId}/>}
+    {courseId && <section className="admin-audio-section"><div className="admin-audio-heading"><div><span className="eyebrow">COURSE CONTENT / AUDIO</span><h2>Course audio</h2><p>Check narration status or generate audio on demand.</p></div><button className="button button-secondary" type="button" onClick={() => setShowCourseAudio((shown) => !shown)}>{showCourseAudio ? 'Hide audio tools' : 'Open audio tools'}</button></div>{showCourseAudio && <CourseAudioAdmin courseId={courseId}/>}</section>}
     <CertificateAdmin courses={courses}/>
     <CommerceAdmin standalone />
   </main>

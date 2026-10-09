@@ -668,8 +668,11 @@ router.post('/admin/tts/courses/:courseId/chapters/:chapterId/browser-susan', au
       lessonVersion: lesson.contentVersion,
       transcriptHash: hashTranscript(buildTtsTranscript(lesson)),
       model: 'browser-speechsynthesis',
-      voice: 'Microsoft Susan',
-      language: 'en-GB',
+      voice: String(req.get('x-browser-voice') || '').trim().slice(0, 120),
+      language: String(req.get('x-browser-language') || '').trim().slice(0, 32),
+    }
+    if (!identity.voice || !/^en(?:-[a-z0-9-]{2,24})?$/i.test(identity.language)) {
+      return apiFailure(res, 400, 'An English browser voice identity is required.', 'INVALID_BROWSER_VOICE')
     }
     const storage = createTtsStorage()
     const cutoff = new Date(Date.now() - 15 * 60 * 1000)
@@ -689,14 +692,14 @@ router.post('/admin/tts/courses/:courseId/chapters/:chapterId/browser-susan', au
     }
     if (!record) return apiFailure(res, 409, 'Browser audio could not be claimed for this chapter.', 'AUDIO_GENERATION_IN_PROGRESS')
     const generationId = crypto.randomUUID()
-    const storageKey = ['brianedev', 'tts', encodeURIComponent(courseId), lesson.chapterId, identity.transcriptHash, 'browser-speechsynthesis', 'microsoft-susan', 'en-GB', 'versions', generationId, 'audio'].join('/')
+    const storageKey = ['brianedev', 'tts', encodeURIComponent(courseId), lesson.chapterId, identity.transcriptHash, 'browser-speechsynthesis', identity.voice.replace(/[^a-zA-Z0-9._-]/g, '_'), identity.language, 'versions', generationId, 'audio'].join('/')
     try {
       await storage.upload(storageKey, req.body, mimeType)
       await TtsAudio.findOneAndUpdate(identity, { $set: {
         status: 'ready', storageKey, chunks: [{ order: 1, storageKey, mimeType, durationSeconds }], mimeType,
         durationSeconds, chunkCount: 1, generationCompletedAt: new Date(), generatedBy: req.user.id, error: null,
       } }, { new: true })
-      return res.status(201).json({ chapterId: lesson.chapterId, status: 'ready', voice: 'Microsoft Susan', language: 'en-GB', durationSeconds, bytes: req.body.length })
+      return res.status(201).json({ chapterId: lesson.chapterId, status: 'ready', voice: identity.voice, language: identity.language, durationSeconds, bytes: req.body.length })
     } catch (error) {
       const failureMessage = (error.message || 'Browser audio save failed').slice(0, 450)
       await TtsAudio.findOneAndUpdate(identity, { $set: previous?.status === 'ready'
