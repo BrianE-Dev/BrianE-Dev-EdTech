@@ -69,7 +69,7 @@ function pdfObjects(stream, logo, signatureBytes = null) {
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R /F4 7 0 R >> /XObject << /Logo 10 0 R${signatureBytes ? ' /Signature 11 0 R' : ''} >> >> /Contents 9 0 R >>`,
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R /F4 7 0 R >> /ExtGState << /Watermark 11 0 R >> /XObject << /Logo 10 0 R${signatureBytes ? ' /Signature 12 0 R' : ''} >> >> /Contents 9 0 R >>`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>',
@@ -78,6 +78,7 @@ function pdfObjects(stream, logo, signatureBytes = null) {
     `<< /Length ${streamBytes.length} >>\nstream\n${stream}\nendstream`,
   ]
   objects.push(`<< /Type /XObject /Subtype /Image /Width ${logo.width} /Height ${logo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors 3 /BitsPerComponent 8 /Columns ${logo.width} >> /Length ${logo.bytes.length} >>\nstream\n${logo.bytes.toString('latin1')}\nendstream`)
+  objects.push('<< /Type /ExtGState /ca 0.06 /CA 0.06 >>')
   if (signatureBytes) objects.push(`<< /Type /XObject /Subtype /Image /Width 600 /Height 200 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${signatureBytes.length} >>\nstream\n${signatureBytes.toString('latin1')}\nendstream`)
   return objects
 }
@@ -103,25 +104,25 @@ export function createCertificatePdf(certificate, verificationUrl, template = {}
   const ink = '0.10 0.17 0.24'
   const muted = '0.34 0.42 0.49'
   const logo = pngImageData(certificateLogo)
-  const watermark = safeText(template.watermark || 'BD')
   const operations = [
     'q',
     '0.84 0.88 0.91 RG 0.8 w 12 12 818 571 re S',
     `${teal} RG 0.8 w 20 20 802 555 re S`,
-    textCommand(watermark, PAGE_WIDTH / 2, 175, 220, 'F4', '0.975 0.978 0.982', 'center'),
+    'q /Watermark gs 330 0 0 330 256 132 cm /Logo Do Q',
     textCommand(`GLOBAL REGISTRY REF: BDEV-REG-${certificate.certificateId}`, 24, 576, 6.8, 'F1', muted),
     textCommand(`CERTIFICATE NO: ${certificate.certificateId} / ARCHIVAL RECORD`, PAGE_WIDTH - 24, 576, 6.8, 'F1', muted, 'right'),
-    'q 300 0 0 300 271 290 cm /Logo Do Q',
-    textCommand(template.brandName || 'BRIANE-DEV ACADEMY OF ADVANCED SOFTWARE ENGINEERING', PAGE_WIDTH / 2, 348, 9, 'F1', navy, 'center'),
-    textCommand(template.heading || 'CERTIFICATE OF COMPLETION', PAGE_WIDTH / 2, 307, 29, 'F4', navy, 'center'),
-    `${teal} RG 1.3 w 372 292 m 470 292 l S`,
-    textCommand(template.introduction || 'This credential is officially conferred upon', PAGE_WIDTH / 2, 268, 13, 'F3', ink, 'center'),
+    'q 70 0 0 70 34 490 cm /Logo Do Q',
+    textCommand(template.brandName || 'BRIANE-DEV ACADEMY OF ADVANCED SOFTWARE ENGINEERING', 120, 531, 9, 'F1', navy),
+    textCommand(template.heading || 'CERTIFICATE OF COMPLETION', PAGE_WIDTH / 2, 494, 27, 'F4', navy, 'center'),
+    `${teal} RG 1.3 w 372 480 m 470 480 l S`,
+    textCommand(template.introduction || 'This credential is officially conferred upon', PAGE_WIDTH / 2, 447, 13, 'F3', ink, 'center'),
   ]
   const nameLines = wrapName(certificate.recipientName || 'Learner')
   const nameSize = nameLines.length > 1 ? 27 : nameLines[0].length > 27 ? 29 : 35
-  nameLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, 225 - index * 36, nameSize, 'F4', ink, 'center')))
-  const courseTop = nameLines.length > 1 ? 164 : 178
-  operations.push(`${teal} RG 0.8 w 319 208 m 362 208 l S 480 208 m 523 208 l S`, `${teal} rg 372 208 7 7 re f`, `${teal} rg 463 208 7 7 re f`)
+  nameLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, 403 - index * 32, nameSize, 'F4', ink, 'center')))
+  const ornamentY = nameLines.length > 1 ? 334 : 365
+  const courseTop = nameLines.length > 1 ? 307 : 339
+  operations.push(`${teal} RG 0.8 w 319 ${ornamentY} m 362 ${ornamentY} l S 480 ${ornamentY} m 523 ${ornamentY} l S`, `${teal} rg 372 ${ornamentY} 7 7 re f`, `${teal} rg 463 ${ornamentY} 7 7 re f`)
   const courseLines = wrapName(certificate.courseTitle || 'AI-Powered Developer Productivity for Software Engineers', 38)
   const leadLines = wrapName(template.courseLead || 'for successfully mastering the curriculum, laboratory practicums, and comprehensive engineering benchmarks of', 94)
   leadLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, courseTop - index * 15, 10, 'F1', ink, 'center')))

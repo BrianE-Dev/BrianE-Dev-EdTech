@@ -432,3 +432,31 @@ h1,h2,h3 { font-family: var(--display); }
 .certificate-artwork-body > .certificate-course-lead { margin-top: 9px; }.certificate-course-title { margin-top: 14px; }
 .certificate-artwork footer { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2.2fr) minmax(0,1fr); align-items: end; gap: 8px; text-align: center; }.certificate-issued-date { grid-column: 1; grid-row: 1; text-align: left !important; }.certificate-signature { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; gap: 2px; }.certificate-signature strong { color: #172a41; font-size: clamp(9px,1vw,12px); }.certificate-signature span { max-width: 100%; font-size: clamp(6px,.7vw,8px); line-height: 1.35; }.certificate-issued:not(.certificate-issued-date) { grid-column: 3; grid-row: 1; text-align: right; }
 .admin-browser-tts-action { display: grid; justify-items: start; gap: 4px; }.admin-browser-tts-action small { max-width: 520px; color: #a9bacb; line-height: 1.45; }.admin-browser-tts-action small[role=alert] { color: #ffb7b7; }.admin-browser-tts-action small[role=status] { color: #9ce6c3; }
+
+/* Certificate layout: compact brand mark, centered logo watermark, clear content hierarchy. */
+.certificate-artwork { display: flex; flex-direction: column; justify-content: space-between; gap: clamp(6px,1vh,12px); padding: 3.2% 4% 2.2%; }
+.certificate-artwork::before { content: none; }
+.certificate-artwork > * { position: relative; z-index: 1; }
+.certificate-watermark { position: absolute !important; z-index: 0 !important; top: 50%; left: 50%; width: min(48%,340px); height: min(58%,340px); object-fit: contain; transform: translate(-50%,-50%); opacity: .055; pointer-events: none; }
+.certificate-artwork .certificate-brand-lockup { align-self: stretch; justify-self: start; width: 78%; min-height: clamp(58px,12%,88px); flex: 0 0 auto; display: flex; align-items: center; gap: 13px; text-align: left; color: #253b55; }
+.certificate-brand-logo { width: clamp(52px,7.2vw,78px); height: clamp(52px,7.2vw,78px); flex: 0 0 auto; object-fit: contain; }
+.certificate-brand-line { max-width: 100%; color: #253b55; font: 600 clamp(8px,1.05vw,12px)/1.5 var(--mono); letter-spacing: .12em; text-align: left; overflow-wrap: anywhere; }
+.certificate-heading { align-self: center; flex: 0 0 auto; margin: 0; font-size: clamp(20px,3.2vw,36px); line-height: 1.1; }
+.certificate-title-rule { align-self: center; flex: 0 0 auto; margin: 0 auto; }
+.certificate-artwork-body { flex: 1 1 auto; min-height: 0; align-content: center; gap: clamp(5px,.9vw,11px); }
+.certificate-artwork-body > p { font-size: clamp(9px,1.15vw,14px); }
+.certificate-recipient { font-size: clamp(27px,4.4vw,48px); }
+.certificate-artwork-body > .certificate-course-lead { margin-top: 3px; font-size: clamp(9px,1.1vw,13px); }
+.certificate-course-title { margin-top: 2px; font-size: clamp(16px,2.25vw,26px); }
+.certificate-artwork footer { gap: 12px; }
+.certificate-verification { align-self: end; }
+@media(max-width:760px) {
+  .certificate-artwork { padding: 4% 5% 3%; gap: 5px; }
+  .certificate-artwork .certificate-brand-lockup { width: 85%; min-height: 48px; gap: 7px; }
+  .certificate-brand-line { font-size: clamp(6px,1.4vw,9px); letter-spacing: .04em; }
+  .certificate-brand-logo { width: clamp(40px,8vw,58px); height: clamp(40px,8vw,58px); }
+  .certificate-heading { font-size: clamp(17px,3vw,26px); }
+  .certificate-recipient { font-size: clamp(22px,4vw,34px); }
+  .certificate-course-title { font-size: clamp(13px,2.3vw,20px); }
+  .certificate-artwork footer { gap: 4px; }
+}
