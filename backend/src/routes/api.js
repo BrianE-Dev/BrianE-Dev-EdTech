@@ -711,6 +711,59 @@ router.post('/admin/tts/courses/:courseId/chapters/:chapterId/browser-susan', au
   } catch (error) { next(error) }
 })
 
+router.post('/admin/tts/courses/:courseId/chapters/:chapterId/upload', authenticate, requireAdmin, express.raw({ type: 'audio/*', limit: '50mb' }), async (req, res, next) => {
+  try {
+    const course = await adminTtsCourse(req, res)
+    if (!course) return
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    const mimeType = req.get('content-type')?.split(';')[0].trim().toLowerCase()
+    const acceptedTypes = new Set(['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/webm'])
+    if (!acceptedTypes.has(mimeType) || !Buffer.isBuffer(req.body) || req.body.length < 1024) {
+      return apiFailure(res, 400, 'Upload an MP3, WAV, M4A, AAC, OGG, or WebM audio file.', 'INVALID_AUDIO_UPLOAD')
+    }
+    const transcriptHash = hashTranscript(buildTtsTranscript(lesson))
+    const courseId = String(course._id || course.id)
+    const identity = {
+      courseId, chapterId: lesson.chapterId, lessonVersion: lesson.contentVersion, transcriptHash,
+      model: 'manual-upload-v1', voice: 'Manual recording', language: 'en-GB',
+    }
+    const storage = createTtsStorage()
+    const previous = await TtsAudio.findOne(identity)
+    let record
+    try {
+      record = await TtsAudio.findOneAndUpdate({
+        ...identity,
+        $or: [{ status: { $ne: 'generating' } }, { updatedAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) } }],
+      }, {
+        $setOnInsert: identity,
+        $set: { status: 'generating', generatedBy: req.user.id, error: null, generationStartedAt: new Date(), lastAttemptAt: new Date() },
+      }, { upsert: true, new: true, setDefaultsOnInsert: true })
+    } catch (error) {
+      if (error.code === 11000) return apiFailure(res, 409, 'Audio is already being saved for this chapter.', 'AUDIO_GENERATION_IN_PROGRESS')
+      throw error
+    }
+    if (!record) return apiFailure(res, 409, 'Audio could not be claimed for this chapter.', 'AUDIO_GENERATION_IN_PROGRESS')
+    const generationId = crypto.randomUUID()
+    const storageKey = ['brianedev', 'tts', encodeURIComponent(courseId), lesson.chapterId, transcriptHash, 'manual-upload', 'versions', generationId, 'audio'].join('/')
+    try {
+      await storage.upload(storageKey, req.body, mimeType)
+      await TtsAudio.findOneAndUpdate(identity, { $set: {
+        status: 'ready', storageKey, chunks: [{ order: 1, storageKey, mimeType }], mimeType,
+        chunkCount: 1, generationCompletedAt: new Date(), generatedBy: req.user.id, error: null,
+      } }, { new: true })
+      return res.status(201).json({ chapterId: lesson.chapterId, status: 'ready', bytes: req.body.length })
+    } catch (error) {
+      const failureMessage = (error.message || 'Audio upload failed').slice(0, 450)
+      await TtsAudio.findOneAndUpdate(identity, { $set: previous?.status === 'ready'
+        ? { status: 'ready', storageKey: previous.storageKey, chunks: previous.chunks, mimeType: previous.mimeType, durationSeconds: previous.durationSeconds, chunkCount: previous.chunkCount, generationCompletedAt: previous.generationCompletedAt, error: failureMessage }
+        : { status: 'failed', error: failureMessage },
+      })
+      throw error
+    }
+  } catch (error) { next(error) }
+})
+
 router.put('/admin/pricing/:region', authenticate, requireAdmin, async (req, res) => {
   const region = z.enum(['NG', 'INTL']).parse(req.params.region)
   const schema = z.object({ region: z.enum(['NG', 'INTL']).optional(), currency: z.enum(['NGN', 'USD']).optional(), originalPrice: z.number().positive(), discountType: z.enum(['percentage', 'fixed']), discountValue: z.number().min(0), discountEnabled: z.boolean(), active: z.boolean(), startDate: z.iso.datetime().nullable().optional(), endDate: z.iso.datetime().nullable().optional() })

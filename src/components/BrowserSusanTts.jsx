@@ -1,110 +1,99 @@
-import { useState } from 'react'
-import { api } from '../services/api.js'
+import { useRef, useState } from 'react'
+import { API_URL } from '../services/api.js'
 
-async function browserEnglishVoice() {
-  let voices = window.speechSynthesis.getVoices()
-  if (!voices.length) {
-    await Promise.race([new Promise((resolve) => window.speechSynthesis.addEventListener('voiceschanged', resolve, { once: true })), new Promise((resolve) => window.setTimeout(resolve, 1500))])
-    voices = window.speechSynthesis.getVoices()
-  }
-  const englishVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith('en'))
-  return englishVoices.find((voice) => /\bsusan\b/i.test(voice.name))
-    || englishVoices.find((voice) => voice.lang.toLowerCase() === 'en-gb')
-    || englishVoices[0]
-    || null
-}
-
-function transcriptChunks(text, limit = 2200) {
-  const chunks = []
-  let remaining = text.trim()
-  while (remaining.length > limit) {
-    const sentenceBreak = remaining.lastIndexOf('. ', limit)
-    const whitespace = remaining.lastIndexOf(' ', limit)
-    const splitAt = sentenceBreak > limit * 0.55 ? sentenceBreak + 1 : whitespace > 0 ? whitespace : limit
-    chunks.push(remaining.slice(0, splitAt).trim())
-    remaining = remaining.slice(splitAt).trim()
-  }
-  if (remaining) chunks.push(remaining)
-  return chunks
-}
-
-function speakTranscript(text, voice) {
-  const segments = transcriptChunks(text)
-  return segments.reduce((queue, segment) => queue.then(() => new Promise((resolve, reject) => {
-    const utterance = new SpeechSynthesisUtterance(segment)
-    utterance.voice = voice
-    utterance.rate = 0.9
-    utterance.onend = resolve
-    utterance.onerror = (event) => reject(new Error(`Browser narration stopped (${event.error}).`))
-    window.speechSynthesis.speak(utterance)
-  })), Promise.resolve())
-}
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024
 
 export default function BrowserSusanTts({ courseId, chapterId, disabled = false, onBusyChange = () => {}, onSaved = () => {} }) {
+  const [recording, setRecording] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const recorderRef = useRef(null)
+  const streamRef = useRef(null)
+  const chunksRef = useRef([])
+  const tooLargeRef = useRef(false)
 
-  async function captureAndSave() {
-    if (busy || disabled) return
+  function releaseCapture() {
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    recorderRef.current = null
+    setRecording(false)
+  }
+
+  async function saveRecording(blob, mimeType) {
+    if (tooLargeRef.current || blob.size > MAX_AUDIO_BYTES) {
+      throw new Error('This recording is over 50 MB. Record a shorter chapter or use a compressed format.')
+    }
+    if (blob.size < 1024) throw new Error('No usable audio was captured. Confirm that tab audio sharing is enabled and try again.')
+    const type = (blob.type || mimeType).split(';')[0].toLowerCase()
+    const response = await fetch(`${API_URL}/admin/tts/courses/${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}/upload`, {
+      method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'Content-Type': type }, body: blob,
+    })
+    const result = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(result?.error || 'Audio upload failed')
+    setNotice(`Recording saved for ${chapterId}.`)
+    await onSaved()
+  }
+
+  async function startRecording() {
+    if (busy || recording || disabled) return
     setBusy(true); onBusyChange(true); setError(''); setNotice('')
-    let displayStream
-    let recorder
     try {
-      if (!navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder || !window.speechSynthesis) {
-        throw new Error('This browser cannot record tab audio. Use a recent desktop version of Chrome or Edge.')
+      if (!navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder) {
+        throw new Error('Tab audio recording requires a recent desktop browser on HTTPS or localhost.')
       }
-      displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser' }, audio: true, preferCurrentTab: true, selfBrowserSurface: 'include' })
-      const audioTracks = displayStream.getAudioTracks()
-      if (!audioTracks.length) throw new Error('No tab audio was shared. Choose “This Tab” and enable “Share tab audio” in the browser prompt.')
-
-      const voice = await browserEnglishVoice()
-      if (!voice) throw new Error('No English speech voice is available in this browser. Add an English voice in device speech settings, then reload this page.')
-
-      const transcript = await api(`/admin/tts/courses/${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}/browser-transcript`)
-      if (!transcript.transcript) throw new Error('This chapter has no text to narrate.')
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' }, audio: true, preferCurrentTab: false,
+      })
+      streamRef.current = stream
+      const audioTracks = stream.getAudioTracks()
+      if (!audioTracks.length) throw new Error('No tab audio was shared. Choose the chapter browser tab and enable “Share tab audio” in the browser prompt.')
       const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'].find((type) => MediaRecorder.isTypeSupported(type))
-      if (!mimeType) throw new Error('This browser cannot encode the captured audio in a supported format.')
+      if (!mimeType) throw new Error('This browser cannot encode captured tab audio in a supported format.')
 
-      const audioStream = new MediaStream(audioTracks)
-      recorder = new MediaRecorder(audioStream, { mimeType })
-      const audioParts = []
-      recorder.ondataavailable = (event) => { if (event.data.size) audioParts.push(event.data) }
-      const recording = new Promise((resolve, reject) => {
-        recorder.onstop = () => resolve(new Blob(audioParts, { type: recorder.mimeType || mimeType }))
-        recorder.onerror = () => reject(new Error('Browser audio recording failed.'))
-      })
+      const recorder = new MediaRecorder(new MediaStream(audioTracks), { mimeType })
+      recorderRef.current = recorder
+      chunksRef.current = []
+      tooLargeRef.current = false
+      recorder.ondataavailable = (event) => {
+        if (!event.data.size) return
+        chunksRef.current.push(event.data)
+        if (chunksRef.current.reduce((size, chunk) => size + chunk.size, 0) > MAX_AUDIO_BYTES) {
+          tooLargeRef.current = true
+          if (recorder.state === 'recording') recorder.stop()
+        }
+      }
+      recorder.onerror = () => setError('Browser audio recording failed.')
+      recorder.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType })
+        chunksRef.current = []
+        releaseCapture()
+        setBusy(true); onBusyChange(true)
+        try { await saveRecording(blob, mimeType) } catch (saveError) { setError(saveError.message) }
+        finally { setBusy(false); onBusyChange(false) }
+      }
       recorder.start(1000)
-      setNotice(`Recording ${voice.name}. Keep this tab open until the chapter finishes.`)
-      const startedAt = performance.now()
-      await speakTranscript(transcript.transcript, voice)
-      if (recorder.state !== 'recording') throw new Error('Tab audio sharing ended before narration finished. Start again and keep sharing this tab.')
-      await new Promise((resolve) => window.setTimeout(resolve, 350))
-      const durationSeconds = Math.max(1, Math.ceil((performance.now() - startedAt) / 1000))
-      recorder.stop()
-      const blob = await recording
-      if (blob.size < 1024) throw new Error('No usable tab audio was recorded. Confirm that tab audio was shared and try again.')
-
-      await api(`/admin/tts/courses/${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}/browser-susan`, {
-        method: 'POST',
-        headers: { 'Content-Type': blob.type || mimeType.split(';')[0], 'X-Audio-Duration-Seconds': String(durationSeconds), 'X-Browser-Voice': voice.name, 'X-Browser-Language': voice.lang },
-        body: blob,
-      })
-      setNotice(`${voice.name} audio saved for ${chapterId}.`)
-      await onSaved()
+      setRecording(true)
+      setNotice('Recording shared tab audio. Switch to the chapter tab and start Edge Read Aloud; return here and stop when it finishes.')
+      setBusy(false)
+      stream.getVideoTracks().forEach((track) => { track.onended = () => { if (recorder.state === 'recording') recorder.stop() } })
     } catch (requestError) {
-      window.speechSynthesis?.cancel()
-      if (recorder?.state === 'recording') recorder.stop()
-      setNotice('')
-      setError(requestError.message || 'Browser narration could not be saved.')
-    } finally {
-      displayStream?.getTracks().forEach((track) => track.stop())
+      releaseCapture()
+      setError(requestError.message || 'Could not start tab audio capture.')
       setBusy(false); onBusyChange(false)
     }
   }
 
+  function stopRecording() {
+    const recorder = recorderRef.current
+    if (recorder?.state === 'recording') recorder.stop()
+  }
+
   return <div className="admin-browser-tts-action">
-    <button className="button button-secondary" type="button" disabled={disabled || busy} onClick={captureAndSave}>{busy ? 'Recording browser voice…' : 'Save browser voice audio'}</button>
+    <button className="button button-secondary" type="button" disabled={disabled || busy} onClick={recording ? stopRecording : startRecording}>
+      {busy ? 'Saving recording…' : recording ? 'Stop and save tab audio' : 'Record Edge tab audio'}
+    </button>
+    <small>Open the chapter in another tab. Start recording here, choose that tab and enable tab audio, then play Edge Read Aloud and return here to stop and save.</small>
     {error && <small role="alert">{error}</small>}
     {notice && <small role="status">{notice}</small>}
   </div>

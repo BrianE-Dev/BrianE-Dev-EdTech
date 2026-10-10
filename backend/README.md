@@ -98,18 +98,22 @@ The model, voice, and language are part of the narration cache identity. The def
 
 ### Persistent object storage
 
-Production audio must use persistent S3-compatible object storage; Render's local filesystem is rejected when `NODE_ENV=production`. Audio binaries live in object storage, while MongoDB stores transcript/generation metadata and storage keys. For Amazon S3, set the region, bucket, and access credentials. For an S3-compatible service such as Cloudflare R2, also set its HTTPS endpoint and signing region.
+Production audio must use persistent S3-compatible object storage; Render's local filesystem is rejected when `NODE_ENV=production`. Audio binaries live in object storage, while MongoDB stores transcript/generation metadata and storage keys. For Amazon S3, set the region, bucket, and access credentials. For Cloudflare R2, create an R2 bucket and S3 API token, then use the account endpoint and the `auto` signing region.
 
 ```env
 TTS_STORAGE_PROVIDER=s3
-TTS_S3_ENDPOINT=
+TTS_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 TTS_S3_BUCKET=
-TTS_S3_REGION=
+TTS_S3_REGION=auto
 TTS_S3_ACCESS_KEY_ID=
 TTS_S3_SECRET_ACCESS_KEY=
 ```
 
-For local development only, `TTS_STORAGE_PROVIDER=local` stores audio under the ignored `backend/.local-tts/` directory. Do not use that provider in production. Object keys include sanitized course/chapter IDs, transcript hash, model, voice, language, and a version ID. New audio is written to separate versioned keys and Mongo metadata switches only after all chunks are stored, so failed regeneration leaves prior ready audio intact.
+For local development only, `TTS_STORAGE_PROVIDER=local` stores audio under the ignored `backend/.local-tts/` directory. Do not use that provider in production. Object keys include sanitized course/chapter IDs, transcript hash, recording type, and a version ID. Each upload writes a new versioned object, then switches MongoDB metadata to it, so a failed upload leaves the prior ready audio intact.
+
+### Upload manual chapter recordings
+
+In **Super Admin → Course audio**, choose **Record Edge tab audio** beside a chapter, select the browser tab displaying that chapter, and enable tab audio sharing. Switch to the chapter tab, start Edge Read Aloud, then return to Super Admin and choose **Stop and save tab audio**. The recording is uploaded directly to the selected chapter. Browser tab capture requires HTTPS or localhost and a browser that offers tab audio sharing; if capture is unavailable, record externally and upload an MP3, WAV, M4A, AAC, OGG, or WebM file up to 50 MB. The backend stores audio in configured object storage (Cloudflare R2 in production) and saves metadata and the storage key in MongoDB. The learner's existing chapter player streams the recording through the authenticated audio endpoint. Both recording and upload require the authenticated Super Admin session.
 
 ### Generate and monitor course audio
 
