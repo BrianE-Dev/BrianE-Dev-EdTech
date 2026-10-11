@@ -128,7 +128,7 @@ export function createCertificatePdf(certificate, verificationUrl, template = {}
   leadLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, courseTop - index * 14, 9, 'F1', ink, 'center')))
   const titleStartY = courseTop - 35
   courseLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, titleStartY - index * 18, 14, 'F4', navy, 'center')))
-  const recognitionStartY = titleStartY - courseLines.length * 18 - 8
+  const recognitionStartY = titleStartY - courseLines.length * 18 - 15
   recognitionLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, recognitionStartY - index * 11, 7.5, 'F1', ink, 'center')))
   const issueDate = new Date(certificate.issueDate || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
   const signature = template.signatureDataUrl?.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/)
@@ -136,8 +136,8 @@ export function createCertificatePdf(certificate, verificationUrl, template = {}
   if (signatureBytes?.length > 2_000_000) throw new Error('Certificate signature is too large')
   if (signatureBytes) operations.push('q 120 0 0 27 361 61 cm /Signature Do Q')
   operations.push(
-    textCommand(template.signatoryName || 'BrianE-Dev', PAGE_WIDTH / 2, 57, 8, 'F2', ink, 'center'),
-    textCommand(template.footer || '', PAGE_WIDTH / 2, 45, 7, 'F3', muted, 'center'),
+    textCommand(template.signatoryName || 'BrianE-Dev', PAGE_WIDTH / 2, 48, 8, 'F2', ink, 'center'),
+    textCommand(template.footer || '', PAGE_WIDTH / 2, 36, 7, 'F3', muted, 'center'),
     textCommand(`Issue date: ${issueDate}`, 34, 38, 7, 'F1', muted),
     textCommand(`Certificate ID: ${certificate.certificateId}`, PAGE_WIDTH - 34, 38, 5.8, 'F1', muted, 'right'),
     textCommand(`VERIFICATION URL: ${verificationUrl}`, PAGE_WIDTH / 2, 24, 5.8, 'F1', muted, 'center'),
