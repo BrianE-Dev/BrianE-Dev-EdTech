@@ -448,6 +448,12 @@ h1,h2,h3 { font-family: var(--display); }
 .certificate-recipient { font-size: clamp(27px,4.4vw,48px); }
 .certificate-artwork-body > .certificate-course-lead { margin-top: 3px; font-size: clamp(9px,1.1vw,13px); }
 .certificate-course-title { margin-top: 2px; font-size: clamp(16px,2.25vw,26px); }
+.certificate-heading { max-width: 92%; font-size: clamp(18px,2.8vw,32px); line-height: 1.05; text-wrap: balance; }
+.certificate-artwork-body { gap: clamp(4px,.65vw,8px); }
+.certificate-artwork-body > p { max-width: 76%; font-size: clamp(8px,1vw,12px); line-height: 1.35; }
+.certificate-recipient { font-size: clamp(25px,4vw,44px); line-height: 1.05; }
+.certificate-artwork-body > .certificate-course-lead { margin-top: 1px; font-size: clamp(8px,.95vw,11px); }
+.certificate-course-title { max-width: 82%; margin-top: 0; font-size: clamp(15px,2vw,23px); line-height: 1.08; }
 .certificate-artwork footer { gap: 12px; }
 .certificate-verification { align-self: end; }
 @media(max-width:760px) {
