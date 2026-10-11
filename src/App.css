@@ -456,6 +456,9 @@ h1,h2,h3 { font-family: var(--display); }
 .certificate-course-title { max-width: 82%; margin-top: 0; font-size: clamp(15px,2vw,23px); line-height: 1.08; }
 .certificate-artwork footer { gap: 12px; }
 .certificate-verification { align-self: end; }
+.certificate-issued:not(.certificate-issued-date) { max-width: none; min-width: 0; white-space: nowrap; overflow-wrap: normal; }
+.certificate-issued:not(.certificate-issued-date) > span { white-space: nowrap; }
+.certificate-issued:not(.certificate-issued-date) small { font-size: clamp(4px,.46vw,5.5px); letter-spacing: -.04em; white-space: nowrap; }
 @media(max-width:760px) {
   .certificate-artwork { padding: 4% 5% 3%; gap: 5px; }
   .certificate-artwork .certificate-brand-lockup { width: 85%; min-height: 48px; gap: 7px; }
