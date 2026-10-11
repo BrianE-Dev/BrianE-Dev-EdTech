@@ -1,0 +1,50 @@
+.brand-loader {
+  --loader-accent: #43d5ed;
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  color: #a4b4c6;
+  background: #070d1b;
+}
+
+.brand-loader-mark {
+  width: min(190px, 45vw);
+  aspect-ratio: 962 / 650;
+  display: grid;
+  place-items: center;
+  animation: brand-loader-pulse 1.8s ease-in-out infinite;
+}
+
+.brand-loader-logo { grid-area: 1 / 1; display: block; width: 100%; height: 100%; object-fit: contain; }
+.brand-loader-logo-light { display: none; }
+.brand-loader-label { color: inherit; font: 500 13px/1.4 var(--mono, ui-monospace, monospace); letter-spacing: .04em; }
+
+:root[data-theme='light'] .brand-loader,
+[data-theme='light'] .brand-loader {
+  --loader-accent: #0787a4;
+  color: #50627a;
+  background: #f3f6fb;
+}
+
+:root[data-theme='light'] .brand-loader-logo-light,
+[data-theme='light'] .brand-loader-logo-light { display: block; }
+:root[data-theme='light'] .brand-loader-logo-dark,
+[data-theme='light'] .brand-loader-logo-dark { display: none; }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .brand-loader { color: #50627a; background: #f3f6fb; }
+  :root:not([data-theme='dark']) .brand-loader-logo-light { display: block; }
+  :root:not([data-theme='dark']) .brand-loader-logo-dark { display: none; }
+}
+
+@keyframes brand-loader-pulse {
+  0%, 100% { opacity: .72; transform: scale(.82); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-mark { animation: none; }
+}
