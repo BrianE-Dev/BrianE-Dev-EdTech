@@ -116,8 +116,9 @@ export function createCertificatePdf(certificate, verificationUrl, template = {}
     `${teal} RG 1.3 w 372 480 m 470 480 l S`,
     textCommand(template.introduction || 'This certificate is awarded to', PAGE_WIDTH / 2, 438, 10, 'F3', ink, 'center'),
   ]
-  const nameLines = wrapName(certificate.recipientName || 'Learner')
-  const nameSize = nameLines.length > 1 ? 23 : nameLines[0].length > 27 ? 25 : 30
+  const recipientName = safeText(certificate.recipientName || 'Learner').trim()
+  const nameLines = [recipientName || 'Learner']
+  const nameSize = nameLines[0].length > 38 ? 16 : nameLines[0].length > 30 ? 18 : nameLines[0].length > 22 ? 20 : 22
   nameLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, 393 - index * 27, nameSize, 'F4', ink, 'center')))
   const ornamentY = nameLines.length > 1 ? 330 : 350
   const courseTop = nameLines.length > 1 ? 305 : 325

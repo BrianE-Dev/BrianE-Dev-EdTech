@@ -451,7 +451,7 @@ h1,h2,h3 { font-family: var(--display); }
 .certificate-heading { max-width: 92%; font-size: clamp(18px,2.8vw,32px); line-height: 1.05; text-wrap: balance; }
 .certificate-artwork-body { gap: clamp(4px,.65vw,8px); }
 .certificate-artwork-body > p { max-width: 76%; font-size: clamp(8px,1vw,12px); line-height: 1.35; }
-.certificate-recipient { font-size: clamp(25px,4vw,44px); line-height: 1.05; }
+.certificate-recipient { max-width: 98%; font-size: clamp(18px,2.8vw,30px); line-height: 1.05; white-space: nowrap; }
 .certificate-artwork-body > .certificate-course-lead { margin-top: 1px; font-size: clamp(8px,.95vw,11px); }
 .certificate-course-title { max-width: 82%; margin-top: 0; font-size: clamp(15px,2vw,23px); line-height: 1.08; }
 .certificate-recognition { max-width: 75% !important; margin-top: 0 !important; font-style: normal; transform: translateY(-8px); }
@@ -467,7 +467,7 @@ h1,h2,h3 { font-family: var(--display); }
   .certificate-brand-line { font-size: clamp(6px,1.4vw,9px); letter-spacing: .04em; }
   .certificate-brand-logo { width: clamp(40px,8vw,58px); height: clamp(40px,8vw,58px); }
   .certificate-heading { font-size: clamp(17px,3vw,26px); }
-  .certificate-recipient { font-size: clamp(22px,4vw,34px); }
+  .certificate-recipient { font-size: clamp(16px,2.8vw,24px); }
   .certificate-course-title { font-size: clamp(13px,2.3vw,20px); }
   .certificate-artwork footer { gap: 4px; }
 }
