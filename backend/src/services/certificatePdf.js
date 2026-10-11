@@ -112,10 +112,9 @@ export function createCertificatePdf(certificate, verificationUrl, template = {}
     textCommand(`GLOBAL REGISTRY REF: BDEV-REG-${certificate.certificateId}`, 24, 576, 6.8, 'F1', muted),
     textCommand(`CERTIFICATE NO: ${certificate.certificateId} / ARCHIVAL RECORD`, PAGE_WIDTH - 24, 576, 6.8, 'F1', muted, 'right'),
     'q 70 0 0 70 34 490 cm /Logo Do Q',
-    textCommand(template.brandName || 'BRIANE-DEV ACADEMY OF ADVANCED SOFTWARE ENGINEERING', 120, 531, 9, 'F1', navy),
     textCommand(template.heading || 'CERTIFICATE OF COMPLETION', PAGE_WIDTH / 2, 482, 23, 'F4', navy, 'center'),
     `${teal} RG 1.3 w 372 480 m 470 480 l S`,
-    textCommand(template.introduction || 'This credential is officially conferred upon', PAGE_WIDTH / 2, 438, 10, 'F3', ink, 'center'),
+    textCommand(template.introduction || 'This certificate is awarded to', PAGE_WIDTH / 2, 438, 10, 'F3', ink, 'center'),
   ]
   const nameLines = wrapName(certificate.recipientName || 'Learner')
   const nameSize = nameLines.length > 1 ? 23 : nameLines[0].length > 27 ? 25 : 30
@@ -123,10 +122,14 @@ export function createCertificatePdf(certificate, verificationUrl, template = {}
   const ornamentY = nameLines.length > 1 ? 330 : 350
   const courseTop = nameLines.length > 1 ? 305 : 325
   operations.push(`${teal} RG 0.8 w 319 ${ornamentY} m 362 ${ornamentY} l S 480 ${ornamentY} m 523 ${ornamentY} l S`, `${teal} rg 372 ${ornamentY} 7 7 re f`, `${teal} rg 463 ${ornamentY} 7 7 re f`)
-  const courseLines = wrapName(certificate.courseTitle || 'AI-Powered Developer Productivity for Software Engineers', 38)
-  const leadLines = wrapName(template.courseLead || 'for successfully mastering the curriculum, laboratory practicums, and comprehensive engineering benchmarks of', 94)
+  const courseLines = wrapName(certificate.courseTitle || 'AI-Powered Developer Productivity for Software Engineers', 48)
+  const leadLines = wrapName(template.courseLead || 'in recognition of successfully completing the course', 94)
+  const recognitionLines = wrapName(template.recognitionText || 'and completing the prescribed learning curriculum in AI-assisted software development and developer productivity.', 94)
   leadLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, courseTop - index * 14, 9, 'F1', ink, 'center')))
-  courseLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, courseTop - 35 - index * 19, 15, 'F4', navy, 'center')))
+  const titleStartY = courseTop - 35
+  courseLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, titleStartY - index * 18, 14, 'F4', navy, 'center')))
+  const recognitionStartY = titleStartY - courseLines.length * 18 - 8
+  recognitionLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, recognitionStartY - index * 11, 7.5, 'F1', ink, 'center')))
   const issueDate = new Date(certificate.issueDate || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
   const signature = template.signatureDataUrl?.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/)
   const signatureBytes = signature ? Buffer.from(signature[1], 'base64') : null

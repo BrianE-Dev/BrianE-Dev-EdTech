@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../services/api.js'
 import CertificatePreview from './CertificatePreview.jsx'
 
-const defaults = { brandName: '', heading: '', introduction: '', courseLead: '', signatoryName: '', signatureDataUrl: '', footer: '' }
+const defaults = { brandName: '', heading: '', introduction: '', courseLead: '', recognitionText: '', signatoryName: '', signatureDataUrl: '', footer: '' }
 
 export default function CertificateAdmin({ courses }) {
   const [template, setTemplate] = useState(defaults)
@@ -51,10 +51,11 @@ export default function CertificateAdmin({ courses }) {
   return <section className="admin-certificate-section" aria-labelledby="certificate-admin-title">
     <div className="admin-learners-heading"><div><span className="eyebrow">CERTIFICATES / GLOBAL DESIGN</span><h2 id="certificate-admin-title">Certificate content and signatory</h2></div><p>Name and course title are filled from the learner and course records.</p></div>
     <div className="admin-certificate-layout"><form className="admin-certificate-form" onSubmit={save}>
-      <label>Brand name<input name="brandName" maxLength="80" value={template.brandName} onChange={update} required/></label>
+      <label>Brand name (optional)<input name="brandName" maxLength="80" value={template.brandName} onChange={update}/></label>
       <label>Certificate heading<input name="heading" maxLength="100" value={template.heading} onChange={update} required/></label>
       <label>Presentation line<input name="introduction" maxLength="180" value={template.introduction} onChange={update} required/></label>
       <label>Course completion line<input name="courseLead" maxLength="120" value={template.courseLead} onChange={update} required/></label>
+      <label>Curriculum recognition<input name="recognitionText" maxLength="240" value={template.recognitionText} onChange={update} required/></label>
       <label>Sole signatory name<input name="signatoryName" maxLength="120" value={template.signatoryName} onChange={update} required/></label>
       <label>Footer text<input name="footer" maxLength="180" value={template.footer} onChange={update}/></label>
       <label>Upload signature (PNG or JPEG)<input type="file" accept="image/png,image/jpeg" onChange={uploadSignature}/></label>

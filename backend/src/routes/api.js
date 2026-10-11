@@ -560,8 +560,9 @@ router.get('/me/certificates/:certificateId/download', authenticate, async (req,
 router.get('/admin/pricing', authenticate, requireAdmin, async (_req, res) => res.json(await Pricing.find().sort({ region: 1 })))
 
 const certificateTemplateDefaults = {
-  brandName: 'BRIANE-DEV ACADEMY OF ADVANCED SOFTWARE ENGINEERING', heading: 'CERTIFICATE OF COMPLETION',
-  introduction: 'This credential is officially conferred upon', courseLead: 'for successfully mastering the curriculum, laboratory practicums, and comprehensive engineering benchmarks of',
+  brandName: '', heading: 'CERTIFICATE OF COMPLETION',
+  introduction: 'This certificate is awarded to', courseLead: 'in recognition of successfully completing the course',
+  recognitionText: 'and completing the prescribed learning curriculum in AI-assisted software development and developer productivity.',
   signatoryName: 'BrianE-Dev', signatureDataUrl: '', footer: 'Certificate of successful course completion',
 }
 async function getCertificateTemplate() {
@@ -572,8 +573,9 @@ router.get('/certificates/template', authenticate, async (_req, res) => res.json
 router.get('/admin/certificate-template', authenticate, requireAdmin, async (_req, res) => res.json(await getCertificateTemplate()))
 router.put('/admin/certificate-template', authenticate, requireAdmin, async (req, res) => {
   const schema = z.object({
-    brandName: z.string().trim().min(1).max(80), heading: z.string().trim().min(1).max(100),
+    brandName: z.string().trim().max(80), heading: z.string().trim().min(1).max(100),
     introduction: z.string().trim().min(1).max(180), courseLead: z.string().trim().min(1).max(120),
+    recognitionText: z.string().trim().min(1).max(240),
     signatoryName: z.string().trim().min(1).max(120), footer: z.string().trim().max(180),
     signatureDataUrl: z.string().max(2_800_000).refine((value) => !value || /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(value), 'Upload a JPEG signature image.'),
   }).strict()
