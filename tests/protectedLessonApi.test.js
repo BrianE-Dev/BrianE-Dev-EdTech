@@ -9,7 +9,6 @@ process.env.JWT_SECRET = 'phase-four-test-secret-with-enough-length'
 process.env.APP_ENV = 'development'
 process.env.PAYSTACK_PUBLIC_KEY = 'pk_test_phase_four'
 process.env.PAYSTACK_SECRET_KEY = 'sk_test_phase_four'
-process.env.PAYSTACK_WEBHOOK_SECRET = 'phase-four-webhook-secret'
 process.env.PAYSTACK_BASE_URL = 'https://api.paystack.co'
 
 const [{ default: app }, models] = await Promise.all([
@@ -340,7 +339,7 @@ test('Paystack webhook validates raw-body HMAC, server-verifies and safely handl
   assert.equal(invalid.status, 401)
   assert.equal(paystackVerifyCalls, 0)
 
-  const sign = (body) => crypto.createHmac('sha512', process.env.PAYSTACK_WEBHOOK_SECRET).update(body).digest('hex')
+  const sign = (body) => crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY).update(body).digest('hex')
   const unknownEvent = JSON.stringify({ event: 'charge.success', data: { reference: 'BDE-NOT-LOCAL' } })
   const unknown = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json', 'x-paystack-signature': sign(unknownEvent) }, body: unknownEvent })
   assert.equal(unknown.status, 404)

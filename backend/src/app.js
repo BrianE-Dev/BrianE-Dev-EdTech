@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { rateLimit } from 'express-rate-limit'
 import api from './routes/api.js'
 
@@ -23,6 +25,15 @@ app.use('/api/brianedev/payments/verify', rateLimit({ windowMs: 15 * 60 * 1000, 
 app.use('/api/brianedev/payments/paystack/webhook', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api/admin/tts', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api', api)
+const frontendBuildPath = fileURLToPath(new URL('../../dist', import.meta.url))
+if (existsSync(frontendBuildPath)) {
+  app.use((req, res, next) => req.path === '/api' || req.path.startsWith('/api/')
+    ? next()
+    : express.static(frontendBuildPath)(req, res, next))
+  app.get('*path', (req, res, next) => req.path === '/api' || req.path.startsWith('/api/')
+    ? next()
+    : res.sendFile(fileURLToPath(new URL('../../dist/index.html', import.meta.url))))
+}
 app.use((error, _req, res, next) => {
   void next
   const status = error.status || (error.name === 'ZodError' ? 400 : error.code === 11000 ? 409 : 500)

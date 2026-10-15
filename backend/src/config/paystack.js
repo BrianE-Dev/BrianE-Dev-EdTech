@@ -17,7 +17,7 @@ export function getPaystackConfig(env = process.env) {
     throw new Error('APP_ENV must be either development or production')
   }
 
-  const required = ['PAYSTACK_PUBLIC_KEY', 'PAYSTACK_SECRET_KEY', 'PAYSTACK_WEBHOOK_SECRET', 'PAYSTACK_BASE_URL']
+  const required = ['PAYSTACK_PUBLIC_KEY', 'PAYSTACK_SECRET_KEY', 'PAYSTACK_BASE_URL']
   const missing = required.filter((name) => !env[name]?.trim())
   if (missing.length) throw new Error(`Missing Paystack configuration: ${missing.join(', ')}. Set these in backend/.env or the deployment environment.`)
 
@@ -34,7 +34,6 @@ export function getPaystackConfig(env = process.env) {
     appEnvironment,
     publicKey: env.PAYSTACK_PUBLIC_KEY.trim(),
     secretKey: env.PAYSTACK_SECRET_KEY.trim(),
-    webhookSecret: env.PAYSTACK_WEBHOOK_SECRET.trim(),
     baseUrl: baseUrl.origin,
   })
 }

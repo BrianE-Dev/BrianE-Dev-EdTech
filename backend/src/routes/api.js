@@ -230,9 +230,9 @@ router.post('/brianedev/payments/verify', authenticate, verifyCoursePayment)
 
 async function paystackWebhook(req, res) {
   const signature = req.get('x-paystack-signature')
-  const { webhookSecret, appEnvironment } = getPaystackConfig()
+  const { secretKey, appEnvironment } = getPaystackConfig()
   if (!Buffer.isBuffer(req.rawBody)) return res.status(400).json({ error: 'Webhook request body is invalid' })
-  const expected = crypto.createHmac('sha512', webhookSecret).update(req.rawBody).digest('hex')
+  const expected = crypto.createHmac('sha512', secretKey).update(req.rawBody).digest('hex')
   if (!signature || Buffer.byteLength(signature) !== Buffer.byteLength(expected) || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return res.status(401).json({ error: 'Invalid webhook signature' })
   if (req.body.event !== 'charge.success') return res.sendStatus(200)
   const reference = req.body.data?.reference
