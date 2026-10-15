@@ -65,3 +65,45 @@ test('readiness and existing database-backed routes recover when the database is
   assert.equal(courses.status, 200)
   assert.deepEqual(await courses.json(), [])
 })
+
+test('temporary outbound-IP diagnostic is token-protected and returns only the IP and status', async () => {
+  mongoose.connection.readyState = 0
+  const originalToken = process.env.HOSTINGER_DIAGNOSTIC_TOKEN
+  const originalFetch = globalThis.fetch
+  const diagnosticToken = 'hostinger-diagnostic-test-token-with-at-least-32-chars'
+  process.env.HOSTINGER_DIAGNOSTIC_TOKEN = diagnosticToken
+  let requestedUrl
+  let requestSignal
+  globalThis.fetch = async (url, options) => {
+    requestedUrl = url
+    requestSignal = options.signal
+    return Response.json({ ip: '203.0.113.42', internal: 'must-not-be-forwarded' })
+  }
+
+  try {
+    const unauthorized = await originalFetch(`${baseUrl}/api/diagnostics/hostinger-network`, {
+      headers: { authorization: 'Bearer wrong-diagnostic-token' },
+    })
+    assert.equal(unauthorized.status, 401)
+
+    const response = await originalFetch(`${baseUrl}/api/diagnostics/hostinger-network`, {
+      headers: { authorization: `Bearer ${diagnosticToken}` },
+    })
+    assert.equal(response.status, 200)
+    assert.deepEqual(await response.json(), { status: 'ok', publicIp: '203.0.113.42' })
+    assert.equal(requestedUrl, 'https://api.ipify.org?format=json')
+    assert.ok(requestSignal instanceof AbortSignal)
+    assert.equal(response.headers.get('cache-control'), 'no-store')
+
+    globalThis.fetch = async () => { throw new Error('private request details should not reach the response') }
+    const failed = await originalFetch(`${baseUrl}/api/diagnostics/hostinger-network`, {
+      headers: { authorization: `Bearer ${diagnosticToken}` },
+    })
+    assert.equal(failed.status, 502)
+    assert.deepEqual(await failed.json(), { status: 'ip_check_failed', publicIp: null })
+  } finally {
+    globalThis.fetch = originalFetch
+    if (originalToken === undefined) delete process.env.HOSTINGER_DIAGNOSTIC_TOKEN
+    else process.env.HOSTINGER_DIAGNOSTIC_TOKEN = originalToken
+  }
+})

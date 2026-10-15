@@ -24,6 +24,7 @@ import { buildTtsTranscript, hashTranscript } from '../services/ttsTranscript.js
 import { isSuperAdmin } from '../utils/authorization.js'
 import { createTtsStorage } from '../services/ttsStorage.js'
 import { isDatabaseReady } from '../config/database.js'
+import { diagnosticTokenMatches, getOutboundPublicIp } from '../services/hostingerDiagnostic.js'
 
 const router = Router()
 const isSecureCookie = process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production'
@@ -61,6 +62,21 @@ router.get('/health', (_req, res) => res.json({ ok: true }))
 router.get('/ready', (_req, res) => {
   const ready = isDatabaseReady()
   res.status(ready ? 200 : 503).json({ ok: ready, database: ready ? 'ready' : 'unavailable' })
+})
+router.get('/diagnostics/hostinger-network', async (req, res) => {
+  res.set('Cache-Control', 'no-store')
+  const expectedToken = process.env.HOSTINGER_DIAGNOSTIC_TOKEN
+  const providedToken = req.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]
+  if (!diagnosticTokenMatches(providedToken, expectedToken)) {
+    return res.status(expectedToken ? 401 : 404).json({ status: expectedToken ? 'unauthorized' : 'disabled' })
+  }
+
+  try {
+    const publicIp = await getOutboundPublicIp()
+    return res.json({ status: 'ok', publicIp })
+  } catch {
+    return res.status(502).json({ status: 'ip_check_failed', publicIp: null })
+  }
 })
 
 router.post('/auth/register', async (req, res) => {

@@ -19,7 +19,7 @@ app.use('/api', (_req, res, next) => {
   next()
 })
 app.use('/api', (req, res, next) => {
-  if (req.path === '/health' || req.path === '/ready' || req.path === '/auth/logout') return next()
+  if (req.path === '/health' || req.path === '/ready' || req.path === '/auth/logout' || req.path === '/diagnostics/hostinger-network') return next()
   if (!isDatabaseReady()) {
     return res.status(503).json({ error: 'Database unavailable', code: 'DATABASE_UNAVAILABLE' })
   }
@@ -32,6 +32,7 @@ app.use('/api/brianedev/payments/initialize', paymentRateLimit)
 app.use('/api/brianedev/payments/verify', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api/brianedev/payments/paystack/webhook', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api/admin/tts', rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use('/api/diagnostics/hostinger-network', rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/api', api)
 const frontendBuildPath = fileURLToPath(new URL('../../dist', import.meta.url))
 if (existsSync(frontendBuildPath)) {
