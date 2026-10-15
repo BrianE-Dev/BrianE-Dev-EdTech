@@ -48,7 +48,7 @@ test('Hostinger require entry listens promptly and serves liveness while MongoDB
   while (Date.now() < duplicateDeadline && !logs.includes('duplicate server.js startup ignored')) {
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
-  assert.match(logs, /\[pid=\d+ startup=[0-9a-f-]+\] BrianE-Dev HTTP listener bound/)
+  assert.match(logs, /\[pid=\d+ ppid=\d+ uptime=\d+\.\d+s startup=[0-9a-f-]+\] BrianE-Dev HTTP listener bound/)
   assert.match(logs, /duplicate server\.js startup ignored/)
   assert.equal([...logs.matchAll(/HTTP listener bound/g)].length, 1, 'duplicate entry evaluation must not bind a second listener')
 
