@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'node:url'
 import { startDatabaseConnection } from './config/database.js'
+import { runtimeLogPrefix, serverKey } from './config/runtimeIdentity.js'
 import { getPaystackConfig } from './config/paystack.js'
 
 const envPath = fileURLToPath(new URL('../.env', import.meta.url))
@@ -30,19 +31,32 @@ export function startDatabaseMonitor() {
   })
 }
 
-export async function startServer() {
-  const app = await loadApplication()
-  const port = validateEnvironment()
-  const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`BrianE-Dev API listening on ${port}`)
-    startDatabaseMonitor()
-  })
+export function startServer() {
+  if (globalThis[serverKey]) {
+    console.warn(`${runtimeLogPrefix()} duplicate startServer() call ignored`)
+    return globalThis[serverKey].promise || Promise.resolve(globalThis[serverKey])
+  }
+  const startup = { promise: undefined }
+  globalThis[serverKey] = startup
+  startup.promise = (async () => {
+    const app = await loadApplication()
+    const port = validateEnvironment()
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`${runtimeLogPrefix()} BrianE-Dev API listening on ${port}`)
+      startDatabaseMonitor()
+    })
+    startup.server = server
 
-  server.on('error', (error) => {
-    console.error(`BrianE-Dev HTTP server failed (${error.code || error.name})`)
-    process.exitCode = 1
+    server.on('error', (error) => {
+      console.error(`${runtimeLogPrefix()} BrianE-Dev HTTP server failed (${error.code || error.name})`)
+      process.exitCode = 1
+    })
+    return server
+  })().catch((error) => {
+    if (globalThis[serverKey] === startup) delete globalThis[serverKey]
+    throw error
   })
-  return server
+  return startup.promise
 }
 
 dotenv.config({ path: envPath })

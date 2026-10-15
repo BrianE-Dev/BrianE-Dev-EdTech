@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { runtimeLogPrefix } from './runtimeIdentity.js'
 
 let connectionPromise
 let databaseMonitor
@@ -28,7 +29,7 @@ function errorChain(root) {
       ? String(current.code)
       : typeof current.codeName === 'string' ? current.codeName : null
     const message = typeof current.message === 'string' ? current.message : ''
-    const discoveredCodes = [...message.matchAll(/\b(ENOTFOUND|EAI_AGAIN|ETIMEOUT|ETIMEDOUT|ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ERR_TLS_[A-Z_]+)\b/g)].map((match) => match[1])
+    const discoveredCodes = [...message.matchAll(/\b(ENOTFOUND|EAI_AGAIN|ETIMEOUT|ETIMEDOUT|ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ERR_TLS_[A-Z0-9_]+|ERR_SSL_[A-Z0-9_]+|TLSV1_ALERT_[A-Z0-9_]+)\b/g)].map((match) => match[1])
     if (name || code || discoveredCodes.length) details.push({ name, code, discoveredCodes })
 
     for (const key of ['cause', 'reason', 'error', 'originalError']) {
@@ -59,6 +60,7 @@ export function formatMongoConnectionError(error, uri = '') {
   const likelyCauses = []
 
   if (codes.some((code) => ['ENOTFOUND', 'EAI_AGAIN'].includes(code)) || /srv|dns|enotfound|eai_again/.test(combined)) likelyCauses.push('DNS/SRV resolution')
+  if (codes.some((code) => code.startsWith('ERR_SSL_') || code.startsWith('ERR_TLS_') || code.startsWith('TLSV1_ALERT_')) || /tls|ssl|certificate/.test(combined)) likelyCauses.push('TLS handshake or certificate negotiation')
   if (codes.some((code) => ['ETIMEDOUT', 'ETIMEOUT'].includes(code)) || /timed out|timeout/.test(combined)) likelyCauses.push('network timeout')
   if (/ip.{0,40}(?:not whitelisted|not allowed|access list)|whitelist.{0,40}ip/.test(combined)) {
     likelyCauses.push('Atlas IP access-list rejection indicated by the error')
@@ -114,11 +116,11 @@ export function createDatabaseConnectionMonitor({ connect, onConnected, wait = w
 export async function connectDatabase() {
   const uri = process.env.MONGODB_URI?.trim()
   if (!mongoConfigurationReported) {
-    console.info(`MongoDB connection variable MONGODB_URI is ${uri ? 'configured' : 'missing'}`)
+    console.info(`${runtimeLogPrefix()} MongoDB connection variable MONGODB_URI is ${uri ? 'configured' : 'missing'}`)
     mongoConfigurationReported = true
   }
   if (!uri) {
-    console.error('MongoDB connection failed (ConfigurationError): MONGODB_URI is required')
+    console.error(`${runtimeLogPrefix()} MongoDB connection failed (ConfigurationError): MONGODB_URI is required`)
     throw new Error('MONGODB_URI is required')
   }
   if (mongoose.connection.readyState === 1) return mongoose.connection
@@ -126,11 +128,11 @@ export async function connectDatabase() {
 
   connectionPromise = mongoose.connect(uri)
     .then(() => {
-      if (process.env.NODE_ENV !== 'production') console.info('MongoDB connected')
+      if (process.env.NODE_ENV !== 'production') console.info(`${runtimeLogPrefix()} MongoDB connected`)
       return mongoose.connection
     })
     .catch((error) => {
-      console.error(`MongoDB connection failed (${error.name}): ${formatMongoConnectionError(error, uri)}`)
+      console.error(`${runtimeLogPrefix()} MongoDB connection failed (${error.name}): ${formatMongoConnectionError(error, uri)}`)
       throw new Error(`MongoDB connection failed (${error.name})`)
     })
 
@@ -146,6 +148,10 @@ export function startDatabaseConnection({ onConnected } = {}) {
     databaseMonitor = createDatabaseConnectionMonitor({
       connect: connectDatabase,
       onConnected,
+      logger: {
+        warn: (message) => console.warn(`${runtimeLogPrefix()} ${message}`),
+        error: (message) => console.error(`${runtimeLogPrefix()} ${message}`),
+      },
     })
   }
 

@@ -27,7 +27,7 @@ function startupEnvironment(port) {
 
 test('Hostinger require entry listens promptly and serves liveness while MongoDB is unavailable', async (context) => {
   const port = await reservePort()
-  const child = spawn(process.execPath, ['-e', "require('./server.js')"], {
+  const child = spawn(process.execPath, ['-e', "require('./server.js'); import('./server.js?duplicate-entry')"], {
     cwd: process.cwd(),
     env: startupEnvironment(port),
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -44,6 +44,13 @@ test('Hostinger require entry listens promptly and serves liveness while MongoDB
     await new Promise((resolve) => setTimeout(resolve, 25))
   }
   assert.match(logs, /HTTP listener bound/, `server did not call listen within 2.7 seconds: ${logs}`)
+  const duplicateDeadline = Date.now() + 1_000
+  while (Date.now() < duplicateDeadline && !logs.includes('duplicate server.js startup ignored')) {
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  assert.match(logs, /\[pid=\d+ startup=[0-9a-f-]+\] BrianE-Dev HTTP listener bound/)
+  assert.match(logs, /duplicate server\.js startup ignored/)
+  assert.equal([...logs.matchAll(/HTTP listener bound/g)].length, 1, 'duplicate entry evaluation must not bind a second listener')
 
   let live
   const liveDeadline = Date.now() + 15_000

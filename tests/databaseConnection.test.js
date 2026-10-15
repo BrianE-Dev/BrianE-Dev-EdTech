@@ -87,3 +87,17 @@ test('MongoDB diagnostic classifies DNS and authentication errors without loggin
   assert.match(authDiagnostic, /authentication/)
   assert.doesNotMatch(authDiagnostic, /private-user/)
 })
+
+test('MongoDB diagnostic identifies TLS alerts without exposing nested error messages', () => {
+  const tlsError = Object.assign(new Error('MongoNetworkError: ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR'), {
+    name: 'MongoNetworkError',
+    cause: Object.assign(new Error('TLS peer rejected handshake for private-cluster.example'), {
+      code: 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR',
+    }),
+  })
+
+  const diagnostic = formatMongoConnectionError(tlsError)
+  assert.match(diagnostic, /ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR/)
+  assert.match(diagnostic, /TLS handshake or certificate negotiation/)
+  assert.doesNotMatch(diagnostic, /private-cluster\.example/)
+})
