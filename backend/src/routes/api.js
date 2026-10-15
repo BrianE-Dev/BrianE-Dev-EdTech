@@ -23,6 +23,7 @@ import { generateChapterAudio, getCourseAudioStatus, isReadyChapterAudio, loadRe
 import { buildTtsTranscript, hashTranscript } from '../services/ttsTranscript.js'
 import { isSuperAdmin } from '../utils/authorization.js'
 import { createTtsStorage } from '../services/ttsStorage.js'
+import { isDatabaseReady } from '../config/database.js'
 
 const router = Router()
 const isSecureCookie = process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production'
@@ -57,6 +58,10 @@ async function completePayment(payment, transaction) {
 }
 
 router.get('/health', (_req, res) => res.json({ ok: true }))
+router.get('/ready', (_req, res) => {
+  const ready = isDatabaseReady()
+  res.status(ready ? 200 : 503).json({ ok: ready, database: ready ? 'ready' : 'unavailable' })
+})
 
 router.post('/auth/register', async (req, res) => {
   const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.email(), password: z.string().min(10).max(128) })

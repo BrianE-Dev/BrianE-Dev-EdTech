@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { rateLimit } from 'express-rate-limit'
+import { isDatabaseReady, isDatabaseUnavailableError } from './config/database.js'
 import api from './routes/api.js'
 
 const app = express()
@@ -15,6 +16,13 @@ app.use(express.json({ limit: '1mb', verify: (req, _res, buffer) => { req.rawBod
 app.use(cookieParser())
 app.use('/api', (_req, res, next) => {
   res.set('Cache-Control', 'no-store')
+  next()
+})
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health' || req.path === '/ready' || req.path === '/auth/logout') return next()
+  if (!isDatabaseReady()) {
+    return res.status(503).json({ error: 'Database unavailable', code: 'DATABASE_UNAVAILABLE' })
+  }
   next()
 })
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false }))
@@ -36,6 +44,9 @@ if (existsSync(frontendBuildPath)) {
 }
 app.use((error, _req, res, next) => {
   void next
+  if (isDatabaseUnavailableError(error)) {
+    return res.status(503).json({ error: 'Database unavailable', code: 'DATABASE_UNAVAILABLE' })
+  }
   const status = error.status || (error.name === 'ZodError' ? 400 : error.code === 11000 ? 409 : 500)
   if (status >= 500) console.error(error.message)
   res.status(status).json({ error: status === 500 ? 'Internal server error' : error.message, ...(error.name === 'ZodError' ? { details: error.issues.map(({ path, message }) => ({ path: path.join('.'), message })) } : {}) })

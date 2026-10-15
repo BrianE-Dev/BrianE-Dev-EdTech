@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
 import { createServer } from 'node:http'
 import jwt from 'jsonwebtoken'
+import mongoose from 'mongoose'
 import test from 'node:test'
 
 process.env.JWT_SECRET = 'phase-four-test-secret-with-enough-length'
@@ -18,7 +19,7 @@ const [{ default: app }, models] = await Promise.all([
 const { curriculum } = await import('../src/data/curriculum.js')
 const { getLessonByChapterId } = await import('../backend/src/services/lessonRepository.js')
 const { getPaymentReturnState } = await import('../src/services/paymentReturn.js')
-const { AssessmentAttempt, Certificate, Course, Payment, Pricing, Progress, User } = models
+const { AssessmentAttempt, Certificate, CertificateTemplate, Course, Payment, Pricing, Progress, User } = models
 
 const course = {
   id: '507f1f77bcf86cd799439011',
@@ -59,7 +60,9 @@ const originals = {
   pricingFindOne: Pricing.findOne,
   certificateFind: Certificate.find,
   certificateFindOne: Certificate.findOne,
+  certificateTemplateFindOne: CertificateTemplate.findOne,
 }
+const initialDatabaseReadyState = mongoose.connection.readyState
 let progressRecords
 let attemptRecords
 let priceRows
@@ -73,6 +76,7 @@ function query(data) {
 }
 
 test.before(async () => {
+  mongoose.connection.readyState = 1
   const passwordHash = await bcrypt.hash(testPassword, 4)
   userRows.set(userDbId, { id: userDbId, name: 'Test User', email: 'learner@example.test', passwordHash, role: 'user' })
   userRows.set(secondUserId, { id: secondUserId, name: 'Second Learner', email: 'second@example.test', passwordHash, role: 'user' })
@@ -156,6 +160,7 @@ test.before(async () => {
   }
   Certificate.find = async () => []
   Certificate.findOne = () => ({ select: async () => null })
+  CertificateTemplate.findOne = () => ({ lean: async () => null })
   server = createServer(app)
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   baseUrl = `http://127.0.0.1:${server.address().port}`
@@ -184,6 +189,8 @@ test.after(async () => {
   globalThis.fetch = originalFetch
   Certificate.find = originals.certificateFind
   Certificate.findOne = originals.certificateFindOne
+  CertificateTemplate.findOne = originals.certificateTemplateFindOne
+  mongoose.connection.readyState = initialDatabaseReadyState
 })
 
 function sessionCookie(userId = userDbId) {
