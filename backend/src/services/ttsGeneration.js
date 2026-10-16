@@ -145,6 +145,28 @@ async function latestReadyAudio({ courseId, chapterId, transcriptHash }, AudioMo
   return typeof query?.sort === 'function' ? query.sort({ updatedAt: -1 }) : query
 }
 
+async function findAvailableReadyAudio({ courseId, chapterId, transcriptHash }, AudioModel, storage) {
+  if (typeof AudioModel.find !== 'function') {
+    const record = await latestReadyAudio({ courseId, chapterId, transcriptHash }, AudioModel)
+    if (record && await audioExists(record, storage)) return record
+    const latest = await latestReadyAudio({ courseId, chapterId }, AudioModel)
+    return latest && await audioExists(latest, storage) ? latest : null
+  }
+
+  const query = AudioModel.find({ courseId: String(courseId), chapterId, status: 'ready' })
+  const records = await (typeof query?.sort === 'function' ? query.sort({ updatedAt: -1 }) : query)
+  const candidates = [...records].sort((left, right) => {
+    const leftMatches = left.transcriptHash === transcriptHash
+    const rightMatches = right.transcriptHash === transcriptHash
+    return Number(rightMatches) - Number(leftMatches)
+      || new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime()
+  })
+  for (const record of candidates) {
+    if (await audioExists(record, storage)) return record
+  }
+  return null
+}
+
 function storagePrefix(identity, generationId) {
   return [
     'brianedev', 'tts', safeComponent(identity.courseId), safeComponent(identity.chapterId),
@@ -218,13 +240,9 @@ export async function generateChapterAudio(courseId, lesson, { generatedBy, forc
 export async function loadReadyChapterAudio(courseId, lesson, { AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env } = {}) {
   const transcript = buildTtsTranscript(lesson)
   const transcriptHash = hashTranscript(transcript)
-  const identity = identityFor(courseId, lesson, transcriptHash, ttsConfig(env, { requireApiKey: false }))
-  let record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId, transcriptHash }, AudioModel)
-  if (!record || !await audioExists(record, storage)) record = await AudioModel.findOne(identity)
-  if (!record || record.status !== 'ready' || !await audioExists(record, storage)) {
-    record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId }, AudioModel)
-  }
-  if (!record || record.status !== 'ready' || !await audioExists(record, storage)) return null
+  ttsConfig(env, { requireApiKey: false })
+  const record = await findAvailableReadyAudio({ courseId, chapterId: lesson.chapterId, transcriptHash }, AudioModel, storage)
+  if (!record) return null
   const ordered = [...record.chunks].sort((left, right) => left.order - right.order)
   const buffers = await Promise.all(ordered.map((chunk) => storage.read(chunk.storageKey)))
   const mimeType = record.mimeType || 'audio/wav'
@@ -235,13 +253,8 @@ export async function loadReadyChapterAudio(courseId, lesson, { AudioModel = Tts
 export async function isReadyChapterAudio(courseId, lesson, { AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env } = {}) {
   const transcript = buildTtsTranscript(lesson)
   const transcriptHash = hashTranscript(transcript)
-  const identity = identityFor(courseId, lesson, transcriptHash, ttsConfig(env, { requireApiKey: false }))
-  let record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId, transcriptHash }, AudioModel)
-  if (!record || !await audioExists(record, storage)) record = await AudioModel.findOne(identity)
-  if (!record || record.status !== 'ready' || !await audioExists(record, storage)) {
-    record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId }, AudioModel)
-  }
-  return Boolean(record?.status === 'ready' && await audioExists(record, storage))
+  ttsConfig(env, { requireApiKey: false })
+  return Boolean(await findAvailableReadyAudio({ courseId, chapterId: lesson.chapterId, transcriptHash }, AudioModel, storage))
 }
 
 export async function getCourseAudioStatus(courseId, { AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env } = {}) {
@@ -257,20 +270,22 @@ export async function getCourseAudioStatus(courseId, { AudioModel = TtsAudio, st
     })()
     const identity = identityFor(courseId, lesson, transcriptHash, config)
     let record = await AudioModel.findOne(identity)
-    if (!record || record.status !== 'ready' || !await audioExists(record, storage)) {
-      const savedAlternate = await AudioModel.findOne({ courseId: String(courseId), chapterId: chapter.id, transcriptHash, status: 'ready' }).sort({ updatedAt: -1 })
-      if (savedAlternate && await audioExists(savedAlternate, storage)) record = savedAlternate
-    }
+    const playable = await findAvailableReadyAudio({ courseId, chapterId: chapter.id, transcriptHash }, AudioModel, storage)
     let status = 'missing'
-    if (record?.status === 'generating') status = 'generating'
+    if (playable) {
+      record = playable
+      status = playable.transcriptHash === transcriptHash ? 'ready' : 'stale'
+    } else if (record?.status === 'generating') status = 'generating'
     else if (record?.status === 'failed') status = 'failed'
-    else if (record?.status === 'ready') status = await audioExists(record, storage) ? 'ready' : 'stale'
+    else if (record?.status === 'ready') status = 'stale'
     else {
       const old = await AudioModel.findOne({ courseId: String(courseId), chapterId: chapter.id }).sort({ updatedAt: -1 })
-      if (old) status = 'stale'
+      if (old?.status === 'generating') status = 'generating'
+      else if (old?.status === 'failed') status = 'failed'
+      else if (old) status = 'stale'
     }
     counts[status] += 1
-    chapterStatuses.push({ chapterId: chapter.id, number: chapter.number, title: chapter.title, status, error: record?.error || '' })
+    chapterStatuses.push({ chapterId: chapter.id, number: chapter.number, title: chapter.title, status, playable: Boolean(playable), error: record?.error || '' })
   }
   const batch = await TtsBatchJob.findOne({ courseId: String(courseId) }).lean()
   return { ...counts, chapters: chapterStatuses, batch: batch ? {

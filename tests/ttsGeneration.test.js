@@ -19,6 +19,10 @@ function createFakes() {
   const keyFor = (identity) => JSON.stringify(Object.keys(identity).sort().map((key) => [key, identity[key]]))
   const AudioModel = {
     async findOne(identity) { const record = records.get(keyFor(identity)); return record ? structuredClone(record) : null },
+    find(filter) {
+      const matching = [...records.values()].filter((record) => Object.entries(filter).every(([key, value]) => record[key] === value))
+      return { sort() { matching.sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)); return this }, then(resolve, reject) { return Promise.resolve(matching.map((record) => structuredClone(record))).then(resolve, reject) } }
+    },
     async findOneAndUpdate(filter, update) {
       const identity = Object.fromEntries(Object.entries(filter).filter(([key]) => key !== '$or'))
       const key = keyFor(identity)
@@ -150,4 +154,21 @@ test('saved audio remains playable after lesson text changes without being regen
   assert.equal(saved.record._id, record._id)
   assert.equal(saved.buffer.toString('ascii', 0, 4), 'RIFF')
   assert.equal(records.size, 1, 'playback must not generate a replacement recording')
+})
+
+test('playback skips a newer stale record whose object is missing and uses an older stored Gemini recording', async () => {
+  const { AudioModel, storage, records } = createFakes()
+  const olderEnv = { ...env, GEMINI_TTS_VOICE: 'Aoede' }
+  const newerEnv = { ...env, GEMINI_TTS_VOICE: 'Kore' }
+  await generateChapterAudio('course-1', lesson(), { AudioModel, storage, env: olderEnv, generateAudio: async () => wav() })
+  const olderRecord = [...records.values()][0]
+  olderRecord.updatedAt = new Date('2025-01-01T00:00:00.000Z')
+  await generateChapterAudio('course-1', lesson(), { AudioModel, storage, env: newerEnv, generateAudio: async () => wav() })
+  const newerRecord = [...records.values()].find((record) => record.voice === 'Kore')
+  newerRecord.updatedAt = new Date('2026-01-01T00:00:00.000Z')
+  await storage.delete(newerRecord.chunks[0].storageKey)
+
+  const result = await loadReadyChapterAudio('course-1', lesson(), { AudioModel, storage, env: newerEnv })
+  assert.equal(result.record._id, olderRecord._id)
+  assert.equal(await storage.exists(olderRecord.chunks[0].storageKey), true)
 })
