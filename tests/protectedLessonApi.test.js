@@ -789,6 +789,11 @@ test('authentication propagates database failures as 503 and invalid credentials
   assert.equal(wrongPassword.status, 401)
 })
 
+test('saved chapter audio status remains protected by authentication', async () => {
+  const response = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/audio/status`, { userId: null })
+  assert.equal(response.status, 401)
+})
+
 test('progress API uses canonical IDs, server state, strict statuses, and preserves completion', async () => {
   progressRecords.clear()
   attemptRecords = []

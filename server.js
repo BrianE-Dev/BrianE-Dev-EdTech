@@ -1,9 +1,10 @@
 import { createServer } from 'node:http'
-import { runtimeLogPrefix, serverKey } from './backend/src/config/runtimeIdentity.js'
+import { installProcessDiagnostics, runtimeLogPrefix, serverKey } from './backend/src/config/runtimeIdentity.js'
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'node:url'
 
 dotenv.config({ path: fileURLToPath(new URL('./backend/.env', import.meta.url)) })
+installProcessDiagnostics()
 
 const portValue = process.env.PORT
 const port = portValue === undefined ? 4000 : Number(portValue)

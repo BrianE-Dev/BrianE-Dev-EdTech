@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildTtsTranscript, hashTranscript } from '../backend/src/services/ttsTranscript.js'
-import { combineWavBuffers, generateChapterAudio, splitTtsTranscript } from '../backend/src/services/ttsGeneration.js'
+import { combineWavBuffers, generateChapterAudio, isReadyChapterAudio, loadReadyChapterAudio, splitTtsTranscript } from '../backend/src/services/ttsGeneration.js'
 
 function wav(pcmBytes = 4800) {
   const pcm = Buffer.alloc(pcmBytes)
@@ -118,4 +118,21 @@ test('missing stored audio is regenerated and failed forced regeneration preserv
   await assert.rejects(generateChapterAudio('course-1', lesson(), { ...options, force: true, generateAudio: async () => { throw new Error('temporary generation failure') } }), /temporary generation failure/)
   assert.equal([...records.values()][0].status, 'ready')
   assert.equal(objects.has(validKey), true)
+})
+
+test('saved audio remains retrievable when the current Gemini model or voice differs', async () => {
+  const { AudioModel, storage, records } = createFakes()
+  const oldConfig = { ...env, GEMINI_TTS_MODEL: 'gemini-previous-model', GEMINI_TTS_VOICE: 'Aoede' }
+  await generateChapterAudio('course-1', lesson(), { AudioModel, storage, env: oldConfig, generateAudio: async () => wav() })
+  const record = [...records.values()][0]
+  AudioModel.findOne = (filter) => {
+    const matching = [...records.values()].find((candidate) => Object.entries(filter).every(([key, value]) => key === 'status' ? candidate.status === value : candidate[key] === value)) || null
+    return { sort() { return this }, then(resolve, reject) { return Promise.resolve(matching).then(resolve, reject) } }
+  }
+  const currentConfig = { ...env, GEMINI_TTS_MODEL: 'gemini-current-model', GEMINI_TTS_VOICE: 'Kore' }
+  assert.equal(await isReadyChapterAudio('course-1', lesson(), { AudioModel, storage, env: currentConfig }), true)
+  const saved = await loadReadyChapterAudio('course-1', lesson(), { AudioModel, storage, env: currentConfig })
+  assert.equal(saved.record._id, record._id)
+  assert.equal(saved.mimeType, 'audio/wav')
+  assert.equal(saved.buffer.toString('ascii', 0, 4), 'RIFF')
 })

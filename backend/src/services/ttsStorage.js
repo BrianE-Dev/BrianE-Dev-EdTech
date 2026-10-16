@@ -5,6 +5,15 @@ import { fileURLToPath } from 'node:url'
 
 const localRoot = fileURLToPath(new URL('../../.local-tts/', import.meta.url))
 
+export class TtsStorageError extends Error {
+  constructor(cause) {
+    super('Persistent audio storage is unavailable', { cause })
+    this.name = 'TtsStorageError'
+    this.status = 503
+    this.code = 'AUDIO_STORAGE_UNAVAILABLE'
+  }
+}
+
 function safeKey(key) {
   if (typeof key !== 'string' || !key || key.startsWith('/') || key.includes('\\') || key.split('/').some((part) => !part || part === '.' || part === '..')) {
     throw new Error('TTS storage key is invalid')
@@ -39,9 +48,10 @@ function createS3Storage(env = process.env) {
   const accessKey = env.TTS_S3_ACCESS_KEY_ID?.trim()
   const secretKey = env.TTS_S3_SECRET_ACCESS_KEY?.trim()
   const endpoint = env.TTS_S3_ENDPOINT?.trim()
-  if (!bucket || !region || !accessKey || !secretKey) throw new Error('TTS S3 storage requires TTS_S3_BUCKET, TTS_S3_REGION, TTS_S3_ACCESS_KEY_ID, and TTS_S3_SECRET_ACCESS_KEY')
-  const baseUrl = new URL(endpoint || `https://s3.${region}.amazonaws.com`)
-  if (baseUrl.protocol !== 'https:') throw new Error('TTS_S3_ENDPOINT must use HTTPS')
+  if (!bucket || !region || !accessKey || !secretKey) throw new TtsStorageError(new Error('S3-compatible storage credentials are incomplete'))
+  let baseUrl
+  try { baseUrl = new URL(endpoint || `https://s3.${region}.amazonaws.com`) } catch (error) { throw new TtsStorageError(error) }
+  if (baseUrl.protocol !== 'https:') throw new TtsStorageError(new Error('S3-compatible endpoint must use HTTPS'))
 
   async function request(method, key, body, mimeType) {
     const clean = safeKey(key)
@@ -68,24 +78,27 @@ function createS3Storage(env = process.env) {
     const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, createHash('sha256').update(canonicalRequest).digest('hex')].join('\n')
     const signature = createHmac('sha256', awsSigningKey(secretKey, date, region)).update(stringToSign).digest('hex')
     const authorization = `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
-    const response = await fetch(objectUrl, { method, headers: { ...headers, authorization }, body: method === 'PUT' ? body : undefined })
-    return response
+    try {
+      return await fetch(objectUrl, { method, headers: { ...headers, authorization }, body: method === 'PUT' ? body : undefined })
+    } catch (error) {
+      throw new TtsStorageError(error)
+    }
   }
 
   return {
-    async exists(key) { const response = await request('HEAD', key); if (response.status === 404) return false; if (!response.ok) throw new Error(`TTS object storage check failed (${response.status})`); return true },
-    async upload(key, buffer, mimeType = 'audio/wav') { const response = await request('PUT', key, buffer, mimeType); if (!response.ok) throw new Error(`TTS object storage upload failed (${response.status})`) },
-    async read(key) { const response = await request('GET', key); if (!response.ok) throw new Error(response.status === 404 ? 'TTS object is missing' : `TTS object storage read failed (${response.status})`); return Buffer.from(await response.arrayBuffer()) },
-    async delete(key) { const response = await request('DELETE', key); if (!response.ok && response.status !== 404) throw new Error(`TTS object storage delete failed (${response.status})`) },
+    async exists(key) { const response = await request('HEAD', key); if (response.status === 404) return false; if (!response.ok) throw new TtsStorageError(new Error(`Object check failed (${response.status})`)); return true },
+    async upload(key, buffer, mimeType = 'audio/wav') { const response = await request('PUT', key, buffer, mimeType); if (!response.ok) throw new TtsStorageError(new Error(`Object upload failed (${response.status})`)) },
+    async read(key) { const response = await request('GET', key); if (!response.ok) throw new TtsStorageError(new Error(`Object read failed (${response.status})`)); return Buffer.from(await response.arrayBuffer()) },
+    async delete(key) { const response = await request('DELETE', key); if (!response.ok && response.status !== 404) throw new TtsStorageError(new Error(`Object deletion failed (${response.status})`)) },
   }
 }
 
 export function createTtsStorage(env = process.env) {
   const provider = env.TTS_STORAGE_PROVIDER || (env.NODE_ENV === 'production' ? 's3' : 'local')
   if (provider === 'local') {
-    if (env.NODE_ENV === 'production') throw new Error('Local TTS storage is disabled in production; configure persistent S3-compatible storage')
+    if (env.NODE_ENV === 'production') throw new TtsStorageError(new Error('Local storage is disabled in production'))
     return createLocalStorage()
   }
   if (provider === 's3') return createS3Storage(env)
-  throw new Error('TTS_STORAGE_PROVIDER must be local or s3')
+  throw new TtsStorageError(new Error('Storage provider is invalid'))
 }

@@ -48,6 +48,9 @@ app.use((error, _req, res, next) => {
   if (isDatabaseUnavailableError(error)) {
     return res.status(503).json({ error: 'Database unavailable', code: 'DATABASE_UNAVAILABLE' })
   }
+  if (error.code === 'AUDIO_STORAGE_UNAVAILABLE') {
+    return res.status(503).json({ error: 'Persistent audio storage is unavailable', code: 'AUDIO_STORAGE_UNAVAILABLE' })
+  }
   const status = error.status || (error.name === 'ZodError' ? 400 : error.code === 11000 ? 409 : 500)
   if (status >= 500) console.error(error.message)
   res.status(status).json({ error: status === 500 ? 'Internal server error' : error.message, ...(error.name === 'ZodError' ? { details: error.issues.map(({ path, message }) => ({ path: path.join('.'), message })) } : {}) })
