@@ -136,3 +136,18 @@ test('saved audio remains retrievable when the current Gemini model or voice dif
   assert.equal(saved.mimeType, 'audio/wav')
   assert.equal(saved.buffer.toString('ascii', 0, 4), 'RIFF')
 })
+
+test('saved audio remains playable after lesson text changes without being regenerated', async () => {
+  const { AudioModel, storage, records } = createFakes()
+  await generateChapterAudio('course-1', lesson(), { AudioModel, storage, env, generateAudio: async () => wav() })
+  const record = [...records.values()][0]
+  const currentLesson = lesson('The lesson has since been revised.')
+  const findMatching = (filter) => [...records.values()].find((candidate) => Object.entries(filter).every(([key, value]) => candidate[key] === value)) || null
+  AudioModel.findOne = (filter) => ({ sort() { return this }, then(resolve, reject) { return Promise.resolve(findMatching(filter)).then(resolve, reject) } })
+
+  assert.equal(await isReadyChapterAudio('course-1', currentLesson, { AudioModel, storage, env }), true)
+  const saved = await loadReadyChapterAudio('course-1', currentLesson, { AudioModel, storage, env })
+  assert.equal(saved.record._id, record._id)
+  assert.equal(saved.buffer.toString('ascii', 0, 4), 'RIFF')
+  assert.equal(records.size, 1, 'playback must not generate a replacement recording')
+})

@@ -141,7 +141,7 @@ async function audioExists(record, storage) {
 }
 
 async function latestReadyAudio({ courseId, chapterId, transcriptHash }, AudioModel) {
-  const query = AudioModel.findOne({ courseId: String(courseId), chapterId, transcriptHash, status: 'ready' })
+  const query = AudioModel.findOne({ courseId: String(courseId), chapterId, ...(transcriptHash ? { transcriptHash } : {}), status: 'ready' })
   return typeof query?.sort === 'function' ? query.sort({ updatedAt: -1 }) : query
 }
 
@@ -221,6 +221,9 @@ export async function loadReadyChapterAudio(courseId, lesson, { AudioModel = Tts
   const identity = identityFor(courseId, lesson, transcriptHash, ttsConfig(env, { requireApiKey: false }))
   let record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId, transcriptHash }, AudioModel)
   if (!record || !await audioExists(record, storage)) record = await AudioModel.findOne(identity)
+  if (!record || record.status !== 'ready' || !await audioExists(record, storage)) {
+    record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId }, AudioModel)
+  }
   if (!record || record.status !== 'ready' || !await audioExists(record, storage)) return null
   const ordered = [...record.chunks].sort((left, right) => left.order - right.order)
   const buffers = await Promise.all(ordered.map((chunk) => storage.read(chunk.storageKey)))
@@ -235,6 +238,9 @@ export async function isReadyChapterAudio(courseId, lesson, { AudioModel = TtsAu
   const identity = identityFor(courseId, lesson, transcriptHash, ttsConfig(env, { requireApiKey: false }))
   let record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId, transcriptHash }, AudioModel)
   if (!record || !await audioExists(record, storage)) record = await AudioModel.findOne(identity)
+  if (!record || record.status !== 'ready' || !await audioExists(record, storage)) {
+    record = await latestReadyAudio({ courseId, chapterId: lesson.chapterId }, AudioModel)
+  }
   return Boolean(record?.status === 'ready' && await audioExists(record, storage))
 }
 
