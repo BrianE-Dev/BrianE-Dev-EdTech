@@ -81,9 +81,11 @@ test.before(async () => {
   userRows.set(userDbId, { id: userDbId, name: 'Test User', email: 'learner@example.test', passwordHash, role: 'user' })
   userRows.set(secondUserId, { id: secondUserId, name: 'Second Learner', email: 'second@example.test', passwordHash, role: 'user' })
   userRows.set(adminUserId, { id: adminUserId, name: 'Admin User', email: 'admin@example.test', passwordHash, role: 'super_admin' })
+  userRows.set('admin-auth-test', { id: 'admin-auth-test', name: 'Auth Test Admin', email: 'admin@example.test', passwordHash, role: 'super_admin' })
   User.findById = async (id) => userRows.get(String(id)) || null
   User.findOne = (filter) => ({ select: async () => [...userRows.values()].find((user) => user.email === filter.email) || null })
   User.create = async (input) => {
+    if ([...userRows.values()].some((user) => user.email === input.email)) throw Object.assign(new Error('duplicate key'), { code: 11000 })
     const user = { ...input, id: '507f1f77bcf86cd799439015', role: input.role || 'user' }
     userRows.set(user.id, user)
     return user
@@ -730,6 +732,61 @@ test('learner login, invalid credentials, registration role isolation, and admin
   const adminProgress = await apiJson(`/courses/${course.id}/progress`, { userId: adminUserId })
   assert.equal(adminProgress.status, 200)
   paid = false
+})
+
+test('authentication handles normalized emails, admin credentials, malformed hashes, disabled users, duplicates and logout safely', async () => {
+  const adminLogin = await apiJson('/auth/login', { method: 'POST', body: { email: ' ADMIN@example.test ', password: testPassword }, userId: null })
+  assert.equal(adminLogin.status, 200)
+  assert.equal((await adminLogin.json()).user.role, 'super_admin')
+  assert.match(adminLogin.headers.get('set-cookie') || '', /HttpOnly/i)
+
+  const registered = await apiJson('/auth/register', {
+    method: 'POST',
+    userId: null,
+    body: { name: 'Normalized User', email: '  New.User@Example.Test  ', password: 'normalized-password', role: 'super_admin' },
+  })
+  assert.equal(registered.status, 201)
+  const body = await registered.json()
+  assert.equal(body.user.email, 'new.user@example.test')
+  assert.equal(body.user.role, 'user')
+  assert.equal(JSON.stringify(body).includes('passwordHash'), false)
+  const row = userRows.get(body.user.id)
+  assert.match(row.passwordHash, /^\$2[aby]\$12\$/)
+  assert.equal(await bcrypt.compare('normalized-password', row.passwordHash), true)
+  const normalizedLogin = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: ' NEW.USER@example.test ', password: 'normalized-password' } })
+  assert.equal(normalizedLogin.status, 200)
+
+  const duplicate = await apiJson('/auth/register', { method: 'POST', userId: null, body: { name: 'Duplicate', email: 'NEW.USER@example.test', password: 'duplicate-password' } })
+  assert.equal(duplicate.status, 409)
+
+  userRows.set('bad-hash', { id: 'bad-hash', name: 'Bad Hash', email: 'bad-hash@example.test', passwordHash: 'not-a-bcrypt-hash', role: 'user' })
+  const malformedHash = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: 'bad-hash@example.test', password: 'password' } })
+  assert.equal(malformedHash.status, 401)
+  userRows.set('missing-hash', { id: 'missing-hash', name: 'Missing Hash', email: 'missing-hash@example.test', role: 'user' })
+  const missingHash = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: 'missing-hash@example.test', password: 'password' } })
+  assert.equal(missingHash.status, 401)
+
+  userRows.get(userDbId).disabledAt = new Date()
+  const disabled = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: 'learner@example.test', password: testPassword } })
+  assert.equal(disabled.status, 403)
+  delete userRows.get(userDbId).disabledAt
+
+  const logout = await apiJson('/auth/logout', { method: 'POST', userId: null })
+  assert.equal(logout.status, 200)
+  assert.match(logout.headers.get('set-cookie') || '', /Expires=Thu, 01 Jan 1970/i)
+})
+
+test('authentication propagates database failures as 503 and invalid credentials as 401', async () => {
+  const originalFindOne = User.findOne
+  try {
+    User.findOne = () => ({ select: async () => { throw Object.assign(new Error('unavailable'), { name: 'MongooseServerSelectionError' }) } })
+    const unavailable = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: 'user@example.test', password: 'password' } })
+    assert.equal(unavailable.status, 503)
+  } finally {
+    User.findOne = originalFindOne
+  }
+  const wrongPassword = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: 'learner@example.test', password: 'wrong-password' } })
+  assert.equal(wrongPassword.status, 401)
 })
 
 test('progress API uses canonical IDs, server state, strict statuses, and preserves completion', async () => {

@@ -80,7 +80,7 @@ router.get('/diagnostics/hostinger-network', async (req, res) => {
 })
 
 router.post('/auth/register', async (req, res) => {
-  const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.email(), password: z.string().min(10).max(128) })
+  const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()), password: z.string().min(10).max(128) })
   const input = schema.parse(req.body)
   const country = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
   const user = await User.create({ name: input.name, email: input.email, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
@@ -89,9 +89,12 @@ router.post('/auth/register', async (req, res) => {
 })
 
 router.post('/auth/login', async (req, res) => {
-  const input = z.object({ email: z.email(), password: z.string().min(1) }).parse(req.body)
-  const user = await User.findOne({ email: input.email.toLowerCase() }).select('+passwordHash')
-  if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) return res.status(401).json({ error: 'Invalid email or password' })
+  const input = z.object({ email: z.string().trim().toLowerCase().pipe(z.email()), password: z.string().min(1) }).parse(req.body)
+  const user = await User.findOne({ email: input.email }).select('+passwordHash')
+  if (!user || typeof user.passwordHash !== 'string' || !/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(user.passwordHash)) {
+    return res.status(401).json({ error: 'Invalid email or password' })
+  }
+  if (!(await bcrypt.compare(input.password, user.passwordHash))) return res.status(401).json({ error: 'Invalid email or password' })
   if (user.disabledAt) return res.status(403).json({ error: 'This learner account has been disabled.' })
   const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
   res.cookie('session', token, sessionCookie).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } })
