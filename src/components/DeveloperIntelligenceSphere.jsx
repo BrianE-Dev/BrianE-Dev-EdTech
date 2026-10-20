@@ -30,13 +30,13 @@ export default function DeveloperIntelligenceSphere() {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 50)
-    camera.position.set(0, 0, 7.2)
+    camera.position.set(0, 0, 6.2)
 
     const root = new THREE.Group()
     scene.add(root)
     const cyan = 0x06b6d4
     const wire = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1.42, 2),
+      new THREE.IcosahedronGeometry(1.85, 2),
       new THREE.MeshBasicMaterial({ color: cyan, wireframe: true, transparent: true, opacity: 0.44 }),
     )
     root.add(wire)
@@ -64,7 +64,7 @@ export default function DeveloperIntelligenceSphere() {
 
     const particlePositions = new Float32Array(54)
     for (let index = 0; index < 18; index += 1) {
-      const point = pointsOnSphere(19)[index + 1].multiplyScalar(1.72 + (index % 3) * 0.12)
+      const point = pointsOnSphere(19)[index + 1].multiplyScalar(2.12 + (index % 3) * 0.14)
       particlePositions.set([point.x, point.y, point.z], index * 3)
     }
     const particleGeometry = new THREE.BufferGeometry()

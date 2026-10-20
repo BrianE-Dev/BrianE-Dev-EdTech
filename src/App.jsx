@@ -156,9 +156,7 @@ function LandingPage() {
             </div>
           </div>
           <div className="hero-visual" key={`hero-visual-${heroRun}`}>
-            <div className="visual-window-bar"><div className="window-dots"><i/><i/><i/></div><span>COURSE OVERVIEW</span><span className="live-label"><b/> AI WORKFLOWS</span></div>
             <div className="hero-image-wrap"><DeveloperIntelligenceSphere/></div>
-            <div className="visual-caption"><span><Icon name="book" size={13}/> DEVELOPER PRODUCTIVITY</span><span>01 / {curriculum.sections.length} — {curriculum.sections[0].title}</span></div>
           </div>
         </section>
 
