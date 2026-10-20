@@ -164,9 +164,9 @@ function LandingPage() {
           <div className="home-services-heading"><div><span className="eyebrow">BRIANE-DEV / DIGITAL SERVICES</span><h2 id="home-services-title">Digital services for your next idea.</h2><p>Explore practical web, commerce, and software solutions for your business.</p></div><a className="button button-secondary" href="/services">Explore all services <Icon name="arrow" size={15}/></a></div>
           <a className="home-services-feature" href="/services"><img src="/course-hero.png" alt="Software developer working with digital tools across multiple screens"/><span className="home-services-overlay"/><span className="home-services-copy"><span className="eyebrow">WEBSITE DESIGN / E-COMMERCE / WEB APPLICATIONS</span><strong>Build a better digital experience for your business.</strong><span className="button button-primary">Discover our services <Icon name="arrow" size={15}/></span></span></a>
           <div className="home-services-tiles">
-            <a href="/services"><img src="/course-hero.png" alt="Developer workspace screens with software diagrams"/><strong>Websites & landing pages</strong><span>Clear paths from first visit to action</span></a>
-            <a href="/services"><img src="/course-hero.png" alt="Developer building digital software products"/><strong>Commerce & custom apps</strong><span>Digital tools designed around your work</span></a>
-            <a href="/services"><img src="/course-hero.png" alt="Developer working with connected software tools"/><strong>Integrations & support</strong><span>Connect systems and keep them improving</span></a>
+            <a href="/services"><img src="/service-websites.svg" alt="Website layout preview showing a clear landing page design"/><strong>Websites & landing pages</strong><span>Clear paths from first visit to action</span></a>
+            <a href="/services"><img src="/service-commerce.svg" alt="Online shop interface with products and a checkout flow"/><strong>Commerce & custom apps</strong><span>Digital tools designed around your work</span></a>
+            <a href="/services"><img src="/service-integrations.svg" alt="Connected software services represented as an integration workflow"/><strong>Integrations & support</strong><span>Connect systems and keep them improving</span></a>
           </div>
         </section>
 
