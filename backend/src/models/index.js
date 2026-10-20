@@ -20,6 +20,8 @@ const userSchema = new Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true, select: false },
   role: { type: String, enum: ['user', 'super_admin'], default: 'user' },
+  emailVerified: { type: Boolean, index: true },
+  sessionVersion: { type: Number, default: 0 },
   disabledAt: { type: Date, default: null },
   country: { type: String, uppercase: true, maxlength: 2 },
   currency: { type: String, enum: ['NGN', 'USD'], default: 'USD' },
@@ -115,6 +117,27 @@ const certificateTemplateSchema = new Schema({
 
 const auditSchema = new Schema({ admin: { type: Schema.Types.ObjectId, ref: 'User', required: true }, action: String, resource: String, previousValue: Schema.Types.Mixed, newValue: Schema.Types.Mixed }, timestamps)
 
+const businessRequestSchema = new Schema({
+  reference: { type: String, required: true, unique: true, index: true }, kind: { type: String, enum: ['enquiry', 'quote'], required: true, index: true },
+  name: { type: String, required: true, trim: true, maxlength: 120 }, email: { type: String, required: true, lowercase: true, trim: true, index: true },
+  phone: { type: String, trim: true, maxlength: 40, default: '' }, company: { type: String, trim: true, maxlength: 160, default: '' }, website: { type: String, trim: true, maxlength: 300, default: '' },
+  subject: { type: String, trim: true, maxlength: 160, default: '' }, message: { type: String, trim: true, maxlength: 5000, default: '' }, details: { type: Schema.Types.Mixed, default: {} },
+  status: { type: String, enum: ['New', 'Under Review', 'Awaiting Customer', 'Qualified', 'Proposal Sent', 'Won', 'Lost', 'Closed'], default: 'New', index: true },
+  internalNotes: [{ body: { type: String, maxlength: 4000 }, author: { type: Schema.Types.ObjectId, ref: 'User' }, createdAt: { type: Date, default: Date.now } }],
+  statusHistory: [{ status: String, changedBy: { type: Schema.Types.ObjectId, ref: 'User' }, changedAt: { type: Date, default: Date.now } }],
+}, timestamps)
+businessRequestSchema.index({ createdAt: -1 })
+
+const businessContactSchema = new Schema({
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true }, name: { type: String, required: true, trim: true, maxlength: 120 }, company: { type: String, trim: true, maxlength: 160, default: '' },
+  source: { type: String, default: 'enquiry' }, leadStatus: { type: String, enum: ['New Lead', 'Contacted', 'Qualified', 'Proposal Sent', 'Converted', 'Not Proceeding'], default: 'New Lead', index: true },
+  tags: [{ type: String, trim: true, maxlength: 40 }], marketingConsent: { type: Boolean, default: false }, marketingConsentAt: Date, marketingConsentSource: String, marketingPolicyVersion: String, unsubscribedAt: Date,
+  activities: [{ body: { type: String, maxlength: 4000 }, type: { type: String, default: 'note' }, author: { type: Schema.Types.ObjectId, ref: 'User' }, createdAt: { type: Date, default: Date.now } }],
+}, timestamps)
+const campaignSchema = new Schema({ name: { type: String, required: true, trim: true, maxlength: 160 }, subject: { type: String, trim: true, maxlength: 200, default: '' }, previewText: { type: String, trim: true, maxlength: 250, default: '' }, html: { type: String, maxlength: 100000, default: '' }, text: { type: String, maxlength: 50000, default: '' }, status: { type: String, enum: ['Draft', 'Scheduled', 'Queued', 'Sending', 'Sent', 'Partially Failed', 'Failed', 'Cancelled'], default: 'Draft', index: true }, scheduledAt: Date, createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, lastError: String }, timestamps)
+const counterSchema = new Schema({ key: { type: String, unique: true, required: true }, value: { type: Number, default: 0 } })
+const securityTokenSchema = new Schema({ user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true }, purpose: { type: String, enum: ['verify', 'reset'], required: true }, tokenHash: { type: String, required: true, unique: true }, expiresAt: { type: Date, required: true, index: { expires: 0 } } }, timestamps)
+
 const ttsAudioSchema = new Schema({
   courseId: { type: String, required: true },
   chapterId: { type: String, required: true },
@@ -134,6 +157,7 @@ const ttsAudioSchema = new Schema({
   generationStartedAt: Date,
   generationCompletedAt: Date,
   lastAttemptAt: Date,
+  generationToken: String,
 }, timestamps)
 ttsAudioSchema.index({ courseId: 1, chapterId: 1, transcriptHash: 1, model: 1, voice: 1, language: 1, lessonVersion: 1 }, { unique: true })
 ttsAudioSchema.index({ courseId: 1, chapterId: 1, updatedAt: -1 })
@@ -153,6 +177,8 @@ const ttsBatchJobSchema = new Schema({
   startedAt: Date,
   completedAt: Date,
   initiatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  workerToken: String,
+  leaseUntil: Date,
 }, timestamps)
 
 export const User = model('User', userSchema)
@@ -164,5 +190,10 @@ export const AssessmentAttempt = model('AssessmentAttempt', assessmentAttemptSch
 export const Certificate = model('Certificate', certificateSchema)
 export const CertificateTemplate = model('CertificateTemplate', certificateTemplateSchema)
 export const AuditLog = model('AuditLog', auditSchema)
+export const BusinessRequest = model('BusinessRequest', businessRequestSchema)
+export const BusinessContact = model('BusinessContact', businessContactSchema)
+export const EmailCampaign = model('EmailCampaign', campaignSchema)
+export const BusinessCounter = model('BusinessCounter', counterSchema)
+export const SecurityToken = model('SecurityToken', securityTokenSchema)
 export const TtsAudio = model('TtsAudio', ttsAudioSchema)
 export const TtsBatchJob = model('TtsBatchJob', ttsBatchJobSchema)

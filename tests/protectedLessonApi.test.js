@@ -19,7 +19,7 @@ const [{ default: app }, models] = await Promise.all([
 const { curriculum } = await import('../src/data/curriculum.js')
 const { getLessonByChapterId } = await import('../backend/src/services/lessonRepository.js')
 const { getPaymentReturnState } = await import('../src/services/paymentReturn.js')
-const { AssessmentAttempt, Certificate, CertificateTemplate, Course, Payment, Pricing, Progress, User } = models
+const { AssessmentAttempt, Certificate, CertificateTemplate, Course, Payment, Pricing, Progress, SecurityToken, User } = models
 
 const course = {
   id: '507f1f77bcf86cd799439011',
@@ -42,6 +42,7 @@ const originals = {
   userFindById: User.findById,
   userFindOne: User.findOne,
   userCreate: User.create,
+  userUpdateOne: User.updateOne,
   courseFindById: Course.findById,
   courseFindOne: Course.findOne,
   courseFind: Course.find,
@@ -61,6 +62,9 @@ const originals = {
   certificateFind: Certificate.find,
   certificateFindOne: Certificate.findOne,
   certificateTemplateFindOne: CertificateTemplate.findOne,
+  securityTokenDeleteMany: SecurityToken.deleteMany,
+  securityTokenCreate: SecurityToken.create,
+  securityTokenFindOne: SecurityToken.findOne,
 }
 const initialDatabaseReadyState = mongoose.connection.readyState
 let progressRecords
@@ -70,6 +74,7 @@ let paymentRows
 let paystackRequest
 let paystackVerification
 let paystackVerifyCalls
+const securityTokenRows = new Map()
 
 function query(data) {
   return { select() { return this }, lean: async () => data, then(resolve, reject) { return Promise.resolve(data).then(resolve, reject) } }
@@ -83,13 +88,17 @@ test.before(async () => {
   userRows.set(adminUserId, { id: adminUserId, name: 'Admin User', email: 'admin@example.test', passwordHash, role: 'super_admin' })
   userRows.set('admin-auth-test', { id: 'admin-auth-test', name: 'Auth Test Admin', email: 'admin@example.test', passwordHash, role: 'super_admin' })
   User.findById = async (id) => userRows.get(String(id)) || null
-  User.findOne = (filter) => ({ select: async () => [...userRows.values()].find((user) => user.email === filter.email) || null })
+  User.findOne = (filter) => query([...userRows.values()].find((user) => user.email === filter.email) || null)
   User.create = async (input) => {
     if ([...userRows.values()].some((user) => user.email === input.email)) throw Object.assign(new Error('duplicate key'), { code: 11000 })
     const user = { ...input, id: '507f1f77bcf86cd799439015', role: input.role || 'user' }
     userRows.set(user.id, user)
     return user
   }
+  User.updateOne = async (filter, update) => { const user = userRows.get(String(filter._id)); if (!user) return { matchedCount: 0 }; Object.assign(user, update.$set || {}); if (update.$inc) for (const [key, amount] of Object.entries(update.$inc)) user[key] = (user[key] || 0) + amount; return { matchedCount: 1 } }
+  SecurityToken.deleteMany = async ({ user, purpose }) => { for (const [key, row] of securityTokenRows) if (String(row.user) === String(user) && row.purpose === purpose) securityTokenRows.delete(key); return { deletedCount: 0 } }
+  SecurityToken.create = async (input) => { securityTokenRows.set(input.tokenHash, { ...input, deleteOne: async () => securityTokenRows.delete(input.tokenHash) }); return input }
+  SecurityToken.findOne = async (filter) => [...securityTokenRows.values()].find((row) => row.purpose === filter.purpose && row.tokenHash === filter.tokenHash && row.expiresAt > filter.expiresAt.$gt) || null
   Course.findById = async (id) => id === course.id ? course : null
   Course.findOne = () => query(course)
   Course.find = () => query([course])
@@ -172,6 +181,7 @@ test.after(async () => {
   User.findById = originals.userFindById
   User.findOne = originals.userFindOne
   User.create = originals.userCreate
+  User.updateOne = originals.userUpdateOne
   Course.findById = originals.courseFindById
   Course.findOne = originals.courseFindOne
   Course.find = originals.courseFind
@@ -192,6 +202,9 @@ test.after(async () => {
   Certificate.find = originals.certificateFind
   Certificate.findOne = originals.certificateFindOne
   CertificateTemplate.findOne = originals.certificateTemplateFindOne
+  SecurityToken.deleteMany = originals.securityTokenDeleteMany
+  SecurityToken.create = originals.securityTokenCreate
+  SecurityToken.findOne = originals.securityTokenFindOne
   mongoose.connection.readyState = initialDatabaseReadyState
 })
 
@@ -678,43 +691,51 @@ test('learner login, invalid credentials, registration role isolation, and admin
   })
   assert.equal(registration.status, 201)
   const registered = await registration.json()
-  assert.equal(registered.user.role, 'user')
-  assert.equal(userRows.get(registered.user.id).role, 'user')
+  const registeredUser = [...userRows.values()].find((user) => user.email === 'new@example.test')
+  assert.equal(registered.verificationRequired, true)
+  assert.equal(registeredUser.role, 'user')
+  assert.equal(registeredUser.emailVerified, false)
   assert.equal(paymentRows.size, paymentCountBeforeRegistration)
 
   paid = false
   progressRecords.clear()
   const newLearnerLogin = await apiJson('/auth/login', { method: 'POST', body: { email: 'new@example.test', password: 'new-learner-password' } })
   assert.equal(newLearnerLogin.status, 200)
-  assert.equal((await apiJson('/auth/me', { userId: registered.user.id })).status, 200)
-  const purchases = await apiJson('/me/purchases', { userId: registered.user.id })
-  assert.deepEqual(await purchases.json(), [])
+  const newLearnerId = registeredUser.id
+  assert.equal((await apiJson('/auth/me', { userId: newLearnerId })).status, 200)
+  const purchases = await apiJson('/me/purchases', { userId: newLearnerId })
+  assert.equal(purchases.status, 403)
 
-  const accountPreview = await apiJson('/courses/ai-powered-developer-productivity/lessons/chapter-ai-assisted-developer/preview', { userId: registered.user.id })
+  const accountPreview = await apiJson('/courses/ai-powered-developer-productivity/lessons/chapter-ai-assisted-developer/preview', { userId: newLearnerId })
   assert.equal(accountPreview.status, 200)
   assert.equal((await accountPreview.json()).access.isPreview, true)
   for (const chapterId of ['chapter-ai-assisted-developer', 'chapter-choosing-the-right-ai-tool', 'chapter-the-ai-powered-developer-putting-everything-together']) {
-    const fullLesson = await apiJson(`/courses/${course.id}/lessons/${chapterId}`, { userId: registered.user.id })
+    const fullLesson = await apiJson(`/courses/${course.id}/lessons/${chapterId}`, { userId: newLearnerId })
     assert.equal(fullLesson.status, 403)
-    assert.equal((await fullLesson.json()).code, 'COURSE_PURCHASE_REQUIRED')
+    assert.equal((await fullLesson.json()).code, 'EMAIL_VERIFICATION_REQUIRED')
   }
+  const verifyResponse = await apiJson('/auth/verify-email', { method: 'POST', userId: null, body: { token: registered.developmentVerificationToken } })
+  assert.equal(verifyResponse.status, 200)
+  assert.equal(userRows.get(newLearnerId).emailVerified, true)
+  const reusedVerification = await apiJson('/auth/verify-email', { method: 'POST', userId: null, body: { token: registered.developmentVerificationToken } })
+  assert.equal(reusedVerification.status, 400)
 
-  const unpaidProgress = await apiJson(`/courses/${course.id}/progress`, { userId: registered.user.id })
+  const unpaidProgress = await apiJson(`/courses/${course.id}/progress`, { userId: newLearnerId })
   assert.equal(unpaidProgress.status, 403)
   assert.equal((await unpaidProgress.json()).code, 'COURSE_PURCHASE_REQUIRED')
-  const unpaidLegacyProgress = await apiJson(`/me/progress/${course.id}`, { userId: registered.user.id })
+  const unpaidLegacyProgress = await apiJson(`/me/progress/${course.id}`, { userId: newLearnerId })
   assert.equal(unpaidLegacyProgress.status, 403)
-  const unpaidCompletion = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/progress`, { userId: registered.user.id, method: 'POST', body: { status: 'completed' } })
+  const unpaidCompletion = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/progress`, { userId: newLearnerId, method: 'POST', body: { status: 'completed' } })
   assert.equal(unpaidCompletion.status, 403)
-  const unpaidAssessment = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/assessment`, { userId: registered.user.id, method: 'POST', body: { answers: [] } })
+  const unpaidAssessment = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/assessment`, { userId: newLearnerId, method: 'POST', body: { answers: [] } })
   assert.equal(unpaidAssessment.status, 403)
-  const unpaidExercise = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/exercises/any-exercise/complete`, { userId: registered.user.id, method: 'POST', body: {} })
+  const unpaidExercise = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/exercises/any-exercise/complete`, { userId: newLearnerId, method: 'POST', body: {} })
   assert.equal(unpaidExercise.status, 403)
-  const unpaidAsset = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/assets?src=%2Fimages%2Fexample.png`, { userId: registered.user.id })
+  const unpaidAsset = await apiJson(`/courses/${course.id}/lessons/chapter-ai-assisted-developer/assets?src=%2Fimages%2Fexample.png`, { userId: newLearnerId })
   assert.equal(unpaidAsset.status, 403)
-  const unpaidEbook = await apiJson(`/courses/${course.id}/ebook`, { userId: registered.user.id })
+  const unpaidEbook = await apiJson(`/courses/${course.id}/ebook`, { userId: newLearnerId })
   assert.equal(unpaidEbook.status, 403)
-  const unpaidCertificates = await apiJson('/me/certificates', { userId: registered.user.id })
+  const unpaidCertificates = await apiJson('/me/certificates', { userId: newLearnerId })
   assert.equal(unpaidCertificates.status, 403)
 
   const learnerAdminAccess = await apiJson('/admin/pricing', { userId: userDbId })
@@ -747,14 +768,34 @@ test('authentication handles normalized emails, admin credentials, malformed has
   })
   assert.equal(registered.status, 201)
   const body = await registered.json()
-  assert.equal(body.user.email, 'new.user@example.test')
-  assert.equal(body.user.role, 'user')
+  assert.equal(body.verificationRequired, true)
+  assert.equal(typeof body.developmentVerificationToken, 'string')
+  assert.equal(body.developmentVerificationToken.length >= 32, true)
   assert.equal(JSON.stringify(body).includes('passwordHash'), false)
-  const row = userRows.get(body.user.id)
+  const row = [...userRows.values()].find((user) => user.email === 'new.user@example.test')
+  assert.equal(row.role, 'user')
+  assert.equal(row.emailVerified, false)
   assert.match(row.passwordHash, /^\$2[aby]\$12\$/)
   assert.equal(await bcrypt.compare('normalized-password', row.passwordHash), true)
   const normalizedLogin = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: ' NEW.USER@example.test ', password: 'normalized-password' } })
   assert.equal(normalizedLogin.status, 200)
+  const resetSession = sessionCookie(row.id)
+  const unknownRecovery = await apiJson('/auth/forgot-password', { method: 'POST', userId: null, body: { email: 'unknown@example.test' } })
+  const unknownRecoveryBody = await unknownRecovery.json()
+  assert.equal(unknownRecoveryBody.ok, true)
+  assert.equal(typeof unknownRecoveryBody.developmentResetToken, 'string')
+  const recovery = await apiJson('/auth/forgot-password', { method: 'POST', userId: null, body: { email: 'new.user@example.test' } })
+  const recoveryBody = await recovery.json()
+  assert.equal(recovery.status, 200)
+  assert.deepEqual(Object.keys(recoveryBody).sort(), Object.keys(unknownRecoveryBody).sort())
+  assert.equal(typeof recoveryBody.developmentResetToken, 'string')
+  const reset = await apiJson('/auth/reset-password', { method: 'POST', userId: null, body: { token: recoveryBody.developmentResetToken, password: 'updated-normalized-password', confirmPassword: 'updated-normalized-password' } })
+  assert.equal(reset.status, 200)
+  assert.equal(await bcrypt.compare('updated-normalized-password', row.passwordHash), true)
+  const invalidated = await fetch(`${baseUrl}/api/me/profile`, { headers: { cookie: resetSession } })
+  assert.equal(invalidated.status, 401)
+  const reusedReset = await apiJson('/auth/reset-password', { method: 'POST', userId: null, body: { token: recoveryBody.developmentResetToken, password: 'another-normalized-password', confirmPassword: 'another-normalized-password' } })
+  assert.equal(reusedReset.status, 400)
 
   const duplicate = await apiJson('/auth/register', { method: 'POST', userId: null, body: { name: 'Duplicate', email: 'NEW.USER@example.test', password: 'duplicate-password' } })
   assert.equal(duplicate.status, 409)
@@ -780,12 +821,12 @@ test('authentication propagates database failures as 503 and invalid credentials
   const originalFindOne = User.findOne
   try {
     User.findOne = () => ({ select: async () => { throw Object.assign(new Error('unavailable'), { name: 'MongooseServerSelectionError' }) } })
-    const unavailable = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: 'user@example.test', password: 'password' } })
+    const unavailable = await apiJson('/auth/login', { method: 'POST', userId: null, headers: { 'x-forwarded-for': '192.0.2.77' }, body: { email: 'user@example.test', password: 'password' } })
     assert.equal(unavailable.status, 503)
   } finally {
     User.findOne = originalFindOne
   }
-  const wrongPassword = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: 'learner@example.test', password: 'wrong-password' } })
+  const wrongPassword = await apiJson('/auth/login', { method: 'POST', userId: null, headers: { 'x-forwarded-for': '192.0.2.78' }, body: { email: 'learner@example.test', password: 'wrong-password' } })
   assert.equal(wrongPassword.status, 401)
 })
 

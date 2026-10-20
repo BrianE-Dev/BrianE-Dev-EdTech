@@ -16,6 +16,8 @@ import LearnerLogin from './components/learner/LearnerLogin.jsx'
 import LearnerRegister from './components/learner/LearnerRegister.jsx'
 import LearnerDashboard from './components/learner/LearnerDashboard.jsx'
 import CourseReader from './components/learner/CourseReader.jsx'
+import BusinessPages from './components/BusinessPages.jsx'
+import PasswordRecovery from './components/PasswordRecovery.jsx'
 import './App.css'
 
 function LandingPage() {
@@ -144,6 +146,7 @@ function LandingPage() {
           <a href="#method" onClick={closeMenu}>Method</a>
           <a href="#pricing" onClick={closeMenu}>Pricing</a>
           <a href="#faq" onClick={closeMenu}>FAQs</a>
+          <a href="/services" onClick={closeMenu}>Services</a>
         </nav>
         <div className="nav-actions">
           {isAdmin && <a className="sign-in" href="/admin">Dashboard</a>}
@@ -229,9 +232,15 @@ function LandingPage() {
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
   if (path === '/super-admin') return <AdminLogin />
+  if (path === '/services') return <BusinessPages page="services" />
+  if (path === '/privacy') return <BusinessPages page="privacy" />
+  if (path === '/contact') return <BusinessPages page="contact" />
+  if (path === '/quote') return <BusinessPages page="quote" />
   if (path === '/admin' || path.startsWith('/admin/')) return <AdminDashboard />
   if (path === '/learn/login') return <LearnerLogin />
   if (path === '/learn/register') return <LearnerRegister />
+  if (path === '/learn/forgot-password') return <PasswordRecovery />
+  if (path === '/learn/reset-password') return <PasswordRecovery reset />
   if (path === '/learn') return <LearnerDashboard />
   if (/^\/courses\/[^/]+\/learn\/chapter-[a-z0-9-]+$/.test(path)) return <CourseReader />
   return <LandingPage />

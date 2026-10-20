@@ -4,8 +4,9 @@ import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import mongoose from 'mongoose'
-import { AuditLog, Certificate, CertificateTemplate, Course, Payment, Pricing, Progress, TtsAudio, User } from '../models/index.js'
-import { authenticate, requireAdmin } from '../middleware/auth.js'
+import { AuditLog, BusinessContact, BusinessRequest, Certificate, CertificateTemplate, Course, EmailCampaign, Payment, Pricing, Progress, SecurityToken, TtsAudio, User } from '../models/index.js'
+import { authenticate, requireAdmin, requireVerified } from '../middleware/auth.js'
+import { issueSecurityToken, mailStatus, saveBusinessRequest } from '../services/business.js'
 import { getFinalPrice } from '../utils/pricing.js'
 import { getPaystackConfig } from '../config/paystack.js'
 import { initializeTransaction, verifyTransaction } from '../services/paystack.js'
@@ -19,7 +20,7 @@ import { LessonAssetNotFoundError, resolveLessonImage } from '../services/lesson
 import { getChapterMetadata } from '../services/curriculumNavigation.js'
 import { CourseEbookNotFoundError, resolveCourseEbook } from '../services/courseEbookRepository.js'
 import { createCertificatePdf } from '../services/certificatePdf.js'
-import { generateChapterAudio, getCourseAudioStatus, isReadyChapterAudio, loadReadyChapterAudio, startCourseAudioBatch } from '../services/ttsGeneration.js'
+import { generateChapterAudio, getCourseAudioStatus, isReadyChapterAudio, loadReadyChapterAudio, startCourseAudioBatch, writeOwnedTtsAudio } from '../services/ttsGeneration.js'
 import { buildTtsTranscript, hashTranscript } from '../services/ttsTranscript.js'
 import { isSuperAdmin } from '../utils/authorization.js'
 import { createTtsStorage } from '../services/ttsStorage.js'
@@ -83,9 +84,9 @@ router.post('/auth/register', async (req, res) => {
   const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()), password: z.string().min(10).max(128) })
   const input = schema.parse(req.body)
   const country = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
-  const user = await User.create({ name: input.name, email: input.email, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
-  const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
-  res.cookie('session', token, sessionCookie).status(201).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } })
+  const user = await User.create({ name: input.name, email: input.email, emailVerified: false, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
+  const verificationToken = await issueSecurityToken(user, 'verify')
+  res.status(201).json({ verificationRequired: true, emailDelivery: mailStatus(), ...(process.env.NODE_ENV !== 'production' ? { developmentVerificationToken: verificationToken } : {}) })
 })
 
 router.post('/auth/login', async (req, res) => {
@@ -96,12 +97,69 @@ router.post('/auth/login', async (req, res) => {
   }
   if (!(await bcrypt.compare(input.password, user.passwordHash))) return res.status(401).json({ error: 'Invalid email or password' })
   if (user.disabledAt) return res.status(403).json({ error: 'This learner account has been disabled.' })
-  const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
-  res.cookie('session', token, sessionCookie).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } })
+  const token = jwt.sign({ sub: user.id, version: user.sessionVersion || 0 }, process.env.JWT_SECRET, { expiresIn: '7d' })
+  res.cookie('session', token, sessionCookie).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, emailVerified: user.role === 'super_admin' || user.emailVerified !== false } })
+})
+
+router.post('/auth/verify-email', async (req, res) => {
+  const token = z.string().min(32).max(128).parse(req.body.token)
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+  const stored = await SecurityToken.findOne({ purpose: 'verify', tokenHash, expiresAt: { $gt: new Date() } })
+  if (!stored) return res.status(400).json({ error: 'Verification link is invalid or expired.' })
+  await User.updateOne({ _id: stored.user }, { $set: { emailVerified: true } })
+  await stored.deleteOne()
+  res.json({ verified: true })
+})
+
+router.post('/auth/resend-verification', async (req, res) => {
+  const email = z.string().trim().toLowerCase().pipe(z.email()).parse(req.body.email)
+  const user = await User.findOne({ email, role: 'user', emailVerified: false })
+  const token = user ? await issueSecurityToken(user, 'verify') : crypto.randomBytes(32).toString('base64url')
+  res.json({ ok: true, emailDelivery: mailStatus(), ...(process.env.NODE_ENV !== 'production' ? { developmentVerificationToken: token } : {}) })
+})
+
+router.post('/auth/forgot-password', async (req, res) => {
+  const email = z.string().trim().toLowerCase().pipe(z.email()).parse(req.body.email)
+  const user = await User.findOne({ email, role: 'user' })
+  const token = user ? await issueSecurityToken(user, 'reset') : crypto.randomBytes(32).toString('base64url')
+  res.json({ ok: true, emailDelivery: mailStatus(), ...(process.env.NODE_ENV !== 'production' ? { developmentResetToken: token } : {}) })
+})
+
+router.post('/auth/reset-password', async (req, res) => {
+  const input = z.object({ token: z.string().min(32).max(128), password: z.string().min(10).max(128), confirmPassword: z.string().min(10).max(128) }).refine((value) => value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords do not match' }).parse(req.body)
+  const tokenHash = crypto.createHash('sha256').update(input.token).digest('hex')
+  const stored = await SecurityToken.findOne({ purpose: 'reset', tokenHash, expiresAt: { $gt: new Date() } })
+  if (!stored) return res.status(400).json({ error: 'Reset link is invalid or expired.' })
+  const passwordHash = await bcrypt.hash(input.password, 12)
+  await User.updateOne({ _id: stored.user }, { $set: { passwordHash }, $inc: { sessionVersion: 1 } })
+  await SecurityToken.deleteMany({ user: stored.user, purpose: 'reset' })
+  res.json({ ok: true, message: 'Password updated. Sign in with your new password.' })
 })
 
 router.post('/auth/logout', (_req, res) => res.clearCookie('session', { ...sessionCookie, maxAge: undefined }).json({ ok: true }))
-router.get('/auth/me', authenticate, (req, res) => res.json({ user: { id: req.user.id, name: req.user.name, email: req.user.email, role: req.user.role } }))
+router.get('/auth/me', authenticate, (req, res) => res.json({ user: { id: req.user.id, name: req.user.name, email: req.user.email, role: req.user.role, emailVerified: req.user.role === 'super_admin' || req.user.emailVerified !== false } }))
+
+const requestSchema = z.object({
+  name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()),
+  phone: z.string().trim().max(40).optional().default(''), company: z.string().trim().max(160).optional().default(''),
+  website: z.string().trim().max(300).optional().default('').refine((value) => { if (!value) return true; try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) } catch { return false } }, 'Enter a valid website URL'), subject: z.string().trim().max(160).optional().default(''),
+  message: z.string().trim().min(10).max(5000), privacyAccepted: z.literal(true),
+  projectType: z.string().trim().max(100).optional(), requiredFeatures: z.array(z.string().trim().max(120)).max(30).optional().default([]),
+  budget: z.string().trim().max(100).optional(), timeline: z.string().trim().max(100).optional(), notes: z.string().trim().max(3000).optional().default(''), marketingConsent: z.boolean().optional().default(false),
+})
+router.post('/business/enquiries', async (req, res) => {
+  const input = requestSchema.parse(req.body)
+  if (!input.subject) return res.status(400).json({ error: 'Enquiry subject is required.' })
+  const row = await saveBusinessRequest('enquiry', { name: input.name, email: input.email, phone: input.phone, company: input.company, website: input.website, subject: input.subject, message: input.message })
+  res.status(201).json({ saved: true, reference: row.reference, emailDelivery: mailStatus() })
+})
+router.post('/business/quotes', async (req, res) => {
+  const input = requestSchema.parse(req.body)
+  if (!input.projectType) return res.status(400).json({ error: 'Project type is required.' })
+  const row = await saveBusinessRequest('quote', { name: input.name, email: input.email, phone: input.phone, company: input.company, website: input.website, subject: input.projectType || 'Project quote', message: input.message, details: { projectType: input.projectType || '', requiredFeatures: input.requiredFeatures, budget: input.budget || '', timeline: input.timeline || '', notes: input.notes, marketingConsent: input.marketingConsent } })
+  if (input.marketingConsent) await BusinessContact.updateOne({ email: input.email, unsubscribedAt: null }, { $set: { marketingConsent: true, marketingConsentAt: new Date(), marketingConsentSource: 'quote-request', marketingPolicyVersion: '2026-10' } })
+  res.status(201).json({ saved: true, reference: row.reference, emailDelivery: mailStatus() })
+})
 
 const profileSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -235,8 +293,8 @@ async function initializeCoursePayment(req, res) {
   } catch (error) { payment.status = 'failed'; await payment.save(); throw error }
 }
 
-router.post('/payments/initialize', authenticate, initializeCoursePayment)
-router.post('/brianedev/payments/initialize', authenticate, initializeCoursePayment)
+router.post('/payments/initialize', authenticate, requireVerified, initializeCoursePayment)
+router.post('/brianedev/payments/initialize', authenticate, requireVerified, initializeCoursePayment)
 
 async function verifyCoursePayment(req, res) {
   const reference = z.string().min(6).max(100).parse(req.body.reference)
@@ -249,8 +307,8 @@ async function verifyCoursePayment(req, res) {
   await completePayment(payment, transaction)
   res.json({ status: payment.status === 'paid' || payment.status === 'successful' ? 'paid' : payment.status === 'failed' ? 'failed' : 'pending', courseId: payment.course })
 }
-router.post('/payments/verify', authenticate, verifyCoursePayment)
-router.post('/brianedev/payments/verify', authenticate, verifyCoursePayment)
+router.post('/payments/verify', authenticate, requireVerified, verifyCoursePayment)
+router.post('/brianedev/payments/verify', authenticate, requireVerified, verifyCoursePayment)
 
 async function paystackWebhook(req, res) {
   const signature = req.get('x-paystack-signature')
@@ -282,6 +340,10 @@ async function findCourse(courseId) {
 }
 
 async function getPaidCourse(req, res) {
+  if (req.user?.role !== 'super_admin' && req.user?.emailVerified === false) {
+    apiFailure(res, 403, 'Verify your email address to access protected course content.', 'EMAIL_VERIFICATION_REQUIRED')
+    return null
+  }
   const course = await findCourse(req.params.courseId)
   if (!course) {
     apiFailure(res, 404, 'Course not found', 'COURSE_NOT_FOUND')
@@ -581,6 +643,71 @@ router.get('/me/certificates/:certificateId/download', authenticate, async (req,
   } catch (error) { next(error) }
 })
 
+router.get('/admin/business/overview', authenticate, requireAdmin, async (_req, res) => {
+  const [users, unverifiedUsers, enquiries, quotes, unassigned, contacts, campaigns, recentRequests] = await Promise.all([
+    User.countDocuments(), User.countDocuments({ emailVerified: false, role: 'user' }), BusinessRequest.countDocuments({ kind: 'enquiry' }),
+    BusinessRequest.countDocuments({ kind: 'quote' }), BusinessRequest.countDocuments({ status: 'New' }), BusinessContact.countDocuments(),
+    EmailCampaign.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]), BusinessRequest.find().sort({ createdAt: -1 }).limit(8).select('-internalNotes').lean(),
+  ])
+  res.json({ users, unverifiedUsers, enquiries, quotes, unassigned, contacts, campaigns: Object.fromEntries(campaigns.map(({ _id, count }) => [_id, count])), recentRequests })
+})
+router.get('/admin/business/requests', authenticate, requireAdmin, async (req, res) => {
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1)
+  const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 25))
+  const filter = {}
+  if (['enquiry', 'quote'].includes(req.query.kind)) filter.kind = req.query.kind
+  if (req.query.status) filter.status = z.enum(['New', 'Under Review', 'Awaiting Customer', 'Qualified', 'Proposal Sent', 'Won', 'Lost', 'Closed']).parse(req.query.status)
+  if (req.query.search) { const safe = String(req.query.search).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); filter.$or = [{ reference: new RegExp(safe, 'i') }, { name: new RegExp(safe, 'i') }, { email: new RegExp(safe, 'i') }, { company: new RegExp(safe, 'i') }] }
+  const [rows, total] = await Promise.all([BusinessRequest.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).populate('internalNotes.author', 'name').lean(), BusinessRequest.countDocuments(filter)])
+  res.json({ rows, total, page, pages: Math.ceil(total / limit) })
+})
+router.patch('/admin/business/requests/:id', authenticate, requireAdmin, async (req, res) => {
+  const input = z.object({ status: z.enum(['New', 'Under Review', 'Awaiting Customer', 'Qualified', 'Proposal Sent', 'Won', 'Lost', 'Closed']).optional(), note: z.string().trim().min(1).max(4000).optional() }).refine((value) => value.status || value.note).parse(req.body)
+  const row = await BusinessRequest.findById(req.params.id)
+  if (!row) return res.status(404).json({ error: 'Request not found' })
+  if (input.status && input.status !== row.status) { row.status = input.status; row.statusHistory.push({ status: input.status, changedBy: req.user.id }) }
+  if (input.note) row.internalNotes.push({ body: input.note, author: req.user.id })
+  await row.save()
+  res.json({ id: row.id, reference: row.reference, status: row.status, internalNotes: row.internalNotes })
+})
+router.get('/admin/business/requests.csv', authenticate, requireAdmin, async (_req, res) => {
+  const rows = await BusinessRequest.find().sort({ createdAt: -1 }).limit(5000).lean()
+  const cell = (value) => { const safe = String(value ?? '').replace(/[\r\n]/g, ' '); return `"${(/^[=+\-@\t]/.test(safe) ? `'${safe}` : safe).replaceAll('"', '""')}"` }
+  res.type('text/csv').attachment('briane-dev-requests.csv').send(['Reference,Type,Name,Email,Company,Subject,Status,Created', ...rows.map((row) => [row.reference, row.kind, row.name, row.email, row.company, row.subject, row.status, row.createdAt?.toISOString()].map(cell).join(','))].join('\n'))
+})
+router.get('/admin/business/contacts', authenticate, requireAdmin, async (req, res) => {
+  const filter = req.query.search ? { $or: [{ email: new RegExp(String(req.query.search).slice(0, 80), 'i') }, { name: new RegExp(String(req.query.search).slice(0, 80), 'i') }, { company: new RegExp(String(req.query.search).slice(0, 80), 'i') }] } : {}
+  res.json(await BusinessContact.find(filter).sort({ updatedAt: -1 }).limit(500).lean())
+})
+router.patch('/admin/business/contacts/:id', authenticate, requireAdmin, async (req, res) => {
+  const input = z.object({ leadStatus: z.enum(['New Lead', 'Contacted', 'Qualified', 'Proposal Sent', 'Converted', 'Not Proceeding']).optional(), note: z.string().trim().min(1).max(4000).optional(), tags: z.array(z.string().trim().min(1).max(40)).max(30).optional() }).refine((value) => value.leadStatus || value.note || value.tags).parse(req.body)
+  const contact = await BusinessContact.findById(req.params.id)
+  if (!contact) return res.status(404).json({ error: 'Contact not found' })
+  if (input.leadStatus) contact.leadStatus = input.leadStatus
+  if (input.tags) contact.tags = input.tags
+  if (input.note) contact.activities.push({ body: input.note, author: req.user.id })
+  await contact.save()
+  res.json(contact)
+})
+router.get('/admin/business/contacts.csv', authenticate, requireAdmin, async (_req, res) => {
+  const rows = await BusinessContact.find().sort({ createdAt: -1 }).limit(5000).lean()
+  const cell = (value) => { const safe = String(value ?? '').replace(/[\r\n]/g, ' '); return `"${(/^[=+\-@\t]/.test(safe) ? `'${safe}` : safe).replaceAll('"', '""')}"` }
+  res.type('text/csv').attachment('briane-dev-contacts.csv').send(['Name,Email,Company,Source,Lead Status,Marketing Consent,Created', ...rows.map((row) => [row.name, row.email, row.company, row.source, row.leadStatus, row.marketingConsent, row.createdAt?.toISOString()].map(cell).join(','))].join('\n'))
+})
+router.get('/admin/business/campaigns', authenticate, requireAdmin, async (_req, res) => res.json(await EmailCampaign.find().sort({ updatedAt: -1 }).lean()))
+router.post('/admin/business/campaigns', authenticate, requireAdmin, async (req, res) => {
+  const input = z.object({ name: z.string().trim().min(1).max(160), subject: z.string().trim().max(200).default(''), previewText: z.string().trim().max(250).default(''), html: z.string().max(100000).default(''), text: z.string().max(50000).default('') }).parse(req.body)
+  const campaign = await EmailCampaign.create({ ...input, createdBy: req.user.id })
+  res.status(201).json(campaign)
+})
+router.put('/admin/business/campaigns/:id', authenticate, requireAdmin, async (req, res) => {
+  const campaign = await EmailCampaign.findOne({ _id: req.params.id, status: 'Draft' })
+  if (!campaign) return res.status(404).json({ error: 'Draft campaign not found' })
+  const input = z.object({ name: z.string().trim().min(1).max(160), subject: z.string().trim().max(200), previewText: z.string().trim().max(250), html: z.string().max(100000), text: z.string().max(50000) }).parse(req.body)
+  Object.assign(campaign, input); await campaign.save(); res.json(campaign)
+})
+router.post('/admin/business/campaigns/:id/schedule', authenticate, requireAdmin, async (_req, res) => res.status(503).json({ error: 'Campaign scheduling is unavailable until a persistent scheduler and verified mail transport are configured.' }))
+
 router.get('/admin/pricing', authenticate, requireAdmin, async (_req, res) => res.json(await Pricing.find().sort({ region: 1 })))
 
 const certificateTemplateDefaults = {
@@ -702,15 +829,16 @@ router.post('/admin/tts/courses/:courseId/chapters/:chapterId/browser-susan', au
     }
     const storage = createTtsStorage()
     const cutoff = new Date(Date.now() - 15 * 60 * 1000)
+    const generationToken = crypto.randomUUID()
     const previous = await TtsAudio.findOne(identity)
     let record
     try {
       record = await TtsAudio.findOneAndUpdate({
         ...identity,
-        $or: [{ status: { $ne: 'generating' } }, { updatedAt: { $lt: cutoff } }],
+        $or: [{ status: { $ne: 'generating' } }, { lastAttemptAt: { $lt: cutoff } }, { lastAttemptAt: { $exists: false }, generationStartedAt: { $lt: cutoff } }, { lastAttemptAt: { $exists: false }, generationStartedAt: { $exists: false }, updatedAt: { $lt: cutoff } }],
       }, {
         $setOnInsert: identity,
-        $set: { status: 'generating', generatedBy: req.user.id, error: null, generationStartedAt: new Date(), lastAttemptAt: new Date() },
+        $set: { status: 'generating', generatedBy: req.user.id, generationToken, error: null, generationStartedAt: new Date(), lastAttemptAt: new Date() },
       }, { upsert: true, new: true, setDefaultsOnInsert: true })
     } catch (error) {
       if (error.code === 11000) return apiFailure(res, 409, 'Browser audio is already being saved for this chapter.', 'AUDIO_GENERATION_IN_PROGRESS')
@@ -721,16 +849,17 @@ router.post('/admin/tts/courses/:courseId/chapters/:chapterId/browser-susan', au
     const storageKey = ['brianedev', 'tts', encodeURIComponent(courseId), lesson.chapterId, identity.transcriptHash, 'browser-speechsynthesis', identity.voice.replace(/[^a-zA-Z0-9._-]/g, '_'), identity.language, 'versions', generationId, 'audio'].join('/')
     try {
       await storage.upload(storageKey, req.body, mimeType)
-      await TtsAudio.findOneAndUpdate(identity, { $set: {
+      const saved = await writeOwnedTtsAudio(TtsAudio, identity, generationToken, { $set: {
         status: 'ready', storageKey, chunks: [{ order: 1, storageKey, mimeType, durationSeconds }], mimeType,
-        durationSeconds, chunkCount: 1, generationCompletedAt: new Date(), generatedBy: req.user.id, error: null,
+        durationSeconds, chunkCount: 1, generationCompletedAt: new Date(), generatedBy: req.user.id, generationToken: null, error: null,
       } }, { new: true })
+      if (!saved) return apiFailure(res, 409, 'Browser audio attempt no longer owns this chapter.', 'AUDIO_GENERATION_SUPERSEDED')
       return res.status(201).json({ chapterId: lesson.chapterId, status: 'ready', voice: identity.voice, language: identity.language, durationSeconds, bytes: req.body.length })
     } catch (error) {
       const failureMessage = (error.message || 'Browser audio save failed').slice(0, 450)
-      await TtsAudio.findOneAndUpdate(identity, { $set: previous?.status === 'ready'
+      await writeOwnedTtsAudio(TtsAudio, identity, generationToken, { $set: previous?.status === 'ready'
         ? { status: 'ready', storageKey: previous.storageKey, chunks: previous.chunks, mimeType: previous.mimeType, durationSeconds: previous.durationSeconds, chunkCount: previous.chunkCount, generationCompletedAt: previous.generationCompletedAt, error: failureMessage }
-        : { status: 'failed', error: failureMessage },
+        : { status: 'failed', error: failureMessage }, $unset: { generationToken: 1 },
       })
       throw error
     }
@@ -755,15 +884,16 @@ router.post('/admin/tts/courses/:courseId/chapters/:chapterId/upload', authentic
       model: 'manual-upload-v1', voice: 'Manual recording', language: 'en-GB',
     }
     const storage = createTtsStorage()
+    const generationToken = crypto.randomUUID()
     const previous = await TtsAudio.findOne(identity)
     let record
     try {
       record = await TtsAudio.findOneAndUpdate({
         ...identity,
-        $or: [{ status: { $ne: 'generating' } }, { updatedAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) } }],
+        $or: [{ status: { $ne: 'generating' } }, { lastAttemptAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) } }, { lastAttemptAt: { $exists: false }, generationStartedAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) } }, { lastAttemptAt: { $exists: false }, generationStartedAt: { $exists: false }, updatedAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) } }],
       }, {
         $setOnInsert: identity,
-        $set: { status: 'generating', generatedBy: req.user.id, error: null, generationStartedAt: new Date(), lastAttemptAt: new Date() },
+        $set: { status: 'generating', generatedBy: req.user.id, generationToken, error: null, generationStartedAt: new Date(), lastAttemptAt: new Date() },
       }, { upsert: true, new: true, setDefaultsOnInsert: true })
     } catch (error) {
       if (error.code === 11000) return apiFailure(res, 409, 'Audio is already being saved for this chapter.', 'AUDIO_GENERATION_IN_PROGRESS')
@@ -774,16 +904,17 @@ router.post('/admin/tts/courses/:courseId/chapters/:chapterId/upload', authentic
     const storageKey = ['brianedev', 'tts', encodeURIComponent(courseId), lesson.chapterId, transcriptHash, 'manual-upload', 'versions', generationId, 'audio'].join('/')
     try {
       await storage.upload(storageKey, req.body, mimeType)
-      await TtsAudio.findOneAndUpdate(identity, { $set: {
+      const saved = await writeOwnedTtsAudio(TtsAudio, identity, generationToken, { $set: {
         status: 'ready', storageKey, chunks: [{ order: 1, storageKey, mimeType }], mimeType,
-        chunkCount: 1, generationCompletedAt: new Date(), generatedBy: req.user.id, error: null,
+        chunkCount: 1, generationCompletedAt: new Date(), generatedBy: req.user.id, generationToken: null, error: null,
       } }, { new: true })
+      if (!saved) return apiFailure(res, 409, 'Upload attempt no longer owns this chapter.', 'AUDIO_GENERATION_SUPERSEDED')
       return res.status(201).json({ chapterId: lesson.chapterId, status: 'ready', bytes: req.body.length })
     } catch (error) {
       const failureMessage = (error.message || 'Audio upload failed').slice(0, 450)
-      await TtsAudio.findOneAndUpdate(identity, { $set: previous?.status === 'ready'
+      await writeOwnedTtsAudio(TtsAudio, identity, generationToken, { $set: previous?.status === 'ready'
         ? { status: 'ready', storageKey: previous.storageKey, chunks: previous.chunks, mimeType: previous.mimeType, durationSeconds: previous.durationSeconds, chunkCount: previous.chunkCount, generationCompletedAt: previous.generationCompletedAt, error: failureMessage }
-        : { status: 'failed', error: failureMessage },
+        : { status: 'failed', error: failureMessage }, $unset: { generationToken: 1 },
       })
       throw error
     }

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildTtsTranscript, hashTranscript } from '../backend/src/services/ttsTranscript.js'
-import { combineWavBuffers, generateChapterAudio, isReadyChapterAudio, loadReadyChapterAudio, splitTtsTranscript } from '../backend/src/services/ttsGeneration.js'
+import { combineWavBuffers, generateChapterAudio, isReadyChapterAudio, loadReadyChapterAudio, processBatch, resumeCourseAudioBatches, splitTtsTranscript, startCourseAudioBatch, writeOwnedTtsAudio } from '../backend/src/services/ttsGeneration.js'
+import { curriculum } from '../src/data/curriculum.js'
 
 function wav(pcmBytes = 4800) {
   const pcm = Buffer.alloc(pcmBytes)
@@ -24,12 +25,18 @@ function createFakes() {
       return { sort() { matching.sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)); return this }, then(resolve, reject) { return Promise.resolve(matching.map((record) => structuredClone(record))).then(resolve, reject) } }
     },
     async findOneAndUpdate(filter, update) {
-      const identity = Object.fromEntries(Object.entries(filter).filter(([key]) => key !== '$or'))
-      const key = keyFor(identity)
-      const existing = records.get(key)
-      if (existing?.status === 'generating' && update.$set?.status === 'generating') return null
-      const record = existing || { ...structuredClone(update.$setOnInsert), _id: `audio-${records.size + 1}` }
+      const candidates = [...records.entries()].filter(([, record]) => Object.entries(filter).every(([key, value]) => {
+        if (key === '$or') return value.some((clause) => Object.entries(clause).every(([field, condition]) => condition.$ne !== undefined ? record[field] !== condition.$ne : condition.$lt !== undefined ? new Date(record[field] || 0) < condition.$lt : condition.$exists !== undefined ? (record[field] !== undefined) === condition.$exists : record[field] === condition))
+        return key.startsWith('$') || record[key] === value
+      }))
+      const [existingKey, existing] = candidates[0] || []
+      if (!existing && !update.$setOnInsert) return null
+      if (existing?.status === 'generating' && update.$set?.status === 'generating' && !filter.$or?.some((clause) => clause.lastAttemptAt?.$lt || clause.generationStartedAt?.$lt)) return null
+      const identity = update.$setOnInsert || Object.fromEntries(Object.entries(filter).filter(([key]) => !key.startsWith('$') && key !== 'generationToken' && key !== 'status'))
+      const key = existingKey || keyFor(identity)
+      const record = existing || { ...structuredClone(identity), _id: `audio-${records.size + 1}` }
       Object.assign(record, structuredClone(update.$set), { updatedAt: new Date() })
+      if (update.$unset) for (const field of Object.keys(update.$unset)) delete record[field]
       records.set(key, record)
       return structuredClone(record)
     },
@@ -64,6 +71,45 @@ function lesson(text = 'A useful lesson paragraph.') {
   }
 }
 
+function deferred() {
+  let resolve
+  let reject
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej })
+  return { promise, resolve, reject }
+}
+
+function batchFakes({ mode = 'missing', initial = {} } = {}) {
+  const row = { _id: 'batch-1', courseId: 'course-1', status: 'running', mode, results: [], ...initial }
+  const matches = (filter) => Object.entries(filter).every(([key, value]) => {
+    if (key === '$or') return value.some((clause) => Object.entries(clause).every(([field, condition]) => condition === null ? row[field] === null : condition.$exists !== undefined ? (row[field] !== undefined) === condition.$exists : condition.$lte ? new Date(row[field]) <= condition.$lte : row[field] === condition))
+    if (value && typeof value === 'object' && value.$ne !== undefined) return row[key] !== value.$ne
+    return row[key] === value
+  })
+  const apply = (update) => {
+    Object.assign(row, structuredClone(update.$set || {}))
+    for (const [field, value] of Object.entries(update.$push || {})) row[field].push(structuredClone(value))
+  }
+  const BatchModel = {
+    async findOneAndUpdate(filter, update) { if (!matches(filter)) return null; apply(update); return structuredClone(row) },
+    async updateOne(filter, update) { if (!matches(filter)) return { matchedCount: 0 }; apply(update); return { matchedCount: 1 } },
+    findOne(filter) { return { lean: async () => matches(filter) ? structuredClone(row) : null } },
+    async findById() { return structuredClone(row) },
+    async findOneByCourse(filter) { return matches(filter) ? structuredClone(row) : null },
+    find(filter) { return { lean: async () => row.status === filter.status ? [structuredClone(row)] : [] } },
+  }
+  BatchModel.findOne = (filter) => {
+    if (filter._id) return { lean: async () => matches(filter) ? structuredClone(row) : null }
+    return { then: (resolve, reject) => Promise.resolve(matches(filter) ? structuredClone(row) : null).then(resolve, reject) }
+  }
+  const AudioModel = {
+    findOne() { return { sort() { return this }, then(resolve, reject) { return Promise.resolve({ status: 'ready', chunks: [{ storageKey: 'existing' }] }).then(resolve, reject) } } },
+  }
+  const storage = { async exists() { return true } }
+  const chapters = [curriculum.sections[0].chapters[0]]
+  const options = { BatchModel, AudioModel, storage, chapters, getAudioStatus: async () => ({ total: 1, ready: 1, generating: 0, failed: 0, missing: 0, stale: 0 }) }
+  return { row, BatchModel, AudioModel, storage, chapters, options }
+}
+
 test('transcript is deterministic, narrates lesson blocks, and omits code and assessment internals', () => {
   const source = lesson()
   const transcript = buildTtsTranscript(source)
@@ -93,6 +139,150 @@ test('first generation stores audio and identical generation is a cache hit', as
   assert.equal(first.cacheHit, false)
   assert.equal(second.cacheHit, true)
   assert.equal(calls, 1)
+})
+
+test('a generation attempt that loses ownership cannot commit its late success', async () => {
+  const { AudioModel, storage, records } = createFakes()
+  let entered
+  const enteredGeneration = new Promise((resolve) => { entered = resolve })
+  let release
+  const blocked = new Promise((resolve) => { release = resolve })
+  const attempt = generateChapterAudio('course-1', lesson(), { AudioModel, storage, env, generateAudio: async () => { entered(); await blocked; return wav() } })
+  await enteredGeneration
+  const record = [...records.values()][0]
+  record.generationToken = 'new-owner'
+  release()
+  const result = await attempt
+  assert.equal(result.status, 'superseded')
+  assert.equal(record.status, 'generating')
+  assert.equal(record.generationToken, 'new-owner')
+})
+
+test('late generation failures cannot change a newer successful attempt', async () => {
+  const { AudioModel, storage, records } = createFakes()
+  let entered
+  const enteredGeneration = new Promise((resolve) => { entered = resolve })
+  let release
+  const blocked = new Promise((resolve) => { release = resolve })
+  const attempt = generateChapterAudio('course-1', lesson(), { AudioModel, storage, env, generateAudio: async () => { entered(); await blocked; throw new Error('obsolete failure') } })
+  await enteredGeneration
+  const record = [...records.values()][0]
+  record.generationToken = 'newer-owner'
+  record.status = 'ready'
+  record.storageKey = 'newer/audio.wav'
+  release()
+  assert.equal((await attempt).status, 'superseded')
+  assert.equal(record.status, 'ready')
+  assert.equal(record.storageKey, 'newer/audio.wav')
+})
+
+test('manual and browser upload writes reject both stale success and failure updates', async () => {
+  const { AudioModel, storage, records } = createFakes()
+  await generateChapterAudio('course-1', lesson(), { AudioModel, storage, env, generateAudio: async () => wav() })
+  const record = [...records.values()][0]
+  const identity = Object.fromEntries(['courseId', 'chapterId', 'lessonVersion', 'transcriptHash', 'model', 'voice', 'language'].map((key) => [key, record[key]]))
+  record.generationToken = 'current-upload-owner'
+  record.status = 'ready'
+  record.storageKey = 'current/audio.wav'
+  const staleSuccess = await writeOwnedTtsAudio(AudioModel, identity, 'old-browser-upload', { $set: { status: 'ready', storageKey: 'old/audio.wav' } })
+  const staleFailure = await writeOwnedTtsAudio(AudioModel, identity, 'old-manual-upload', { $set: { status: 'failed', error: 'obsolete' } })
+  assert.equal(staleSuccess, null)
+  assert.equal(staleFailure, null)
+  assert.equal(record.status, 'ready')
+  assert.equal(record.storageKey, 'current/audio.wav')
+})
+
+test('only one concurrent batch worker acquires the job lease', async () => {
+  const { row, options } = batchFakes()
+  let summaries = 0
+  options.getAudioStatus = async () => { summaries += 1; return { total: 1, ready: 1, generating: 0, failed: 0, missing: 0, stale: 0 } }
+  await Promise.all([processBatch(row._id, options), processBatch(row._id, options)])
+  assert.equal(summaries, 1)
+  assert.equal(row.status, 'completed')
+  assert.equal(row.results.length, 1)
+})
+
+test('startup recovery and a competing manual worker share the same atomic batch claim', async () => {
+  const { row, options } = batchFakes({ initial: { status: 'completed', leaseUntil: null, workerToken: null } })
+  let completed = 0
+  options.getAudioStatus = async () => { completed += 1; return { total: 1, ready: 1, generating: 0, failed: 0, missing: 0, stale: 0 } }
+  const scheduled = []
+  options.schedule = (callback) => scheduled.push(callback)
+  await startCourseAudioBatch('course-1', 'missing', 'admin-1', options)
+  await resumeCourseAudioBatches(options)
+  await Promise.all(scheduled.map((callback) => callback()))
+  assert.equal(completed, 1)
+  assert.equal(row.status, 'completed')
+})
+
+test('expired batch owner cannot append progress or overwrite the new owner terminal result', async () => {
+  const { row, options, storage } = batchFakes()
+  const entered = deferred()
+  const release = deferred()
+  let firstStorageCheck = true
+  storage.exists = async () => {
+    if (firstStorageCheck) { firstStorageCheck = false; entered.resolve(); await release.promise }
+    return true
+  }
+  let summaries = 0
+  options.getAudioStatus = async () => {
+    summaries += 1
+    return summaries === 1
+      ? { total: 1, ready: 1, generating: 0, failed: 0, missing: 0, stale: 0 }
+      : { total: 1, ready: 0, generating: 0, failed: 1, missing: 0, stale: 0 }
+  }
+  const oldWorker = processBatch(row._id, options)
+  await entered.promise
+  const oldToken = row.workerToken
+  row.leaseUntil = new Date(0)
+  const newWorker = processBatch(row._id, options)
+  await newWorker
+  assert.notEqual(row.workerToken, oldToken)
+  assert.equal(row.status, 'completed')
+  release.resolve()
+  await oldWorker
+  assert.equal(row.status, 'completed')
+  assert.equal(row.results.length, 1, 'old owner cannot append a duplicate result')
+})
+
+test('abandoned running batch is recovered after its lease expires', async () => {
+  const { row, options } = batchFakes({ initial: { workerToken: 'dead-worker', leaseUntil: new Date(0) } })
+  await processBatch(row._id, options, { resume: true })
+  assert.equal(row.status, 'completed')
+  assert.equal(row.workerToken, null)
+})
+
+test('batch remains running while its claimed chapter work is blocked', async () => {
+  const { row, options, storage } = batchFakes()
+  const entered = deferred()
+  const release = deferred()
+  storage.exists = async () => { entered.resolve(); await release.promise; return true }
+  const work = processBatch(row._id, options)
+  await entered.promise
+  assert.equal(row.status, 'running')
+  assert.equal(row.completedAt, undefined)
+  release.resolve()
+  await work
+  assert.equal(row.status, 'completed')
+})
+
+test('batch heartbeat renews the lease only for its current fenced owner', async () => {
+  const { row, options, storage } = batchFakes()
+  const entered = deferred()
+  const release = deferred()
+  storage.exists = async () => { entered.resolve(); await release.promise; return true }
+  let heartbeat
+  options.scheduleHeartbeat = (callback) => { heartbeat = callback; return 'heartbeat' }
+  options.cancelHeartbeat = (handle) => assert.equal(handle, 'heartbeat')
+  const work = processBatch(row._id, options)
+  await entered.promise
+  const token = row.workerToken
+  const priorLease = row.leaseUntil
+  await heartbeat()
+  assert.equal(row.workerToken, token)
+  assert.ok(row.leaseUntil > priorLease)
+  release.resolve()
+  await work
 })
 
 test('lesson, model, voice, and language changes produce separate cache entries', async () => {

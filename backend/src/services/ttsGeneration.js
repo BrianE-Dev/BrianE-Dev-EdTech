@@ -9,6 +9,7 @@ const CHUNK_LIMIT = Math.max(500, Math.min(3000, Number(process.env.GEMINI_TTS_C
 const REQUEST_DELAY_MS = Math.max(0, Number(process.env.GEMINI_TTS_REQUEST_DELAY_MS) || 15000)
 const MAX_RATE_LIMIT_RETRIES = 3
 const STALE_GENERATION_MS = 15 * 60 * 1000
+const BATCH_LEASE_MS = 2 * 60 * 1000
 const ttsStyle = 'Clear, friendly, professional instructional narration. Speak at a steady, natural pace.'
 
 function ttsConfig(env = process.env, { requireApiKey = true } = {}) {
@@ -140,6 +141,10 @@ async function audioExists(record, storage) {
   return Boolean(record?.chunks?.length && await Promise.all(record.chunks.map((chunk) => storage.exists(chunk.storageKey))).then((results) => results.every(Boolean)))
 }
 
+export async function writeOwnedTtsAudio(AudioModel, identity, generationToken, update, options = {}) {
+  return AudioModel.findOneAndUpdate({ ...identity, generationToken }, update, options)
+}
+
 async function latestReadyAudio({ courseId, chapterId, transcriptHash }, AudioModel) {
   const query = AudioModel.findOne({ courseId: String(courseId), chapterId, ...(transcriptHash ? { transcriptHash } : {}), status: 'ready' })
   return typeof query?.sort === 'function' ? query.sort({ updatedAt: -1 }) : query
@@ -185,14 +190,15 @@ export async function generateChapterAudio(courseId, lesson, { generatedBy, forc
   if (!force && current?.status === 'ready' && await audioExists(current, storage)) return { status: 'ready', cacheHit: true, chapterId: lesson.chapterId, transcriptHash, chunkCount: current.chunkCount }
 
   const cutoff = new Date(Date.now() - STALE_GENERATION_MS)
+  const generationToken = crypto.randomUUID()
   let claimed
   try {
     claimed = await AudioModel.findOneAndUpdate({
       ...identity,
-      $or: [{ status: { $ne: 'generating' } }, { updatedAt: { $lt: cutoff } }],
+      $or: [{ status: { $ne: 'generating' } }, { lastAttemptAt: { $lt: cutoff } }, { lastAttemptAt: { $exists: false }, generationStartedAt: { $lt: cutoff } }, { lastAttemptAt: { $exists: false }, generationStartedAt: { $exists: false }, updatedAt: { $lt: cutoff } }],
     }, {
       $setOnInsert: identity,
-      $set: { status: 'generating', generatedBy, error: null, generationStartedAt: new Date(), lastAttemptAt: new Date() },
+      $set: { status: 'generating', generatedBy, generationToken, error: null, generationStartedAt: new Date(), lastAttemptAt: new Date() },
     }, { upsert: true, new: true, setDefaultsOnInsert: true })
   } catch (error) {
     if (error.code !== 11000) throw error
@@ -200,7 +206,7 @@ export async function generateChapterAudio(courseId, lesson, { generatedBy, forc
     if (inProgress?.status === 'generating') return { status: 'generating', cacheHit: false, chapterId: lesson.chapterId, transcriptHash }
     throw error
   }
-  if (!claimed || (claimed.status === 'generating' && current?.status === 'generating' && current.updatedAt >= cutoff)) {
+  if (!claimed || claimed.generationToken !== generationToken) {
     return { status: 'generating', cacheHit: false, chapterId: lesson.chapterId, transcriptHash }
   }
 
@@ -221,18 +227,20 @@ export async function generateChapterAudio(courseId, lesson, { generatedBy, forc
       await storage.upload(key, generated[index], 'audio/wav')
       chunkRecords.push({ order: index + 1, storageKey: key, mimeType: 'audio/wav', durationSeconds: Math.round(generated[index].length / 48000) })
     }
-    const ready = await AudioModel.findOneAndUpdate(identity, { $set: {
-      status: 'ready', storageKey: chunkRecords[0].storageKey, chunks: chunkRecords, mimeType: 'audio/wav',
+    const ready = await writeOwnedTtsAudio(AudioModel, identity, generationToken, { $set: {
+      status: 'ready', storageKey: chunkRecords[0].storageKey, chunks: chunkRecords, mimeType: 'audio/wav', generationToken: null,
       durationSeconds: Math.round(combined.length / 48000), chunkCount: chunkRecords.length,
       generationCompletedAt: new Date(), generatedBy, error: null,
     } }, { new: true })
+    if (!ready) return { status: 'superseded', cacheHit: false, chapterId: lesson.chapterId, transcriptHash }
     return { status: 'ready', cacheHit: false, chapterId: lesson.chapterId, transcriptHash, chunkCount: ready.chunkCount }
   } catch (error) {
     const message = error.message?.slice(0, 450) || 'Audio generation failed'
-    await AudioModel.findOneAndUpdate(identity, { $set: previous
+    const failed = await writeOwnedTtsAudio(AudioModel, identity, generationToken, { $set: previous
       ? { status: 'ready', storageKey: previous.storageKey, chunks: previous.chunks, mimeType: previous.mimeType, durationSeconds: previous.durationSeconds, chunkCount: previous.chunkCount, error: message }
-      : { status: 'failed', error: message },
+      : { status: 'failed', error: message }, $unset: { generationToken: 1 },
     }, { new: true })
+    if (!failed) return { status: 'superseded', cacheHit: false, chapterId: lesson.chapterId, transcriptHash }
     throw error
   }
 }
@@ -294,37 +302,44 @@ export async function getCourseAudioStatus(courseId, { AudioModel = TtsAudio, st
   } : null }
 }
 
-async function processBatch(jobId, { BatchModel = TtsBatchJob, AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env } = {}, { resume = false } = {}) {
-  const job = await BatchModel.findById(jobId)
-  if (!job || job.status !== 'running') return
-  const chapters = curriculum.sections.flatMap((section) => section.chapters)
-  for (const chapter of chapters) {
-    const latest = await BatchModel.findById(jobId)
-    if (!latest || latest.status !== 'running') return
-    await BatchModel.updateOne({ _id: jobId, status: 'running' }, { $set: { currentChapterId: chapter.id } })
-    try {
-      const priorResult = latest.results?.find((item) => item.chapterId === chapter.id && ['ready', 'cached', 'skipped_existing'].includes(item.status))
-      if (resume && priorResult) continue
-      const lesson = await getLessonByChapterId(chapter.id)
-      if (job.mode === 'missing') {
-        const anyReady = await AudioModel.findOne({ courseId: String(job.courseId), chapterId: chapter.id, status: 'ready' }).sort({ updatedAt: -1 })
-        if (anyReady && await audioExists(anyReady, storage)) {
-          await BatchModel.updateOne({ _id: jobId, status: 'running' }, { $push: { results: { chapterId: chapter.id, status: 'skipped_existing' } } })
-          continue
+export async function processBatch(jobId, { BatchModel = TtsBatchJob, AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env, chapters = curriculum.sections.flatMap((section) => section.chapters), getAudioStatus = getCourseAudioStatus, scheduleHeartbeat = setInterval, cancelHeartbeat = clearInterval } = {}, { resume = false } = {}) {
+  const workerToken = crypto.randomUUID()
+  const now = new Date()
+  const job = await BatchModel.findOneAndUpdate({ _id: jobId, status: 'running', $or: [{ leaseUntil: { $lte: now } }, { leaseUntil: { $exists: false } }, { leaseUntil: null }] }, { $set: { workerToken, leaseUntil: new Date(Date.now() + BATCH_LEASE_MS) } }, { new: true })
+  if (!job) return
+  const heartbeat = scheduleHeartbeat(() => BatchModel.updateOne({ _id: jobId, status: 'running', workerToken }, { $set: { leaseUntil: new Date(Date.now() + BATCH_LEASE_MS) } }).catch(() => {}), Math.floor(BATCH_LEASE_MS / 3))
+  try {
+    for (const chapter of chapters) {
+      const latest = await BatchModel.findOne({ _id: jobId, status: 'running', workerToken }).lean?.() || await BatchModel.findById(jobId)
+      if (!latest || latest.status !== 'running' || latest.workerToken !== workerToken) return
+      await BatchModel.updateOne({ _id: jobId, status: 'running', workerToken }, { $set: { currentChapterId: chapter.id, leaseUntil: new Date(Date.now() + BATCH_LEASE_MS) } })
+      try {
+        const priorResult = latest.results?.find((item) => item.chapterId === chapter.id && ['ready', 'cached', 'skipped_existing'].includes(item.status))
+        if (resume && priorResult) continue
+        const lesson = await getLessonByChapterId(chapter.id)
+        if (job.mode === 'missing') {
+          const anyReady = await AudioModel.findOne({ courseId: String(job.courseId), chapterId: chapter.id, status: 'ready' }).sort({ updatedAt: -1 })
+          if (anyReady && await audioExists(anyReady, storage)) {
+            await BatchModel.updateOne({ _id: jobId, status: 'running', workerToken }, { $push: { results: { chapterId: chapter.id, status: 'skipped_existing' } } })
+            continue
+          }
         }
+        const result = await generateChapterAudio(job.courseId, lesson, { generatedBy: job.initiatedBy, force: job.mode === 'force', AudioModel, storage, env })
+        const resultStatus = ['generating', 'superseded'].includes(result.status) ? 'in_progress' : result.cacheHit ? 'cached' : 'ready'
+        await BatchModel.updateOne({ _id: jobId, status: 'running', workerToken }, { $push: { results: { chapterId: chapter.id, status: resultStatus } } })
+      } catch (error) {
+        await BatchModel.updateOne({ _id: jobId, status: 'running', workerToken }, { $push: { results: { chapterId: chapter.id, status: 'failed', error: error.message.slice(0, 450) } } })
       }
-      const result = await generateChapterAudio(job.courseId, lesson, { generatedBy: job.initiatedBy, force: job.mode === 'force', AudioModel, storage, env })
-      await BatchModel.updateOne({ _id: jobId, status: 'running' }, { $push: { results: { chapterId: chapter.id, status: result.status === 'generating' ? 'skipped' : result.cacheHit ? 'cached' : 'ready' } } })
-    } catch (error) {
-      await BatchModel.updateOne({ _id: jobId, status: 'running' }, { $push: { results: { chapterId: chapter.id, status: 'failed', error: error.message.slice(0, 450) } } })
     }
+    const summary = await getAudioStatus(job.courseId, { AudioModel, storage, env })
+    await BatchModel.findOneAndUpdate({ _id: jobId, status: 'running', workerToken }, { $set: {
+      status: summary.failed || summary.missing || summary.generating ? 'completed_with_errors' : 'completed',
+      total: summary.total, ready: summary.ready, generating: summary.generating, failed: summary.failed,
+      missing: summary.missing, stale: summary.stale, currentChapterId: null, completedAt: new Date(), workerToken: null, leaseUntil: null,
+    } })
+  } finally {
+    cancelHeartbeat(heartbeat)
   }
-  const summary = await getCourseAudioStatus(job.courseId, { AudioModel, storage, env })
-  await BatchModel.findByIdAndUpdate(jobId, { $set: {
-    status: summary.failed || summary.missing || summary.generating ? 'completed_with_errors' : 'completed',
-    total: summary.total, ready: summary.ready, generating: summary.generating, failed: summary.failed,
-    missing: summary.missing, stale: summary.stale, currentChapterId: null, completedAt: new Date(),
-  } })
 }
 
 export async function startCourseAudioBatch(courseId, mode, initiatedBy, options = {}) {
@@ -343,15 +358,14 @@ export async function startCourseAudioBatch(courseId, mode, initiatedBy, options
     if (running) return { job: running, alreadyRunning: true }
     throw error
   }
-  setImmediate(() => processBatch(job._id, options).catch(async () => {
-    await BatchModel.findByIdAndUpdate(job._id, { $set: { status: 'failed', completedAt: new Date(), currentChapterId: null } })
-  }))
+  const schedule = options.schedule || setImmediate
+  schedule(() => processBatch(job._id, options).catch(() => {}))
   return { job, alreadyRunning: false }
 }
 
-export async function resumeCourseAudioBatches() {
-  const running = await TtsBatchJob.find({ status: 'running' }).lean()
-  for (const job of running) setImmediate(() => processBatch(job._id, {}, { resume: true }).catch(async () => {
-    await TtsBatchJob.findByIdAndUpdate(job._id, { $set: { status: 'failed', completedAt: new Date(), currentChapterId: null } })
-  }))
+export async function resumeCourseAudioBatches(options = {}) {
+  const BatchModel = options.BatchModel || TtsBatchJob
+  const running = await BatchModel.find({ status: 'running' }).lean()
+  const schedule = options.schedule || setImmediate
+  for (const job of running) schedule(() => processBatch(job._id, { ...options, BatchModel }, { resume: true }).catch(() => {}))
 }
