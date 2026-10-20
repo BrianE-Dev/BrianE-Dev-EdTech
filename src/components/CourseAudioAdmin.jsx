@@ -2,6 +2,24 @@ import { useCallback, useEffect, useState } from 'react'
 import { API_URL, api } from '../services/api.js'
 import BrowserSusanTts from './BrowserSusanTts.jsx'
 
+function audioRequestError(error) {
+  const guidance = {
+    authentication_error: 'Object storage rejected its credentials (401). Check the storage access key and secret in the API service environment.',
+    permission_error: 'Object storage denied access (403). Check bucket permissions for reading and writing audio objects.',
+    missing_object: 'Object storage reported a missing object (404). Check the configured endpoint, bucket, and object path.',
+    storage_configuration_error: 'Object storage configuration is incomplete or invalid. Check the provider, endpoint, region, bucket, and credentials in the API service environment.',
+    dns_error: 'The API could not resolve the object storage host. Check the configured storage endpoint and API network access.',
+    tls_error: 'The API could not establish a secure connection to object storage. Check the endpoint and TLS configuration.',
+    timeout: 'The object storage request timed out. Check storage availability and API network access.',
+    connection_error: 'The API could not connect to object storage. Check the endpoint and API network access.',
+    provider_http_500: 'Object storage returned a server error (500). Check the storage provider status and API logs.',
+    provider_http_502: 'Object storage returned a server error (502). Check the storage provider status and API logs.',
+    provider_http_503: 'Object storage is temporarily unavailable (503). Check the storage provider status and API logs.',
+  }
+  if (error?.code !== 'AUDIO_STORAGE_UNAVAILABLE') return error?.message || 'Audio request failed.'
+  return `${guidance[error.storageIssue] || `Object storage request failed (${error.storageIssue || 'unknown cause'}). Check the API service logs and storage configuration.`} The chapter request could not complete until storage is available.`
+}
+
 export default function CourseAudioAdmin({ courseId }) {
   const [status, setStatus] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -37,7 +55,7 @@ export default function CourseAudioAdmin({ courseId }) {
       const result = await api(`/admin/tts/courses/${encodeURIComponent(courseId)}/generate-missing`, { method: 'POST', body: JSON.stringify({ mode }) })
       setNotice(result.alreadyRunning ? 'Audio generation is already running. Showing the active batch.' : `${mode === 'changed' ? 'Changed and missing' : 'Missing'} chapter audio generation started.`)
       await refresh()
-    } catch (requestError) { setError(requestError.message) } finally { setBusy(false) }
+    } catch (requestError) { setError(audioRequestError(requestError)) } finally { setBusy(false) }
   }
 
   async function startChapter(chapterId, force = false) {
@@ -46,7 +64,7 @@ export default function CourseAudioAdmin({ courseId }) {
       const result = await api(`/admin/tts/courses/${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}/generate`, { method: 'POST', body: JSON.stringify({ force }) })
       setNotice(result.status === 'ready' ? 'Chapter audio is ready.' : `Audio generation started for ${chapterId}.`)
       await refresh()
-    } catch (requestError) { setError(requestError.message) } finally { setBusy(false) }
+    } catch (requestError) { setError(audioRequestError(requestError)) } finally { setBusy(false) }
   }
 
   async function uploadChapter(chapterId) {
@@ -64,7 +82,7 @@ export default function CourseAudioAdmin({ courseId }) {
       setNotice(`Recording uploaded for ${chapterId}.`)
       setSelectedFiles((files) => ({ ...files, [chapterId]: null }))
       await refresh()
-    } catch (requestError) { setError(requestError.message) } finally { setBusy(false) }
+    } catch (requestError) { setError(audioRequestError(requestError)) } finally { setBusy(false) }
   }
 
   return <section className="admin-audio-section" aria-labelledby="admin-audio-title">

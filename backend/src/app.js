@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { rateLimit } from 'express-rate-limit'
 import { isDatabaseReady, isDatabaseUnavailableError } from './config/database.js'
+import { classifyTtsDiagnosticStorageError } from './services/ttsRecoveryDiagnostic.js'
 import api from './routes/api.js'
 
 const app = express()
@@ -50,7 +51,9 @@ app.use((error, _req, res, next) => {
     return res.status(503).json({ error: 'Database unavailable', code: 'DATABASE_UNAVAILABLE' })
   }
   if (error.code === 'AUDIO_STORAGE_UNAVAILABLE') {
-    return res.status(503).json({ error: 'Persistent audio storage is unavailable', code: 'AUDIO_STORAGE_UNAVAILABLE' })
+    const storageIssue = classifyTtsDiagnosticStorageError(error)
+    console.error(`TTS storage failure: ${storageIssue}`)
+    return res.status(503).json({ error: 'Persistent audio storage is unavailable', code: 'AUDIO_STORAGE_UNAVAILABLE', storageIssue })
   }
   const status = error.status || (error.name === 'ZodError' ? 400 : error.code === 11000 ? 409 : 500)
   if (status >= 500) console.error(error.message)

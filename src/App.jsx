@@ -20,7 +20,6 @@ import BusinessPages from './components/BusinessPages.jsx'
 import PasswordRecovery from './components/PasswordRecovery.jsx'
 import SiteNavigation from './components/SiteNavigation.jsx'
 import DeveloperIntelligenceSphere from './components/DeveloperIntelligenceSphere.jsx'
-import CertificatePreview from './components/CertificatePreview.jsx'
 import { getPromotionDateRange } from './utils/promotionDates.js'
 import './App.css'
 
@@ -141,10 +140,6 @@ function LandingPage({ children = null, showPromotion = true }) {
 
       <main id="top">
         {children}
-        {showPromotion && <section className="course-ad section-wrap" aria-labelledby="course-ad-title">
-          <div className="course-ad-copy"><span className="eyebrow">LEVEL UP YOUR DEVELOPMENT WORKFLOW</span><h1 id="course-ad-title">Build Better Software. Work Smarter With AI.</h1><p>Learn practical AI-assisted workflows for planning, writing, debugging, testing, and improving software. Develop the skills to integrate AI into your engineering process with greater clarity and efficiency.</p><ul><li>Practical AI-assisted development workflows</li><li>Code-focused examples for software engineers</li><li>Structured learning from foundational concepts to advanced workflows</li><li>Certificate of completion after meeting course requirements</li></ul><a className="button button-primary" href="#pricing">Explore the Course <Icon name="arrow" size={16}/></a> <a className="course-ad-details" href="/course/ai-powered-developer-productivity">View Course Details</a></div>
-          <div className="course-ad-certificate"><CertificatePreview template={{ brandName: 'BRIANE-DEV', heading: 'CERTIFICATE OF COMPLETION', introduction: 'This certificate is presented to', courseLead: 'for completing the course', recognitionText: 'and completing the prescribed learning curriculum in AI-assisted software development and developer productivity.', signatoryName: 'BrianE-Dev', signatureDataUrl: '', footer: 'Certificate of successful course completion' }} recipientName="LEARNER NAME" courseTitle={curriculum.title}/><p>Certificate preview only. Certificates are issued to eligible learners after required course completion.</p></div>
-        </section>}
         <section ref={heroRef} onPointerMove={moveHeroSquare} onPointerLeave={hideHeroSquare} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
           <span ref={heroSquareRef} className="hero-pointer-square" aria-hidden="true"/>
           <div className="hero-copy" key={`hero-copy-${heroRun}`}>

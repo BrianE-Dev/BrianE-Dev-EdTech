@@ -20,6 +20,7 @@ export async function api(path, options = {}) {
     const error = new Error(typeof body?.error === 'string' ? body.error : 'Request failed')
     error.status = response.status
     error.code = body?.code
+    error.storageIssue = body?.storageIssue
     throw error
   }
   return body
@@ -47,6 +48,7 @@ export async function getLessonAudio(courseId, chapterId) {
     const error = new Error(typeof body?.error === 'string' ? body.error : 'Lesson audio could not be loaded')
     error.status = response.status
     error.code = body?.code
+    error.storageIssue = body?.storageIssue
     throw error
   }
   return response.blob()
