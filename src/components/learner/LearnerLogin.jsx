@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Brand from '../Brand.jsx'
 import { api, loginLearner } from '../../services/api.js'
 
@@ -10,12 +10,8 @@ export default function LearnerLogin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [verificationToken, setVerificationToken] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState(() => new URLSearchParams(window.location.search).get('created') === '1' ? 'Your account is ready. Sign in to enter the course.' : '')
   const returnTo = safeReturnPath(new URLSearchParams(window.location.search).get('returnTo'))
-
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('created') === '1') setNotice('Your account is ready. Sign in to enter the course.')
-  }, [])
 
   async function submit(event) {
     event.preventDefault()

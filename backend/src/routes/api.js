@@ -84,13 +84,14 @@ router.post('/auth/register', async (req, res) => {
   const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()), password: z.string().min(10).max(128) })
   const input = schema.parse(req.body)
   const existingUser = await User.findOne({ email: input.email }).select('_id')
+  if (existingUser) return res.status(409).json({ error: 'An account already exists for this email. Please sign in.' })
   const paidAccess = await Payment.findOne({ application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, productType: 'course', status: { $in: ['paid', 'successful'] }, $or: [{ checkoutEmail: input.email }, ...(existingUser ? [{ user: existingUser._id }] : [])] })
   if (!paidAccess) return res.status(403).json({ error: 'Complete payment successfully with this email before creating your learner account.' })
-  if (await User.exists({ email: input.email })) return res.status(409).json({ error: 'An account already exists for this email. Please sign in.' })
   const country = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
-  const user = await User.create({ name: input.name, email: input.email, emailVerified: true, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
+  const user = await User.create({ name: input.name, email: input.email, emailVerified: false, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
   await Payment.updateMany({ $or: [{ checkoutEmail: input.email }, ...(existingUser ? [{ user: existingUser._id }] : [])], application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, status: { $in: ['paid', 'successful'] } }, { $set: { user: user._id, checkoutEmail: input.email } })
-  res.status(201).json({ verificationRequired: false, emailDelivery: mailStatus() })
+  const verificationToken = await issueSecurityToken(user, 'verify')
+  res.status(201).json({ verificationRequired: true, emailDelivery: mailStatus(), ...(process.env.NODE_ENV !== 'production' ? { developmentVerificationToken: verificationToken } : {}) })
 })
 
 router.post('/auth/login', async (req, res) => {

@@ -22,7 +22,6 @@
 .button-muted { color: #7c8da4; font: 10px var(--mono); }
 .menu-toggle { display: none; }
 .hero-section { position: relative; min-height: 475px; padding-block: 68px 62px; display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: 60px; }
-.hero-pointer-square { position:absolute; z-index:4; width:24px; height:24px; margin:-12px 0 0 -12px; pointer-events:none; background:var(--cyan); opacity:.72; box-shadow:0 0 26px rgba(67,213,237,.72); transition:left .06s linear,top .06s linear; }
 .hero-copy > * { opacity: 0; transform: translateY(20px); }
 .hero-is-visible .hero-copy > * { animation: hero-row-enter 1.25s cubic-bezier(.2,.72,.25,1) both; }
 .hero-is-visible .hero-copy > :nth-child(1) { animation-delay: 0ms; }
@@ -58,6 +57,7 @@ h1,h2,h3 { font-family: var(--display); }
 .hero-copy h1 span { color: var(--cyan); }
 .hero-description { max-width: 515px; margin-bottom: 23px; color: #a4b2c6; font-size: 13px; line-height: 1.8; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-services-link { display:inline-flex; align-items:center; flex-wrap:wrap; gap:5px; margin-top:16px; color:#91a4bb; font-size:11px; text-decoration:none; }.hero-services-link strong { display:inline-flex; align-items:center; gap:4px; color:var(--cyan); font-weight:600; }.hero-services-link:hover strong { color:#8ceafa; }
 .play-mini { display: grid; place-items: center; width: 17px; height: 17px; border: 1px solid #46576c; border-radius: 50%; }
 .hero-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 35px; padding-top: 15px; border-top: 1px solid #233349; }
 .hero-stats div { display: grid; gap: 5px; }
@@ -71,9 +71,15 @@ h1,h2,h3 { font-family: var(--display); }
 .window-dots i { width: 5px; height: 5px; border-radius: 50%; background: #40536a; }
 .window-dots i:first-child { background: #ee806d; }.window-dots i:nth-child(2) { background: #eab561; }.window-dots i:nth-child(3) { background: #5bbd94; }
 .live-label { color: var(--green); }.live-label b { display: inline-block; width: 5px; height: 5px; margin-right: 3px; border-radius: 50%; background: var(--green); }
-.hero-image-wrap { height: 255px; overflow: hidden; background: #101c2e; }
+.hero-image-wrap { height: 255px; min-height: 255px; overflow: hidden; background: radial-gradient(circle at 50% 50%,rgba(6,182,212,.08),transparent 58%),#101c2e; }
 .hero-image-wrap img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.developer-intelligence-sphere { display:block; width:100%; height:100%; pointer-events:auto; }
+.developer-sphere-host { position:relative; width:100%; height:100%; min-height:255px; overflow:hidden; background:radial-gradient(circle at 50% 50%,rgba(6,182,212,.08),transparent 58%); }
+.developer-intelligence-sphere { display:block; width:100%; height:100%; min-height:255px; pointer-events:auto; }
+.developer-sphere-fallback { position:absolute; inset:0; display:none; place-items:center; background:radial-gradient(circle,rgba(6,182,212,.14),transparent 62%); }
+.developer-sphere-host[data-fallback="true"] .developer-sphere-fallback { display:grid; }
+.developer-sphere-fallback span { width:180px; aspect-ratio:1; border:1px solid rgba(6,182,212,.65); border-radius:50%; background:repeating-radial-gradient(circle,transparent 0 15px,rgba(6,182,212,.22) 16px 17px),repeating-linear-gradient(0deg,transparent 0 17px,rgba(6,182,212,.2) 18px 19px); box-shadow:0 0 48px rgba(6,182,212,.2),inset 0 0 28px rgba(6,182,212,.1); }
+.developer-sphere-fallback i { position:absolute; width:6px; height:6px; border-radius:50%; background:#baf8ff; box-shadow:0 0 12px #06d4ee; }.developer-sphere-fallback i:nth-child(2) { transform:translate(100px,-52px); }.developer-sphere-fallback i:nth-child(3) { transform:translate(-108px,24px); }.developer-sphere-fallback i:nth-child(4) { transform:translate(12px,105px); }
+@media (max-width:700px) { .hero-image-wrap { height:220px; min-height:220px; aspect-ratio:auto; }.developer-sphere-host,.developer-intelligence-sphere { min-height:220px; } }
 .visual-caption { min-height: 32px; }.visual-caption span { display: inline-flex; align-items: center; gap: 5px; }
 .feature-band { display: grid; grid-template-columns: 1.08fr repeat(3,1fr); gap: 13px; padding-block: 37px 62px; }
 .feature-intro { align-self: center; padding-right: 18px; }.feature-intro .eyebrow { font-size: 8px; }.feature-intro p { margin: 10px 0 0; color: #b1bdcf; font: 500 14px/1.5 var(--display); }

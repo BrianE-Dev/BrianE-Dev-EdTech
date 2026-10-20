@@ -49,6 +49,7 @@ const originals = {
   paymentExists: Payment.exists,
   paymentCreate: Payment.create,
   paymentFindOne: Payment.findOne,
+  paymentUpdateMany: Payment.updateMany,
   paymentFindOneAndUpdate: Payment.findOneAndUpdate,
   paymentFind: Payment.find,
   progressFindOne: Progress.findOne,
@@ -110,9 +111,11 @@ test.before(async () => {
     return row
   }
   Payment.findOne = async (filter) => {
+    if (filter.$or && paid) return { id: 'successful-payment', checkoutEmail: filter.$or[0].checkoutEmail }
     const row = paymentRows.get(filter.reference)
     return row && Object.entries(filter).every(([key, value]) => String(row[key]) === String(value)) ? row : null
   }
+  Payment.updateMany = async () => ({ modifiedCount: 1 })
   Payment.findOneAndUpdate = async (filter, update) => {
     const row = [...paymentRows.values()].find((payment) => payment.id === filter._id)
     if (!row || ['paid', 'successful'].includes(row.status)) return null
@@ -188,6 +191,7 @@ test.after(async () => {
   Payment.exists = originals.paymentExists
   Payment.create = originals.paymentCreate
   Payment.findOne = originals.paymentFindOne
+  Payment.updateMany = originals.paymentUpdateMany
   Payment.findOneAndUpdate = originals.paymentFindOneAndUpdate
   Payment.find = originals.paymentFind
   Progress.findOne = originals.progressFindOne
@@ -674,6 +678,7 @@ test('public course endpoints expose canonical catalog metadata without stored l
 })
 
 test('learner login, invalid credentials, registration role isolation, and admin separation', async () => {
+  paid = false
   const invalid = await apiJson('/auth/login', { method: 'POST', body: { email: 'learner@example.test', password: 'incorrect-password' } })
   assert.equal(invalid.status, 401)
 
@@ -685,6 +690,9 @@ test('learner login, invalid credentials, registration role isolation, and admin
   assert.equal((await me.json()).user.role, 'user')
 
   const paymentCountBeforeRegistration = paymentRows.size
+  const unpaidSignup = await apiJson('/auth/register', { method: 'POST', headers: { 'x-forwarded-for': '192.0.2.88' }, body: { name: 'Unpaid Learner', email: 'unpaid@example.test', password: 'unpaid-learner-password' } })
+  assert.equal(unpaidSignup.status, 403)
+  paid = true
   const registration = await apiJson('/auth/register', {
     method: 'POST',
     body: { name: 'New Learner', email: 'new@example.test', password: 'new-learner-password', role: 'super_admin' },
@@ -761,6 +769,7 @@ test('authentication handles normalized emails, admin credentials, malformed has
   assert.equal((await adminLogin.json()).user.role, 'super_admin')
   assert.match(adminLogin.headers.get('set-cookie') || '', /HttpOnly/i)
 
+  paid = true
   const registered = await apiJson('/auth/register', {
     method: 'POST',
     userId: null,
@@ -777,6 +786,7 @@ test('authentication handles normalized emails, admin credentials, malformed has
   assert.equal(row.emailVerified, false)
   assert.match(row.passwordHash, /^\$2[aby]\$12\$/)
   assert.equal(await bcrypt.compare('normalized-password', row.passwordHash), true)
+  paid = false
   const normalizedLogin = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: ' NEW.USER@example.test ', password: 'normalized-password' } })
   assert.equal(normalizedLogin.status, 200)
   const resetSession = sessionCookie(row.id)

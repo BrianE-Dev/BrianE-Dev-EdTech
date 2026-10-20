@@ -1,154 +1,188 @@
 import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
 
-const cyan = '#06b6d4'
-
-function makePoints(count = 92) {
+function pointsOnSphere(count) {
   return Array.from({ length: count }, (_, index) => {
     const y = 1 - (index / (count - 1)) * 2
-    const radius = Math.sqrt(1 - y * y)
+    const ring = Math.sqrt(1 - y * y)
     const angle = Math.PI * (3 - Math.sqrt(5)) * index
-    return { x: Math.cos(angle) * radius, y, z: Math.sin(angle) * radius, phase: (index * 0.73) % (Math.PI * 2) }
+    return new THREE.Vector3(Math.cos(angle) * ring, y, Math.sin(angle) * ring)
   })
 }
 
-export default function DeveloperIntelligenceSphere({ active = true }) {
-  const canvasRef = useRef(null)
+export default function DeveloperIntelligenceSphere() {
+  const hostRef = useRef(null)
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext('2d')
-    if (!canvas || !context) return undefined
+    const host = hostRef.current
+    if (!host) return undefined
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const points = makePoints()
-    const links = []
-    for (let i = 0; i < points.length; i += 1) {
-      const nearest = points.map((point, index) => ({ index, distance: Math.hypot(point.x - points[i].x, point.y - points[i].y, point.z - points[i].z) }))
-        .filter((point) => point.index !== i).sort((a, b) => a.distance - b.distance).slice(0, 3)
-      nearest.forEach(({ index }) => { if (index > i) links.push([i, index]) })
-    }
-    const particles = Array.from({ length: 18 }, (_, index) => ({ angle: index * 2.4, radius: 1.13 + (index % 4) * 0.07, y: Math.sin(index * 8.1) * 0.72, phase: index * 0.31 }))
-    const pointer = { x: 0, y: 0 }
-    let width = 0
-    let height = 0
-    let frame = 0
-    let startedAt = 0
-    let running = false
-    let disposed = false
+    let renderer
     let resizeObserver
+    let visibilityObserver
+    let frame = 0
+    let visible = false
+    let disposed = false
+    let startedAt = 0
+    let width = 1
+    let height = 1
+    const pointer = new THREE.Vector2()
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 50)
+    camera.position.set(0, 0, 7.2)
+
+    const root = new THREE.Group()
+    scene.add(root)
+    const cyan = 0x06b6d4
+    const wire = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1.42, 2),
+      new THREE.MeshBasicMaterial({ color: cyan, wireframe: true, transparent: true, opacity: 0.44 }),
+    )
+    root.add(wire)
+
+    const nodes = pointsOnSphere(92)
+    const nodeGeometry = new THREE.BufferGeometry().setFromPoints(nodes)
+    const nodeMaterial = new THREE.PointsMaterial({ color: 0x42e8ff, size: 0.035, transparent: true, opacity: 0.9, sizeAttenuation: true })
+    const nodeCloud = new THREE.Points(nodeGeometry, nodeMaterial)
+    root.add(nodeCloud)
+
+    const segments = []
+    nodes.forEach((point, index) => {
+      const neighbors = nodes.map((other, otherIndex) => ({ other, otherIndex, distance: point.distanceToSquared(other) }))
+        .filter((item) => item.otherIndex !== index)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 3)
+      neighbors.forEach(({ other, otherIndex }) => {
+        if (otherIndex > index) segments.push(point.x, point.y, point.z, other.x, other.y, other.z)
+      })
+    })
+    const edgeGeometry = new THREE.BufferGeometry()
+    edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(segments, 3))
+    const edgeMaterial = new THREE.LineBasicMaterial({ color: cyan, transparent: true, opacity: 0.18 })
+    root.add(new THREE.LineSegments(edgeGeometry, edgeMaterial))
+
+    const particlePositions = new Float32Array(54)
+    for (let index = 0; index < 18; index += 1) {
+      const point = pointsOnSphere(19)[index + 1].multiplyScalar(1.72 + (index % 3) * 0.12)
+      particlePositions.set([point.x, point.y, point.z], index * 3)
+    }
+    const particleGeometry = new THREE.BufferGeometry()
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3))
+    const particleMaterial = new THREE.PointsMaterial({ color: 0xc9fbff, size: 0.045, transparent: true, opacity: 0.75, sizeAttenuation: true })
+    root.add(new THREE.Points(particleGeometry, particleMaterial))
+
+    try {
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'low-power' })
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
+      renderer.setClearColor(0x0d1929, 0)
+      renderer.outputColorSpace = THREE.SRGBColorSpace
+      renderer.domElement.className = 'developer-intelligence-sphere'
+      renderer.domElement.setAttribute('aria-hidden', 'true')
+      host.appendChild(renderer.domElement)
+    } catch {
+      host.dataset.fallback = 'true'
+      return () => {
+        disposed = true
+        nodeGeometry.dispose(); nodeMaterial.dispose(); wire.geometry.dispose(); wire.material.dispose()
+        edgeGeometry.dispose(); edgeMaterial.dispose(); particleGeometry.dispose(); particleMaterial.dispose()
+      }
+    }
 
     function resize() {
-      const bounds = canvas.getBoundingClientRect()
-      const ratio = Math.min(window.devicePixelRatio || 1, 1.5)
+      const bounds = host.getBoundingClientRect()
       width = Math.max(bounds.width, 1)
       height = Math.max(bounds.height, 1)
-      canvas.width = Math.round(width * ratio)
-      canvas.height = Math.round(height * ratio)
-      context.setTransform(ratio, 0, 0, ratio, 0, 0)
-      if (!running) draw(performance.now())
+      camera.aspect = width / height
+      camera.updateProjectionMatrix()
+      renderer.setSize(width, height, false)
+      if (!visible) renderer.render(scene, camera)
     }
 
-    function draw(now) {
-      if (disposed) return
-      context.clearRect(0, 0, width, height)
-      const elapsed = reducedMotion.matches ? 1 : (now - startedAt) / 1000
-      const entrance = reducedMotion.matches ? 1 : Math.min(elapsed / 1.5, 1)
-      const eased = 1 - ((1 - entrance) ** 3)
-      const radius = Math.min(width, height) * 0.34 * eased
-      const rotation = reducedMotion.matches ? 0 : elapsed * 0.18
-      const tilt = pointer.x * 0.12
-      const centerX = width * (0.5 + pointer.x * 0.035)
-      const centerY = height * (0.5 + pointer.y * 0.035)
-      const projected = points.map((point) => {
-        const x = point.x * Math.cos(rotation) - point.z * Math.sin(rotation)
-        const z = point.x * Math.sin(rotation) + point.z * Math.cos(rotation)
-        const y = point.y * Math.cos(tilt) - z * Math.sin(tilt)
-        const depth = point.y * Math.sin(tilt) + z * Math.cos(tilt)
-        const perspective = 1 / (1.65 - depth * 0.34)
-        return { x: centerX + x * radius * perspective, y: centerY + y * radius * perspective, depth, perspective }
-      })
-
-      context.save()
-      context.globalAlpha = eased
-      const glow = context.createRadialGradient(centerX, centerY, radius * 0.1, centerX, centerY, radius * 1.2)
-      glow.addColorStop(0, 'rgba(6,182,212,0.1)')
-      glow.addColorStop(0.7, 'rgba(6,182,212,0.025)')
-      glow.addColorStop(1, 'rgba(6,182,212,0)')
-      context.fillStyle = glow
-      context.beginPath(); context.arc(centerX, centerY, radius * 1.2, 0, Math.PI * 2); context.fill()
-
-      context.lineWidth = 0.7
-      context.strokeStyle = cyan
-      links.forEach(([a, b]) => {
-        const first = projected[a]
-        const second = projected[b]
-        const depthAlpha = Math.max(0.08, (first.depth + second.depth + 2) / 4) * 0.48
-        context.globalAlpha = eased * depthAlpha
-        context.beginPath(); context.moveTo(first.x, first.y); context.lineTo(second.x, second.y); context.stroke()
-      })
-      projected.forEach((point, index) => {
-        const pulse = 0.62 + Math.sin(elapsed * 1.25 + points[index].phase) * 0.22
-        const size = (1.1 + pulse * 1.15) * point.perspective
-        context.globalAlpha = eased * Math.max(0.22, (point.depth + 1.6) / 2.6)
-        context.fillStyle = cyan
-        context.beginPath(); context.arc(point.x, point.y, size, 0, Math.PI * 2); context.fill()
-      })
-      particles.forEach((particle) => {
-        const angle = particle.angle + (reducedMotion.matches ? 0 : elapsed * (0.035 + (particle.phase % 0.04)))
-        const x = centerX + Math.cos(angle) * radius * particle.radius
-        const y = centerY + (particle.y + Math.sin(angle * 0.55) * 0.08) * radius
-        const twinkle = 0.3 + (Math.sin(elapsed * 1.7 + particle.phase) + 1) * 0.26
-        context.globalAlpha = eased * twinkle
-        context.fillStyle = '#ffffff'
-        context.beginPath(); context.arc(x, y, 0.8 + twinkle * 1.2, 0, Math.PI * 2); context.fill()
-      })
-      context.restore()
-    }
-
-    function animate(now) {
-      if (!running || disposed) return
-      draw(now)
-      frame = window.requestAnimationFrame(animate)
+    function render(now) {
+      if (disposed || !visible) return
+      const elapsed = reducedMotion.matches ? 0 : (now - startedAt) / 1000
+      const progress = reducedMotion.matches ? 1 : Math.min(elapsed / 1.4, 1)
+      const eased = 1 - ((1 - progress) ** 3)
+      root.scale.setScalar(0.72 + eased * 0.28)
+      root.rotation.y = reducedMotion.matches ? 0 : elapsed * 0.12 + pointer.x * 0.16
+      root.rotation.x = reducedMotion.matches ? 0 : pointer.y * 0.11 + Math.sin(elapsed * 0.35) * 0.025
+      root.visible = true
+      wire.material.opacity = 0.44 * eased
+      nodeMaterial.opacity = 0.9 * eased
+      edgeMaterial.opacity = 0.18 * eased
+      particleMaterial.opacity = 0.75 * eased
+      camera.position.x += (pointer.x * 0.18 - camera.position.x) * 0.035
+      camera.position.y += (-pointer.y * 0.12 - camera.position.y) * 0.035
+      camera.lookAt(0, 0, 0)
+      renderer.render(scene, camera)
+      if (!reducedMotion.matches) frame = window.requestAnimationFrame(render)
     }
 
     function start() {
-      window.cancelAnimationFrame(frame)
-      running = true
+      if (disposed || visible) return
+      visible = true
       startedAt = performance.now()
-      frame = window.requestAnimationFrame(animate)
+      window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(render)
     }
 
     function stop() {
-      running = false
+      visible = false
       window.cancelAnimationFrame(frame)
       frame = 0
     }
 
     function onPointerMove(event) {
-      const bounds = canvas.getBoundingClientRect()
-      pointer.x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2
-      pointer.y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2
+      const bounds = renderer.domElement.getBoundingClientRect()
+      pointer.set(((event.clientX - bounds.left) / bounds.width - 0.5) * 2, ((event.clientY - bounds.top) / bounds.height - 0.5) * 2)
     }
-    function onPointerLeave() { pointer.x = 0; pointer.y = 0 }
-    function onMotionChange() { if (active) start(); else { stop(); draw(performance.now()) } }
+    function onPointerLeave() { pointer.set(0, 0) }
+    function onMotionChange() {
+      if (!visible) return
+      window.cancelAnimationFrame(frame)
+      if (reducedMotion.matches) render(performance.now())
+      else { startedAt = performance.now() - 1400; frame = window.requestAnimationFrame(render) }
+    }
+    function onContextLost(event) { event.preventDefault(); stop(); host.dataset.fallback = 'true' }
 
     resizeObserver = new ResizeObserver(resize)
-    resizeObserver.observe(canvas)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerleave', onPointerLeave)
+    resizeObserver.observe(host)
+    renderer.domElement.addEventListener('pointermove', onPointerMove)
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave)
+    renderer.domElement.addEventListener('webglcontextlost', onContextLost)
     reducedMotion.addEventListener('change', onMotionChange)
     resize()
-    if (active) start()
+    if ('IntersectionObserver' in window) {
+      visibilityObserver = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) start()
+        else if (visible) stop()
+      }, { threshold: 0.01, rootMargin: '100px 0px' })
+      visibilityObserver.observe(host)
+    } else start()
 
     return () => {
       disposed = true
       stop()
+      visibilityObserver?.disconnect()
       resizeObserver?.disconnect()
-      canvas.removeEventListener('pointermove', onPointerMove)
-      canvas.removeEventListener('pointerleave', onPointerLeave)
       reducedMotion.removeEventListener('change', onMotionChange)
+      renderer.domElement.removeEventListener('pointermove', onPointerMove)
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave)
+      renderer.domElement.removeEventListener('webglcontextlost', onContextLost)
+      root.traverse((object) => {
+        if (object.geometry) object.geometry.dispose()
+        if (object.material) {
+          if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose())
+          else object.material.dispose()
+        }
+      })
+      renderer.dispose()
+      renderer.domElement.remove()
     }
-  }, [active])
+  }, [])
 
-  return <canvas ref={canvasRef} className="developer-intelligence-sphere" aria-hidden="true" />
+  return <div ref={hostRef} className="developer-sphere-host" aria-hidden="true">
+    <div className="developer-sphere-fallback"><span/><i/><i/><i/></div>
+  </div>
 }

@@ -9,15 +9,16 @@ function safeReturnPath(value) {
 export default function LearnerRegister() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [pending, setPending] = useState(false)
   const [paymentReady, setPaymentReady] = useState(false)
-  const [checkingPayment, setCheckingPayment] = useState(true)
+  const [reference] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('reference') || params.get('trxref') || sessionStorage.getItem('briane-dev-paid-reference')
+  })
+  const [checkingPayment, setCheckingPayment] = useState(() => Boolean(reference))
   const returnTo = safeReturnPath(new URLSearchParams(window.location.search).get('returnTo'))
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const reference = params.get('reference') || params.get('trxref') || sessionStorage.getItem('briane-dev-paid-reference')
-    if (!reference) { setCheckingPayment(false); return }
+    if (!reference) return
     api('/brianedev/payments/verify-public', { method: 'POST', body: JSON.stringify({ reference }) })
       .then((result) => setPaymentReady(result.status === 'paid'))
       .catch(() => setPaymentReady(false))
@@ -45,14 +46,13 @@ export default function LearnerRegister() {
       <p>Complete course payment with this email address first. Once payment succeeds, create your account to enter the full 43-chapter learning space.</p>
       {checkingPayment && <p role="status">Verifying your payment…</p>}
       {!checkingPayment && !paymentReady && <div className="learner-error" role="status"><strong>Payment required before signup.</strong><p>Pay for the course using the same email address, then return here to create your account.</p><a className="button button-primary" href="/#pricing">Go to course payment</a></div>}
-      {paymentReady && !pending && <form onSubmit={submit}>
+      {paymentReady && <form onSubmit={submit}>
         <label>Name<input type="text" name="name" autoComplete="name" minLength="2" maxLength="120" required /></label>
         <label>Email address<input type="email" name="email" autoComplete="email" required /></label>
         <label>Password<input type="password" name="password" autoComplete="new-password" minLength="10" maxLength="128" required /></label>
         {error && <p className="learner-error" role="alert">{error}</p>}
         <button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
       </form>}
-      {pending && <div className="learner-error" role="status"><strong>Account created.</strong><p>Sign in with your new account to enter your course.</p><a className="button button-primary" href={`/learn/login?returnTo=${encodeURIComponent(returnTo)}`}>Sign in</a></div>}
       <p className="learner-auth-switch">Already registered? <a href={`/learn/login?returnTo=${encodeURIComponent(returnTo)}`}>Sign in</a></p>
     </section>
   </main>

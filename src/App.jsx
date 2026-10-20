@@ -40,13 +40,6 @@ function LandingPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
-  const [heroPointer, setHeroPointer] = useState(null)
-
-  function trackHeroPointer(event) {
-    const bounds = event.currentTarget.getBoundingClientRect()
-    setHeroPointer({ x: event.clientX - bounds.left, y: event.clientY - bounds.top })
-  }
-
   const verifyPaymentReturn = useCallback(async (reference) => {
     setPaymentReturn({ state: 'checking', message: 'Checking payment status with Paystack…', reference })
     try {
@@ -131,8 +124,7 @@ function LandingPage() {
       <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
 
       <main id="top">
-        <section ref={heroRef} onPointerMove={trackHeroPointer} onPointerLeave={() => setHeroPointer(null)} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
-          {heroPointer && <span className="hero-pointer-square" aria-hidden="true" style={{ left: heroPointer.x, top: heroPointer.y }}/>}
+        <section ref={heroRef} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
           <div className="hero-copy" key={`hero-copy-${heroRun}`}>
             <div className="eyebrow"><span className="status-dot"/> ENGINEERING EDUCATION <span className="eyebrow-sep">/</span> AI WORKFLOWS</div>
             <h1>Master AI Throughout the Software Lifecycle.<br/><span>Reading-First. Code-Centric.</span></h1>
@@ -141,6 +133,7 @@ function LandingPage() {
               <a className="button button-primary" href="#curriculum">Explore Curriculum <Icon name="arrow" size={16}/></a>
               <a className="button button-secondary" href="#method"><span className="play-mini"><Icon name="book" size={11}/></span> How the course works</a>
             </div>
+            <a className="hero-services-link" href="#home-services">Need a website or digital product? <strong>Explore our services <Icon name="arrow" size={13}/></strong></a>
             <div className="hero-stats">
               <div><strong>Read. Listen. Apply.</strong><span>Learn in your own workflow</span></div>
               <div><strong>{curriculum.sections.length} Sections <i>·</i> {totalChapters} Chapters</strong><span>Structured course content</span></div>
@@ -149,17 +142,12 @@ function LandingPage() {
           </div>
           <div className="hero-visual" key={`hero-visual-${heroRun}`}>
             <div className="visual-window-bar"><div className="window-dots"><i/><i/><i/></div><span>COURSE OVERVIEW</span><span className="live-label"><b/> AI WORKFLOWS</span></div>
-            <div className="hero-image-wrap"><DeveloperIntelligenceSphere active={heroRun > 0}/></div>
+            <div className="hero-image-wrap"><DeveloperIntelligenceSphere/></div>
             <div className="visual-caption"><span><Icon name="book" size={13}/> DEVELOPER PRODUCTIVITY</span><span>01 / {curriculum.sections.length} — {curriculum.sections[0].title}</span></div>
           </div>
         </section>
 
-        <section className="feature-band section-wrap" aria-label="Platform highlights">
-          <div className="feature-intro"><span className="eyebrow">ENGINEERED FOR ENGINEERS</span><h2>Serious Instruction for Real Software Work</h2><p>BrianE-Dev is built around how software is actually developed. Lessons connect AI-assisted development to practical engineering workflows, giving you the context to understand the work, evaluate AI output, and make better technical decisions.</p></div>
-          {features.map((feature) => <FeatureCard key={feature.title} {...feature}/>) }
-        </section>
-
-        <section className="home-services section-wrap" aria-labelledby="home-services-title">
+        <section id="home-services" className="home-services section-wrap" aria-labelledby="home-services-title">
           <div className="home-services-heading"><div><span className="eyebrow">BRIANE-DEV / DIGITAL SERVICES</span><h2 id="home-services-title">Digital services for your next idea.</h2><p>Explore practical web, commerce, and software solutions for your business.</p></div><a className="button button-secondary" href="/services">Explore all services <Icon name="arrow" size={15}/></a></div>
           <a className="home-services-feature" href="/services"><img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1500&q=85" alt="Bright modern workspace with a table and chairs"/><span className="home-services-overlay"/><span className="home-services-copy"><span className="eyebrow">WEBSITE DESIGN / E-COMMERCE / WEB APPLICATIONS</span><strong>Build a better digital experience for your business.</strong><span className="button button-primary">Discover our services <Icon name="arrow" size={15}/></span></span></a>
           <div className="home-services-tiles">
@@ -168,6 +156,13 @@ function LandingPage() {
             <a href="/services"><img src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80" alt="Team collaborating around a table"/><strong>Integrations & support</strong><span>Connect systems and keep them improving</span></a>
           </div>
         </section>
+
+        <section className="feature-band section-wrap" aria-label="Platform highlights">
+          <div className="feature-intro"><span className="eyebrow">ENGINEERED FOR ENGINEERS</span><h2>Serious Instruction for Real Software Work</h2><p>BrianE-Dev is built around how software is actually developed. Lessons connect AI-assisted development to practical engineering workflows, giving you the context to understand the work, evaluate AI output, and make better technical decisions.</p></div>
+          {features.map((feature) => <FeatureCard key={feature.title} {...feature}/>) }
+        </section>
+
+
 
         <section id="preview" className="course-preview-section section-wrap section-block" aria-labelledby="course-preview-title">
           <div className="course-preview-copy">
