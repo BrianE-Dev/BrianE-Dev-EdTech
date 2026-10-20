@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Brand from '../Brand.jsx'
 import { api, loginLearner } from '../../services/api.js'
 
@@ -12,6 +12,10 @@ export default function LearnerLogin() {
   const [verificationToken, setVerificationToken] = useState('')
   const [notice, setNotice] = useState('')
   const returnTo = safeReturnPath(new URLSearchParams(window.location.search).get('returnTo'))
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('created') === '1') setNotice('Your account is ready. Sign in to enter the course.')
+  }, [])
 
   async function submit(event) {
     event.preventDefault()
@@ -48,7 +52,7 @@ export default function LearnerLogin() {
         <button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <p className="learner-auth-switch"><a href="/learn/forgot-password">Forgot your password?</a></p>
-      <p className="learner-auth-switch">New to BrianE-Dev? <a href={`/learn/register?returnTo=${encodeURIComponent(returnTo)}`}>Create an account</a></p>
+      <p className="learner-auth-switch">Already paid? <a href={`/learn/register?returnTo=${encodeURIComponent(returnTo)}`}>Create your learner account</a></p>
       <a className="admin-back-link" href="/">Back to BrianE-Dev</a>
     </section>
   </main>

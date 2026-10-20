@@ -8,13 +8,13 @@ const fullCourseBenefits = [
 
 export default function PurchaseGate({ preview = false, chapterTitle = 'This chapter' }) {
   return <section className={`purchase-gate${preview ? ' purchase-gate-preview' : ''}`} aria-labelledby="purchase-gate-title">
-    <span className="eyebrow">{preview ? 'FREE CHAPTER 1 PREVIEW' : 'FULL COURSE ACCESS'}</span>
-    <h2 id="purchase-gate-title">{preview ? 'That’s the end of the free preview' : `Unlock ${chapterTitle}`}</h2>
-    <p>{preview ? 'A confirmed purchase unlocks the rest of Chapter 1, all 42 other lessons, and the course ebook.' : 'A confirmed purchase is required to open the complete lesson, assessments, and required activities.'}</p>
-    <ul>{fullCourseBenefits.map((benefit) => <li key={benefit}>{benefit}</li>)}</ul>
+    <span className="eyebrow">{preview ? 'YOUR FREE CHAPTER' : 'FULL COURSE ACCESS'}</span>
+    <h2 id="purchase-gate-title">{preview ? 'Want to continue learning?' : `Unlock ${chapterTitle}`}</h2>
+    <p>{preview ? 'Create your learner account after completing payment to open the full 43-chapter learning space and save your progress.' : 'A confirmed purchase is required to open the complete lesson, assessments, and required activities.'}</p>
+    {!preview && <ul>{fullCourseBenefits.map((benefit) => <li key={benefit}>{benefit}</li>)}</ul>}
     <div className="purchase-gate-actions">
-      <a className="button button-primary" href="/#pricing">Unlock the Full Course</a>
-      <a className="learner-text-link" href="/#curriculum">View the curriculum</a>
+      <a className="button button-primary" href={preview ? '/learn/register' : '/#pricing'}>{preview ? 'Sign up after payment' : 'Unlock the Full Course'}</a>
+      {!preview && <a className="learner-text-link" href="/#curriculum">View the curriculum</a>}
     </div>
   </section>
 }

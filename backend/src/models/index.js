@@ -44,7 +44,7 @@ const pricingSchema = new Schema({
 pricingSchema.index({ active: 1, currency: 1 })
 
 const paymentSchema = new Schema({
-  user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
+  user: { type: Schema.Types.ObjectId, ref: 'User' }, checkoutEmail: { type: String, lowercase: true, trim: true }, course: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
   application: { type: String, enum: ['brianedev', 'devportix'], default: 'brianedev', required: true },
   productType: { type: String, enum: ['course'], default: 'course', required: true }, productId: { type: String, required: true }, productName: { type: String, required: true },
   reference: { type: String, required: true, unique: true }, paystackReference: { type: String, unique: true, sparse: true }, transactionId: String, paystackTransactionId: String, amount: { type: Number, required: true },

@@ -19,6 +19,7 @@ import CourseReader from './components/learner/CourseReader.jsx'
 import BusinessPages from './components/BusinessPages.jsx'
 import PasswordRecovery from './components/PasswordRecovery.jsx'
 import SiteNavigation from './components/SiteNavigation.jsx'
+import DeveloperIntelligenceSphere from './components/DeveloperIntelligenceSphere.jsx'
 import './App.css'
 
 function LandingPage() {
@@ -34,16 +35,22 @@ function LandingPage() {
   const [pricing, setPricing] = useState(null)
   const [paymentBusy, setPaymentBusy] = useState(false)
   const [pricingError, setPricingError] = useState('')
+  const [checkoutEmail, setCheckoutEmail] = useState('')
   const [paymentReturn, setPaymentReturn] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
-  const resumedCheckout = useRef(false)
+  const [heroPointer, setHeroPointer] = useState(null)
+
+  function trackHeroPointer(event) {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    setHeroPointer({ x: event.clientX - bounds.left, y: event.clientY - bounds.top })
+  }
 
   const verifyPaymentReturn = useCallback(async (reference) => {
     setPaymentReturn({ state: 'checking', message: 'Checking payment status with Paystack…', reference })
     try {
-      const result = await api('/brianedev/payments/verify', { method: 'POST', body: JSON.stringify({ reference }) })
+      const result = await api('/brianedev/payments/verify-public', { method: 'POST', body: JSON.stringify({ reference }) })
       setPaymentReturn({ ...getPaymentReturnState(reference, result), reference })
     } catch {
       setPaymentReturn({ ...getPaymentReturnState(reference, null), reference })
@@ -54,9 +61,11 @@ function LandingPage() {
     const hero = heroRef.current
     if (!hero) return undefined
 
+    let wasVisible = false
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setHeroRun((run) => run + 1)
-    }, { threshold: 0.08 })
+      if (entry.isIntersecting && !wasVisible) setHeroRun((run) => run + 1)
+      wasVisible = entry.isIntersecting
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
 
     observer.observe(hero)
     return () => observer.disconnect()
@@ -102,30 +111,13 @@ function LandingPage() {
   const purchaseCourse = useCallback(async () => {
     setPaymentBusy(true); setPricingError('')
     try {
-      await api('/auth/me')
-      const { authorizationUrl } = await api('/brianedev/payments/initialize', { method: 'POST', body: JSON.stringify({ productId: 'ai-powered-developer-productivity' }) })
+      const { authorizationUrl } = await api('/brianedev/payments/initialize-public', { method: 'POST', body: JSON.stringify({ email: checkoutEmail }) })
       window.location.assign(authorizationUrl)
     } catch (error) {
       setPaymentBusy(false)
-      if (error.status === 401) {
-        if (resumedCheckout.current) {
-          setPricingError('Your sign-in could not be verified. Please sign in again, then retry enrollment.')
-          return
-        }
-        sessionStorage.setItem('briane-dev-resume-checkout', '1')
-        window.location.assign(`/learn/login?returnTo=${encodeURIComponent('/#pricing')}`)
-        return
-      }
       setPricingError(error.message)
     }
-  }, [])
-
-  useEffect(() => {
-    if (sessionStorage.getItem('briane-dev-resume-checkout') !== '1') return
-    sessionStorage.removeItem('briane-dev-resume-checkout')
-    resumedCheckout.current = true
-    window.setTimeout(() => purchaseCourse(), 0)
-  }, [purchaseCourse])
+  }, [checkoutEmail])
   const regionalPrice = pricing ? {
     ...plans[0],
     price: new Intl.NumberFormat(pricing.currency === 'NGN' ? 'en-NG' : undefined, { style: 'currency', currency: pricing.currency, maximumFractionDigits: 2 }).format(pricing.currentPrice),
@@ -139,7 +131,8 @@ function LandingPage() {
       <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
 
       <main id="top">
-        <section ref={heroRef} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
+        <section ref={heroRef} onPointerMove={trackHeroPointer} onPointerLeave={() => setHeroPointer(null)} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
+          {heroPointer && <span className="hero-pointer-square" aria-hidden="true" style={{ left: heroPointer.x, top: heroPointer.y }}/>}
           <div className="hero-copy" key={`hero-copy-${heroRun}`}>
             <div className="eyebrow"><span className="status-dot"/> ENGINEERING EDUCATION <span className="eyebrow-sep">/</span> AI WORKFLOWS</div>
             <h1>Master AI Throughout the Software Lifecycle.<br/><span>Reading-First. Code-Centric.</span></h1>
@@ -156,7 +149,7 @@ function LandingPage() {
           </div>
           <div className="hero-visual" key={`hero-visual-${heroRun}`}>
             <div className="visual-window-bar"><div className="window-dots"><i/><i/><i/></div><span>COURSE OVERVIEW</span><span className="live-label"><b/> AI WORKFLOWS</span></div>
-            <div className="hero-image-wrap"><img src="/course-hero.png" alt="Software engineer working through an AI-assisted coding lesson"/></div>
+            <div className="hero-image-wrap"><DeveloperIntelligenceSphere active={heroRun > 0}/></div>
             <div className="visual-caption"><span><Icon name="book" size={13}/> DEVELOPER PRODUCTIVITY</span><span>01 / {curriculum.sections.length} — {curriculum.sections[0].title}</span></div>
           </div>
         </section>
@@ -164,6 +157,16 @@ function LandingPage() {
         <section className="feature-band section-wrap" aria-label="Platform highlights">
           <div className="feature-intro"><span className="eyebrow">ENGINEERED FOR ENGINEERS</span><h2>Serious Instruction for Real Software Work</h2><p>BrianE-Dev is built around how software is actually developed. Lessons connect AI-assisted development to practical engineering workflows, giving you the context to understand the work, evaluate AI output, and make better technical decisions.</p></div>
           {features.map((feature) => <FeatureCard key={feature.title} {...feature}/>) }
+        </section>
+
+        <section className="home-services section-wrap" aria-labelledby="home-services-title">
+          <div className="home-services-heading"><div><span className="eyebrow">BRIANE-DEV / DIGITAL SERVICES</span><h2 id="home-services-title">Digital services for your next idea.</h2><p>Explore practical web, commerce, and software solutions for your business.</p></div><a className="button button-secondary" href="/services">Explore all services <Icon name="arrow" size={15}/></a></div>
+          <a className="home-services-feature" href="/services"><img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1500&q=85" alt="Bright modern workspace with a table and chairs"/><span className="home-services-overlay"/><span className="home-services-copy"><span className="eyebrow">WEBSITE DESIGN / E-COMMERCE / WEB APPLICATIONS</span><strong>Build a better digital experience for your business.</strong><span className="button button-primary">Discover our services <Icon name="arrow" size={15}/></span></span></a>
+          <div className="home-services-tiles">
+            <a href="/services"><img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80" alt="Analytics dashboard on a laptop screen"/><strong>Websites & landing pages</strong><span>Clear paths from first visit to action</span></a>
+            <a href="/services"><img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80" alt="Customer making a contactless payment"/><strong>Commerce & custom apps</strong><span>Digital tools designed around your work</span></a>
+            <a href="/services"><img src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80" alt="Team collaborating around a table"/><strong>Integrations & support</strong><span>Connect systems and keep them improving</span></a>
+          </div>
         </section>
 
         <section id="preview" className="course-preview-section section-wrap section-block" aria-labelledby="course-preview-title">
@@ -197,7 +200,7 @@ function LandingPage() {
           <div className="method-grid course-format-grid">{courseFormats.map((format, index) => <article key={format.title}><span>CONTENT FORMAT {String(index + 1).padStart(2, '0')}</span><h3>{format.title}</h3><p>{format.description}</p></article>)}</div>
           <div className="course-content-notes"><article><span className="eyebrow">LEARNING APPROACH</span><p>Every lesson connects the <strong>concept</strong>, the <strong>software context</strong>, and the <strong>engineering reasoning</strong> behind the workflow.</p><p>Read the explanation. Examine the code. Study the AI interaction. Understand the reasoning. Then adapt the approach to your own development work.</p></article><article><span className="eyebrow">AUDIO NARRATION</span><h3>Prefer to listen while reviewing?</h3><p>TTS narration gives you another way to consume the written lessons while keeping the complete technical content available for deeper reading.</p></article></div>
         </section>
-        <section id="pricing" className="pricing-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Get access to the complete AI-powered developer productivity course.</p></div>{paymentReturn && <div className={`payment-message payment-message-${paymentReturn.state}`} role={paymentReturn.state === 'error' ? 'alert' : 'status'}>{paymentReturn.message}{paymentReturn.state !== 'confirmed' && <button type="button" className="payment-retry" onClick={() => verifyPaymentReturn(paymentReturn.reference)} disabled={paymentReturn.state === 'checking'}>{paymentReturn.state === 'checking' ? 'Checking…' : 'Retry verification'}</button>}</div>}<div className="pricing-grid">{regionalPrice ? <PricingCard item={regionalPrice} selected busy={paymentBusy} error={pricingError} onSelect={purchaseCourse}/> : <p className="pricing-error" role="alert">{pricingError || 'Loading current Nigerian pricing…'}</p>}</div><p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> TTS narration</p></section>
+        <section id="pricing" className="pricing-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Pay first, then create your learner account with the same email address.</p></div>{paymentReturn && <div className={`payment-message payment-message-${paymentReturn.state}`} role={paymentReturn.state === 'error' ? 'alert' : 'status'}>{paymentReturn.message}{paymentReturn.state !== 'confirmed' && <button type="button" className="payment-retry" onClick={() => verifyPaymentReturn(paymentReturn.reference)} disabled={paymentReturn.state === 'checking'}>{paymentReturn.state === 'checking' ? 'Checking…' : 'Retry verification'}</button>}{paymentReturn.state === 'confirmed' && <a className="button button-primary" href="/learn/register">Create your learner account</a>}</div>}<div className="pricing-grid">{regionalPrice ? <div className="pricing-checkout"><label>Email for course access<input type="email" value={checkoutEmail} onChange={(event) => setCheckoutEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com"/></label><PricingCard item={{...regionalPrice, action:'Pay and continue'}} selected busy={paymentBusy} error={pricingError} onSelect={purchaseCourse}/></div> : <p className="pricing-error" role="alert">{pricingError || 'Loading current Nigerian pricing…'}</p>}</div><p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> TTS narration</p></section>
 
         <section id="faq" className="faq-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">FAQ</span><h2>Frequently Asked Inquiries</h2><p>Clear answers about the curriculum, learning format, and access.</p></div><FaqList items={questions} openIndex={openFaq} onToggle={setOpenFaq}/></section>
 

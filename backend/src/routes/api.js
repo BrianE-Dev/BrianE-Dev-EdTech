@@ -83,10 +83,14 @@ router.get('/diagnostics/hostinger-network', async (req, res) => {
 router.post('/auth/register', async (req, res) => {
   const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()), password: z.string().min(10).max(128) })
   const input = schema.parse(req.body)
+  const existingUser = await User.findOne({ email: input.email }).select('_id')
+  const paidAccess = await Payment.findOne({ application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, productType: 'course', status: { $in: ['paid', 'successful'] }, $or: [{ checkoutEmail: input.email }, ...(existingUser ? [{ user: existingUser._id }] : [])] })
+  if (!paidAccess) return res.status(403).json({ error: 'Complete payment successfully with this email before creating your learner account.' })
+  if (await User.exists({ email: input.email })) return res.status(409).json({ error: 'An account already exists for this email. Please sign in.' })
   const country = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
-  const user = await User.create({ name: input.name, email: input.email, emailVerified: false, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
-  const verificationToken = await issueSecurityToken(user, 'verify')
-  res.status(201).json({ verificationRequired: true, emailDelivery: mailStatus(), ...(process.env.NODE_ENV !== 'production' ? { developmentVerificationToken: verificationToken } : {}) })
+  const user = await User.create({ name: input.name, email: input.email, emailVerified: true, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
+  await Payment.updateMany({ $or: [{ checkoutEmail: input.email }, ...(existingUser ? [{ user: existingUser._id }] : [])], application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, status: { $in: ['paid', 'successful'] } }, { $set: { user: user._id, checkoutEmail: input.email } })
+  res.status(201).json({ verificationRequired: false, emailDelivery: mailStatus() })
 })
 
 router.post('/auth/login', async (req, res) => {
@@ -292,6 +296,35 @@ async function initializeCoursePayment(req, res) {
     res.json({ authorizationUrl: transaction.authorization_url, reference })
   } catch (error) { payment.status = 'failed'; await payment.save(); throw error }
 }
+
+router.post('/brianedev/payments/initialize-public', async (req, res) => {
+  const input = z.object({ email: z.string().trim().toLowerCase().pipe(z.email()) }).parse(req.body)
+  const { appEnvironment } = getPaystackConfig()
+  const course = await Course.findOne({ slug: COURSE_SLUG, published: true })
+  if (!course) return res.status(404).json({ error: 'Course not found' })
+  const existingUser = await User.findOne({ email: input.email })
+  if (existingUser && await Payment.exists({ user: existingUser._id, course: course._id, status: { $in: ['paid', 'successful'] }, application: 'brianedev', environment: appEnvironment })) return res.status(409).json({ error: 'This email already has course access. Please sign in.' })
+  const config = await Pricing.findOne({ region: 'NG' })
+  if (!config || config.currency !== 'NGN') return res.status(503).json({ error: 'Nigerian pricing is not configured' })
+  const price = getFinalPrice(config)
+  const reference = `BDE-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`
+  const metadata = { application: 'brianedev', application_name: 'BrianE-Dev', product_type: 'course', product_id: COURSE_PRODUCT_ID, product_name: course.title, checkout_email: input.email, region: 'nigeria', currency: price.currency, environment: appEnvironment, source: 'brianedev_web' }
+  const payment = await Payment.create({ application: 'brianedev', environment: appEnvironment, provider: 'paystack', productType: 'course', productId: COURSE_PRODUCT_ID, productName: course.title, checkoutEmail: input.email, ...(existingUser ? { user: existingUser._id } : {}), course: course._id, reference, paystackReference: reference, amount: price.currentPrice, currency: price.currency, originalPrice: price.originalPrice, originalAmount: price.originalPrice, discount: price.discount, discountAmount: price.discount, discountType: price.discountType, discountValue: price.discountValue, pricingId: config._id, region: 'NG', metadata })
+  try {
+    const transaction = await initializeTransaction({ email: input.email, amount: Math.round(price.currentPrice * 100), currency: price.currency, reference, callback_url: `${process.env.CLIENT_URL}/?payment=return`, metadata: { ...metadata, course_id: String(course._id) } })
+    res.json({ authorizationUrl: transaction.authorization_url, reference })
+  } catch (error) { payment.status = 'failed'; await payment.save(); throw error }
+})
+
+router.post('/brianedev/payments/verify-public', async (req, res) => {
+  const reference = z.string().min(6).max(100).parse(req.body.reference)
+  const payment = await Payment.findOne({ reference, application: 'brianedev', environment: getPaystackConfig().appEnvironment, provider: 'paystack', productType: 'course', productId: COURSE_PRODUCT_ID, region: 'NG', currency: 'NGN' })
+  if (!payment) return res.status(404).json({ error: 'Payment reference not found' })
+  const course = await Course.findOne({ slug: COURSE_SLUG, published: true })
+  if (!course || String(payment.course) !== String(course._id)) return res.status(409).json({ error: 'Payment course association is invalid' })
+  await completePayment(payment, await verifyTransaction(reference))
+  res.json({ status: ['paid', 'successful'].includes(payment.status) ? 'paid' : payment.status === 'failed' ? 'failed' : 'pending', courseId: payment.course })
+})
 
 router.post('/payments/initialize', authenticate, requireVerified, initializeCoursePayment)
 router.post('/brianedev/payments/initialize', authenticate, requireVerified, initializeCoursePayment)
