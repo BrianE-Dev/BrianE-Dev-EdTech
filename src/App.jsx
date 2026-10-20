@@ -18,6 +18,7 @@ import LearnerDashboard from './components/learner/LearnerDashboard.jsx'
 import CourseReader from './components/learner/CourseReader.jsx'
 import BusinessPages from './components/BusinessPages.jsx'
 import PasswordRecovery from './components/PasswordRecovery.jsx'
+import SiteNavigation from './components/SiteNavigation.jsx'
 import './App.css'
 
 function LandingPage() {
@@ -28,7 +29,6 @@ function LandingPage() {
     if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme
     return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
   })
-  const [menuOpen, setMenuOpen] = useState(false)
   const [openFaq, setOpenFaq] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [pricing, setPricing] = useState(null)
@@ -99,7 +99,6 @@ function LandingPage() {
     }
   }, [verifyPaymentReturn])
 
-  const closeMenu = () => setMenuOpen(false)
   const purchaseCourse = useCallback(async () => {
     setPaymentBusy(true); setPricingError('')
     try {
@@ -137,25 +136,7 @@ function LandingPage() {
 
   return (
     <div className="site-shell" data-theme={theme}>
-      <header className="topbar">
-        <span onClick={closeMenu}><Brand /></span>
-        <nav className={`main-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Main navigation">
-          <a href="#curriculum" onClick={closeMenu}>Curriculum</a>
-          <a href="#preview" onClick={closeMenu}>Free Preview</a>
-          <a href="#courses" onClick={closeMenu}>Course Format</a>
-          <a href="#method" onClick={closeMenu}>Method</a>
-          <a href="#pricing" onClick={closeMenu}>Pricing</a>
-          <a href="#faq" onClick={closeMenu}>FAQs</a>
-          <a href="/services" onClick={closeMenu}>Services</a>
-        </nav>
-        <div className="nav-actions">
-          {isAdmin && <a className="sign-in" href="/admin">Dashboard</a>}
-          <a className="sign-in" href="/learn/login">Learner sign in</a>
-          <button className="theme-toggle" type="button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15}/><span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button>
-          <a className="button button-small button-primary" href="#pricing">Enroll Now <Icon name="arrow" size={14}/></a>
-        </div>
-        <button className="menu-toggle" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><Icon name={menuOpen ? 'close' : 'menu'}/></button>
-      </header>
+      <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
 
       <main id="top">
         <section ref={heroRef} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>

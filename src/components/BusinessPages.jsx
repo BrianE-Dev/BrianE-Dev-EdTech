@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Brand from './Brand.jsx'
+import SiteNavigation from './SiteNavigation.jsx'
 import { api } from '../services/api.js'
 
 const services = [
@@ -14,6 +15,15 @@ const services = [
 export default function BusinessPages({ page }) {
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem('briane-dev-theme')
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  })
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('briane-dev-theme', theme)
+  }, [theme])
   async function submit(event) {
     event.preventDefault(); setBusy(true); setResult(null)
     const form = new FormData(event.currentTarget)
@@ -26,13 +36,13 @@ export default function BusinessPages({ page }) {
     finally { setBusy(false) }
   }
   return <main className="business-page">
-    <header className="business-header"><a href="/"><Brand /></a><nav aria-label="Business navigation"><a href="/services">Services</a><a href="/contact">Contact</a><a className="button button-primary" href="/quote">Request a Quote</a></nav></header>
+    <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}/>
     {page === 'privacy' ? <section className="business-hero compact"><span className="eyebrow">BRIANE-DEV / PRIVACY</span><h1>How project enquiries are handled.</h1><p>We use the details submitted here to respond to your enquiry, assess the project request, and maintain a record for follow-up. We do not add quote request contacts to marketing email unless you separately opt in. You can request correction or deletion by contacting info@briane-dev.online.</p></section> : page === 'services' ? <>
-      <section className="business-hero"><span className="eyebrow">BRIANE-DEV / DIGITAL PRODUCTS</span><h1>Build a better digital experience for your business.</h1><p>Websites, applications, and integrations shaped around what your business needs to do.</p><a className="button button-primary" href="/quote">Tell us about your project</a></section>
+      <section className="business-hero"><span className="eyebrow">BRIANE-DEV / DIGITAL PRODUCTS</span><h1>Build a better digital experience for your business.</h1><p>Websites, applications, and integrations shaped around what your business needs to do.</p><a className="button button-primary" href="/quote">Request a Quote</a></section>
       <section className="business-services">{services.map(([title, description]) => <article key={title}><span className="eyebrow">DIGITAL SERVICES</span><h2>{title}</h2><p>{description}</p><a href="/quote">Discuss this service →</a></article>)}</section>
       <section className="business-process"><span className="eyebrow">A CLEAR PROCESS</span><h2>From first conversation to launch.</h2><p>We learn about your goals, agree on a practical scope, build in visible steps, and prepare the work for handover and ongoing support.</p><a className="button button-primary" href="/contact">Discuss your project</a></section>
     </> : <>
-      <section className="business-hero compact"><span className="eyebrow">BRIANE-DEV / {page === 'quote' ? 'PROJECT BRIEF' : 'CONTACT'}</span><h1>{page === 'quote' ? 'Tell us what you are planning.' : 'Start a conversation.'}</h1><p>{page === 'quote' ? 'Share the essentials and we will have a useful starting point for a discussion.' : 'Send a note about your project, question, or business need.'}</p></section>
+      <section className="business-hero compact"><span className="eyebrow">BRIANE-DEV / {page === 'quote' ? 'PROJECT BRIEF' : 'CONTACT'}</span><h1>{page === 'quote' ? 'Tell us what you are planning.' : 'Start a conversation.'}</h1><p>{page === 'quote' ? 'Share the essentials and we will have a useful starting point for a discussion.' : 'Send a note about your project, question, or business need.'}</p>{page === 'contact' && <a className="button button-primary" href="/quote">Request a Quote</a>}</section>
       <form className="business-form" onSubmit={submit}>
         {result?.reference ? <div className="business-result" role="status"><strong>Request saved.</strong><span>Your reference is {result.reference}. Email acknowledgement is currently unavailable.</span></div> : result?.error && <div className="business-error" role="alert">{result.error}</div>}
         <label>Full name<input name="name" required minLength="2" maxLength="120" autoComplete="name" /></label>
