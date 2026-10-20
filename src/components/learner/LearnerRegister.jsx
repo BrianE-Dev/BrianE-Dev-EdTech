@@ -23,7 +23,7 @@ export default function LearnerRegister() {
       .then((result) => setPaymentReady(result.status === 'paid'))
       .catch(() => setPaymentReady(false))
       .finally(() => { setCheckingPayment(false); window.history.replaceState({}, '', window.location.pathname) })
-  }, [])
+  }, [reference])
 
   async function submit(event) {
     event.preventDefault()

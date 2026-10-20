@@ -40,6 +40,20 @@ function LandingPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
+  const heroSquareRef = useRef(null)
+
+  function moveHeroSquare(event) {
+    if (event.pointerType === 'touch' || !heroSquareRef.current) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const square = heroSquareRef.current
+    square.style.left = `${event.clientX - bounds.left}px`
+    square.style.top = `${event.clientY - bounds.top}px`
+    square.style.opacity = '1'
+  }
+
+  function hideHeroSquare() {
+    if (heroSquareRef.current) heroSquareRef.current.style.opacity = '0'
+  }
   const verifyPaymentReturn = useCallback(async (reference) => {
     setPaymentReturn({ state: 'checking', message: 'Checking payment status with Paystack…', reference })
     try {
@@ -124,7 +138,8 @@ function LandingPage() {
       <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
 
       <main id="top">
-        <section ref={heroRef} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
+        <section ref={heroRef} onPointerMove={moveHeroSquare} onPointerLeave={hideHeroSquare} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
+          <span ref={heroSquareRef} className="hero-pointer-square" aria-hidden="true"/>
           <div className="hero-copy" key={`hero-copy-${heroRun}`}>
             <div className="eyebrow"><span className="status-dot"/> ENGINEERING EDUCATION <span className="eyebrow-sep">/</span> AI WORKFLOWS</div>
             <h1>Master AI Throughout the Software Lifecycle.<br/><span>Reading-First. Code-Centric.</span></h1>
