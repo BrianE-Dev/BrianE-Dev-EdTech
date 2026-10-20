@@ -162,11 +162,11 @@ function LandingPage() {
 
         <section id="home-services" className="home-services section-wrap" aria-labelledby="home-services-title">
           <div className="home-services-heading"><div><span className="eyebrow">BRIANE-DEV / DIGITAL SERVICES</span><h2 id="home-services-title">Digital services for your next idea.</h2><p>Explore practical web, commerce, and software solutions for your business.</p></div><a className="button button-secondary" href="/services">Explore all services <Icon name="arrow" size={15}/></a></div>
-          <a className="home-services-feature" href="/services"><img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1500&q=85" alt="Bright modern workspace with a table and chairs"/><span className="home-services-overlay"/><span className="home-services-copy"><span className="eyebrow">WEBSITE DESIGN / E-COMMERCE / WEB APPLICATIONS</span><strong>Build a better digital experience for your business.</strong><span className="button button-primary">Discover our services <Icon name="arrow" size={15}/></span></span></a>
+          <a className="home-services-feature" href="/services"><img src="/course-hero.png" alt="Software developer working with digital tools across multiple screens"/><span className="home-services-overlay"/><span className="home-services-copy"><span className="eyebrow">WEBSITE DESIGN / E-COMMERCE / WEB APPLICATIONS</span><strong>Build a better digital experience for your business.</strong><span className="button button-primary">Discover our services <Icon name="arrow" size={15}/></span></span></a>
           <div className="home-services-tiles">
-            <a href="/services"><img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80" alt="Analytics dashboard on a laptop screen"/><strong>Websites & landing pages</strong><span>Clear paths from first visit to action</span></a>
-            <a href="/services"><img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80" alt="Customer making a contactless payment"/><strong>Commerce & custom apps</strong><span>Digital tools designed around your work</span></a>
-            <a href="/services"><img src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80" alt="Team collaborating around a table"/><strong>Integrations & support</strong><span>Connect systems and keep them improving</span></a>
+            <a href="/services"><img src="/course-hero.png" alt="Developer workspace screens with software diagrams"/><strong>Websites & landing pages</strong><span>Clear paths from first visit to action</span></a>
+            <a href="/services"><img src="/course-hero.png" alt="Developer building digital software products"/><strong>Commerce & custom apps</strong><span>Digital tools designed around your work</span></a>
+            <a href="/services"><img src="/course-hero.png" alt="Developer working with connected software tools"/><strong>Integrations & support</strong><span>Connect systems and keep them improving</span></a>
           </div>
         </section>
 
