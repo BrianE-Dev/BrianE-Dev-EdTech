@@ -1,4 +1,12 @@
-export default function CertificatePreview({ template, recipientName, courseTitle, issueDate = new Date(), certificateId = 'PREVIEW-CERTIFICATE' }) {
+export default function CertificatePreview({ template, recipientName, courseTitle, issueDate, certificateId }) {
+  if (!certificateId) return <article className="certificate-artwork certificate-illustration" aria-label="Illustrative certificate preview">
+    <img className="certificate-watermark" src="/light-logo.png" alt="" aria-hidden="true"/>
+    <header className="certificate-brand-lockup"><img className="certificate-brand-logo" src="/light-logo.png" alt=""/><div className="certificate-brand-line">{template.brandName || 'BRIANE-DEV'}</div></header>
+    <h2 className="certificate-heading">{template.heading}</h2><span className="certificate-title-rule"/>
+    <div className="certificate-artwork-body"><p>{template.introduction}</p><strong className="certificate-recipient">{recipientName || 'LEARNER NAME'}</strong><span className="certificate-name-ornament" aria-hidden="true"><i/><b>◇</b><i/><b>◇</b><i/></span><p className="certificate-course-lead">{template.courseLead}</p><strong className="certificate-course-title">{courseTitle || 'Course Title'}</strong><p className="certificate-recognition">{template.recognitionText}</p></div>
+    <footer><div className="certificate-signature"><strong>{template.signatoryName || 'BrianE-Dev'}</strong><span>{template.footer}</span></div><div className="certificate-issued"><span>PREVIEW</span><small>ILLUSTRATION ONLY</small></div></footer>
+    <div className="certificate-verification">No certificate ID or verification record is represented in this preview.</div>
+  </article>
   const date = new Date(issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const registry = `BDEV-REG-${certificateId}`
   return <article className="certificate-artwork" aria-label="Certificate preview">

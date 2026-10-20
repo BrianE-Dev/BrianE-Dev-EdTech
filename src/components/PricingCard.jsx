@@ -7,6 +7,7 @@ export default function PricingCard({ item, selected, onSelect, busy = false, er
       <h3>{item.name}</h3><p className="price-desc">{item.desc}</p>
       <div className="price-amount">{item.originalPrice && item.originalPrice !== item.currentPrice && <del>{item.originalPrice}</del>}<strong>{item.price}</strong><span>{item.period}</span></div>
       {item.discountLabel && <p className="pricing-discount">{item.discountLabel}</p>}
+      {item.promotionDates && <div className="pricing-promotion-period" aria-label="Promotion period"><strong>Promotion period</strong><span>Starts: {item.promotionDates.start}</span><span>Ends: {item.promotionDates.end}</span></div>}
       {error && <p className="pricing-error" role="alert">{error}</p>}
       <ul>{item.features.map((feature) => <li key={feature}><Icon name="check" size={15}/>{feature}</li>)}</ul>
       <button type="button" className={`button ${selected ? 'button-primary' : 'button-secondary'} price-button`} onClick={onSelect} disabled={busy}>{busy ? 'Connecting…' : item.action} <Icon name="arrow" size={14}/></button>

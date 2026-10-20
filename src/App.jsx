@@ -20,9 +20,11 @@ import BusinessPages from './components/BusinessPages.jsx'
 import PasswordRecovery from './components/PasswordRecovery.jsx'
 import SiteNavigation from './components/SiteNavigation.jsx'
 import DeveloperIntelligenceSphere from './components/DeveloperIntelligenceSphere.jsx'
+import CertificatePreview from './components/CertificatePreview.jsx'
+import { getPromotionDateRange } from './utils/promotionDates.js'
 import './App.css'
 
-function LandingPage() {
+function LandingPage({ children = null, showPromotion = true }) {
   const sampleSection = curriculum.sections[1]
   const sampleChapter = sampleSection.chapters[0]
   const [theme, setTheme] = useState(() => {
@@ -99,9 +101,8 @@ function LandingPage() {
   }, [])
 
   useEffect(() => {
-    document.title = `${curriculum.title} | BrianE-Dev`
-    const description = document.querySelector('meta[name="description"]')
-    if (description) description.content = curriculum.description
+    document.title = 'BrianE-Dev | AI-Powered Developer Productivity'
+    setPageMetadata('/', 'BrianE-Dev | AI-Powered Developer Productivity', 'Learn practical AI-assisted software development workflows with BrianE-Dev. Explore code-focused techniques for planning, coding, debugging, testing, and improving developer productivity.')
   }, [])
 
   useEffect(() => {
@@ -131,6 +132,7 @@ function LandingPage() {
     currentPrice: pricing.currentPrice,
     originalPrice: pricing.promotionActive ? new Intl.NumberFormat(pricing.currency === 'NGN' ? 'en-NG' : undefined, { style: 'currency', currency: pricing.currency, maximumFractionDigits: 2 }).format(pricing.originalPrice) : '',
     discountLabel: pricing.promotionActive ? `${pricing.discountType === 'percentage' ? pricing.discountValue : Math.round(pricing.discount / pricing.originalPrice * 100)}% OFF` : '',
+    promotionDates: getPromotionDateRange(pricing.startDate, pricing.endDate),
   } : null
 
   return (
@@ -138,6 +140,11 @@ function LandingPage() {
       <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
 
       <main id="top">
+        {children}
+        {showPromotion && <section className="course-ad section-wrap" aria-labelledby="course-ad-title">
+          <div className="course-ad-copy"><span className="eyebrow">LEVEL UP YOUR DEVELOPMENT WORKFLOW</span><h1 id="course-ad-title">Build Better Software. Work Smarter With AI.</h1><p>Learn practical AI-assisted workflows for planning, writing, debugging, testing, and improving software. Develop the skills to integrate AI into your engineering process with greater clarity and efficiency.</p><ul><li>Practical AI-assisted development workflows</li><li>Code-focused examples for software engineers</li><li>Structured learning from foundational concepts to advanced workflows</li><li>Certificate of completion after meeting course requirements</li></ul><a className="button button-primary" href="#pricing">Explore the Course <Icon name="arrow" size={16}/></a> <a className="course-ad-details" href="/course/ai-powered-developer-productivity">View Course Details</a></div>
+          <div className="course-ad-certificate"><CertificatePreview template={{ brandName: 'BRIANE-DEV', heading: 'CERTIFICATE OF COMPLETION', introduction: 'This certificate is presented to', courseLead: 'for completing the course', recognitionText: 'and completing the prescribed learning curriculum in AI-assisted software development and developer productivity.', signatoryName: 'BrianE-Dev', signatureDataUrl: '', footer: 'Certificate of successful course completion' }} recipientName="LEARNER NAME" courseTitle={curriculum.title}/><p>Certificate preview only. Certificates are issued to eligible learners after required course completion.</p></div>
+        </section>}
         <section ref={heroRef} onPointerMove={moveHeroSquare} onPointerLeave={hideHeroSquare} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
           <span ref={heroSquareRef} className="hero-pointer-square" aria-hidden="true"/>
           <div className="hero-copy" key={`hero-copy-${heroRun}`}>
@@ -224,8 +231,9 @@ function LandingPage() {
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
   if (path === '/super-admin') return <AdminLogin />
-  if (path === '/services') return <BusinessPages page="services" />
-  if (path === '/privacy') return <BusinessPages page="privacy" />
+  if (path === '/services') return <><PublicPageMetadata path={path}/><BusinessPages page="services" /></>
+  if (path === '/privacy') return <><PublicPageMetadata path={path}/><BusinessPages page="privacy" /></>
+  if (path === '/course/ai-powered-developer-productivity') return <CoursePage />
   if (path === '/contact') return <BusinessPages page="contact" />
   if (path === '/quote') return <BusinessPages page="quote" />
   if (path === '/admin' || path.startsWith('/admin/')) return <AdminDashboard />
@@ -239,3 +247,31 @@ function App() {
 }
 
 export default App
+
+const pageDescriptions = {
+  '/privacy': ['BrianE-Dev Privacy Policy', 'Learn how BrianE-Dev handles learner account, course, payment, progress, certificate, and enquiry information.'],
+  '/services': ['Digital Services | BrianE-Dev', 'Explore BrianE-Dev website, e-commerce, web application, and integration services.'],
+  '/course/ai-powered-developer-productivity': ['AI-Powered Developer Productivity Course | BrianE-Dev', 'Explore practical AI-assisted software engineering workflows, the public course preview, curriculum, and enrollment.'],
+}
+
+function setPageMetadata(path, title, description) {
+  document.title = title
+  const set = (selector, attribute, value) => { const element = document.querySelector(selector); if (element) element.setAttribute(attribute, value) }
+  set('meta[name="description"]', 'content', description)
+  set('link[rel="canonical"]', 'href', `https://briane-dev.online${path === '/' ? '/' : path}`)
+  set('meta[property="og:title"]', 'content', title)
+  set('meta[property="og:description"]', 'content', description)
+  set('meta[property="og:url"]', 'content', `https://briane-dev.online${path === '/' ? '/' : path}`)
+}
+
+function PublicPageMetadata({ path }) {
+  useEffect(() => {
+    const [title, description] = pageDescriptions[path]
+    setPageMetadata(path, title, description)
+  }, [path])
+  return null
+}
+
+function CoursePage() {
+  return <><PublicPageMetadata path="/course/ai-powered-developer-productivity"/><LandingPage showPromotion={false}><section className="course-detail-page section-wrap"><span className="eyebrow">BRIANE-DEV / FLAGSHIP COURSE</span><h1>AI-Powered Developer Productivity for Software Engineers</h1><p>Learn practical ways to integrate AI into software planning, coding, debugging, testing, documentation, and delivery. The course uses written instruction and code-focused examples to explain both the workflow and the engineering reasoning behind it.</p><h2>What you will explore</h2><ul><li>Eight structured sections and the canonical 43-chapter curriculum</li><li>AI-assisted workflows grounded in real software engineering contexts</li><li>Written lessons, code examples, prompts, and course narration</li><li>Certificate eligibility after purchase and completion of required course activities</li></ul><div className="hero-actions"><a className="button button-primary" href="/#pricing">Explore enrollment</a><a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Read the free Chapter 1 preview</a></div></section></LandingPage></>
+}

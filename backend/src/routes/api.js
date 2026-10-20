@@ -208,9 +208,9 @@ router.get('/pricing', authenticateOptional, async (req, res) => {
   const config = await Pricing.findOne({ region: 'NG' })
   if (!config) return res.status(503).json({ error: 'Pricing is not configured' })
   if (config.currency !== 'NGN') return res.status(503).json({ error: 'Nigerian pricing must be configured in NGN' })
-  const { _id, region: key, currency, originalPrice, currentPrice, discount, discountType, discountValue, promotionActive } = getFinalPrice(config)
+  const { _id, region: key, currency, originalPrice, currentPrice, discount, discountType, discountValue, promotionActive, startDate, endDate } = getFinalPrice(config)
   res.set('Cache-Control', 'no-store')
-  res.json({ id: _id, region: key, currency, originalPrice, currentPrice, discount, discountType, discountValue, discountEnabled: promotionActive, promotionActive })
+  res.json({ id: _id, region: key, currency, originalPrice, currentPrice, discount, discountType, discountValue, discountEnabled: promotionActive, promotionActive, startDate: startDate || null, endDate: endDate || null })
 })
 
 function authenticateOptional(req, _res, next) {

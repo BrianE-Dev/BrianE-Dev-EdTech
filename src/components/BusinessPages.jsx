@@ -12,6 +12,10 @@ const services = [
   ['Redesign and support', 'Improve an existing site, connect APIs, or keep your web product maintained.'],
 ]
 
+function PrivacyPolicy() {
+  return <><section className="business-hero compact"><span className="eyebrow">BRIANE-DEV / PRIVACY / UPDATED 20 OCTOBER 2026</span><h1>Privacy Policy</h1><p>BrianE-Dev is the property of Chukwuemeka Nkama. This policy explains personal information handled when you use the learning platform, make a course purchase, request support, or submit a business enquiry.</p></section><article className="privacy-content"><h2>Information and purposes</h2><p>Depending on how you use the service, we handle learner name and email, password hash, email-verification and security records, optional profile details, course access and progress, assessment attempts, required exercise acknowledgements, certificate eligibility and issuance, payment references and transaction status, enquiry details, and technical diagnostics. Passwords are stored as hashes. Checkout email can be used to match confirmed payment when an account is created. We use this information to manage accounts, confirm payment, provide learning access, track progress, assess certificate eligibility, respond to requests, protect the service, and meet applicable record-keeping duties.</p><h2>Payments and service providers</h2><p>Paystack processes checkout and payment details. The application stores references, transaction status, amount and currency snapshots, and related course records; it does not collect or store complete card details. MongoDB stores account, course, payment, progress, and operational records. The website and API use hosting providers. Configured narration generation may send course lesson text to Google Gemini; it is not a user prompt feature. Production audio uses configured S3-compatible object storage. No analytics or advertising tracking scripts are added by this app.</p><h2>Cookies and security</h2><p>Signed-in sessions use a cookie named <code>session</code>. It is HttpOnly, path-wide, and expires after seven days; the API configures Secure for HTTPS and SameSite based on deployment mode. Theme preference is stored in browser local storage. We use application access controls, but no internet service can guarantee absolute security.</p><h2>Retention and your choices</h2><p>We retain account, learning, certificate, payment, and enquiry records while needed to provide the service, maintain security and payment reconciliation, and meet legal obligations. Periods depend on record type and applicable requirements. Email <a href="mailto:info@briane-dev.online">info@briane-dev.online</a> to request access to, correction of, or deletion of personal information. Requests are reviewed, subject to identity checks and records that must be retained. Business enquiry contacts are not added to marketing email without separate opt-in.</p><h2>Age, changes, and applicable rules</h2><p>The platform is a professional learning service and is not designed to collect information from children. No minimum age is stated here; eligibility is subject to applicable law. Policy updates will be reflected here. BrianE-Dev aims to handle personal information consistently with applicable privacy requirements, including Nigerian data-protection law where relevant; this notice is not legal advice or a claim of formal certification.</p><h2>Contact and ownership</h2><p>For privacy requests or questions, contact <a href="mailto:info@briane-dev.online">info@briane-dev.online</a>. BrianE-Dev is the property of Chukwuemeka Nkama.</p></article></>
+}
+
 export default function BusinessPages({ page }) {
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -37,7 +41,9 @@ export default function BusinessPages({ page }) {
   }
   return <main className="business-page">
     <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}/>
-    {page === 'privacy' ? <section className="business-hero compact"><span className="eyebrow">BRIANE-DEV / PRIVACY</span><h1>How project enquiries are handled.</h1><p>We use the details submitted here to respond to your enquiry, assess the project request, and maintain a record for follow-up. We do not add quote request contacts to marketing email unless you separately opt in. You can request correction or deletion by contacting info@briane-dev.online.</p></section> : page === 'services' ? <>
+    {page === 'privacy' ? <PrivacyPolicy /> : page === 'services' ? <>
+
+
       <section className="business-hero"><span className="eyebrow">BRIANE-DEV / DIGITAL PRODUCTS</span><h1>Build a better digital experience for your business.</h1><p>Websites, applications, and integrations shaped around what your business needs to do.</p><a className="button button-primary" href="/quote">Request a Quote</a></section>
       <section className="business-services">{services.map(([title, description]) => <article key={title}><span className="eyebrow">DIGITAL SERVICES</span><h2>{title}</h2><p>{description}</p><a href="/quote">Discuss this service →</a></article>)}</section>
       <section className="business-process"><span className="eyebrow">A CLEAR PROCESS</span><h2>From first conversation to launch.</h2><p>We learn about your goals, agree on a practical scope, build in visible steps, and prepare the work for handover and ongoing support.</p><a className="button button-primary" href="/contact">Discuss your project</a></section>
@@ -63,6 +69,8 @@ export default function BusinessPages({ page }) {
         <button className="button button-primary wide" disabled={busy}>{busy ? 'Sending…' : page === 'quote' ? 'Submit project request' : 'Send message'}</button>
       </form>
     </>}
-    <footer className="business-footer"><Brand /><span>Digital products and software development / BrianE-Dev</span><a href="/">Explore developer education</a></footer>
+    <footer className="business-footer"><Brand /><span>Digital products and software development / BrianE-Dev<br/>Property of Chukwuemeka Nkama.</span><a href="/privacy">Privacy Policy</a><a href="/">Explore developer education</a><span>© {new Date().getFullYear()} BrianE-Dev</span></footer>
+
+
   </main>
 }

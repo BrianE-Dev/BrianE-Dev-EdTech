@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../services/api.js'
+import { dateInputToUtcBoundary, dateInputValue } from '../utils/promotionDates.js'
 
 const labels = { NG: 'Nigeria', INTL: 'International' }
 
@@ -19,8 +20,8 @@ export default function CommerceAdmin({ onClose, standalone = false }) {
       const saved = await api(`/admin/pricing/${region}`, { method: 'PUT', body: JSON.stringify({
         region, currency: form.get('currency'), originalPrice: Number(form.get('originalPrice')), discountType: form.get('discountType'), discountValue: Number(form.get('discountValue')),
         discountEnabled: form.get('discountEnabled') === 'on', active: form.get('active') === 'on',
-        startDate: form.get('startDate') ? new Date(form.get('startDate')).toISOString() : null,
-        endDate: form.get('endDate') ? new Date(`${form.get('endDate')}T23:59:59`).toISOString() : null,
+        startDate: dateInputToUtcBoundary(form.get('startDate')),
+        endDate: dateInputToUtcBoundary(form.get('endDate'), true),
       }) })
       setItems((current) => current.map((item) => item.region === region ? saved : item))
       setNotice(`${labels[region]} pricing saved.`)
@@ -43,8 +44,8 @@ export default function CommerceAdmin({ onClose, standalone = false }) {
         <label>Original price ({item.currency})<input name="originalPrice" type="number" step="0.01" min="0.01" defaultValue={item.originalPrice} required /></label>
         <label>Discount type<select name="discountType" defaultValue={item.discountType}><option value="percentage">Percentage</option><option value="fixed">Fixed amount</option></select></label>
         <label>Discount value<input name="discountValue" type="number" step="0.01" min="0" defaultValue={item.discountValue} required /></label>
-        <label>Promotion starts<input name="startDate" type="date" defaultValue={item.startDate?.slice(0, 10) || ''} /></label>
-        <label>Promotion ends<input name="endDate" type="date" defaultValue={item.endDate?.slice(0, 10) || ''} /></label>
+        <label>Promotion starts<input name="startDate" type="date" defaultValue={dateInputValue(item.startDate)} /></label>
+        <label>Promotion ends<input name="endDate" type="date" defaultValue={dateInputValue(item.endDate)} /></label>
         <div className="commerce-checks"><label><input name="discountEnabled" type="checkbox" defaultChecked={item.discountEnabled} /> Discount enabled</label><label><input name="active" type="checkbox" defaultChecked={item.active} /> Region active</label></div>
         <p>Live preview: <strong>{new Intl.NumberFormat(undefined, { style: 'currency', currency: item.currency }).format(item.currentPrice)}</strong></p>
         <button className="button button-primary" type="submit">Save pricing</button>

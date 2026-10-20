@@ -1,0 +1,7 @@
+﻿User-agent: *
+Allow: /
+Disallow: /learn
+Disallow: /admin
+Disallow: /super-admin
+Disallow: /courses/*/learn/
+Sitemap: https://briane-dev.online/sitemap.xml

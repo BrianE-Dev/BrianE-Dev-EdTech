@@ -235,16 +235,24 @@ test('Nigerian pricing and Paystack checkout use the configured NGN amount regar
   assert.equal(defaultPricing.region, 'NG')
   assert.equal(defaultPricing.currency, 'NGN')
   assert.equal(defaultPricing.currentPrice, 9000)
+  assert.equal(defaultPricing.startDate, null)
+  assert.equal(defaultPricing.endDate, null)
   assert.match(new Intl.NumberFormat('en-NG', { style: 'currency', currency: defaultPricing.currency, maximumFractionDigits: 2 }).format(defaultPricing.currentPrice), /^₦/)
 
   priceRows.NG.originalPrice = 23750
   priceRows.NG.discountValue = 20
+  priceRows.NG.startDate = new Date('2020-10-25T00:00:00.000Z')
+  priceRows.NG.endDate = new Date('2030-11-05T23:59:59.999Z')
   const changedPricing = await (await apiJson('/pricing')).json()
   assert.equal(changedPricing.originalPrice, 23750)
   assert.equal(changedPricing.currentPrice, 19000)
   assert.equal(changedPricing.discount, 4750)
   assert.equal(changedPricing.discountValue, 20)
   assert.equal(changedPricing.currency, 'NGN')
+  assert.equal(changedPricing.startDate, '2020-10-25T00:00:00.000Z')
+  assert.equal(changedPricing.endDate, '2030-11-05T23:59:59.999Z')
+  priceRows.NG.startDate = null
+  priceRows.NG.endDate = null
 
   const initializedResponse = await apiJson('/brianedev/payments/initialize', {
     method: 'POST', body: { productId: 'ai-powered-developer-productivity' }, headers: { 'x-vercel-ip-country': 'NG' },

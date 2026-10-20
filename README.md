@@ -1,53 +1,119 @@
 # BrianE-Dev
 
-AI-powered developer productivity learning for software engineers. The course focuses on using AI throughout the software lifecycle; code provides context for lessons, examples, and workflows.
+BrianE-Dev is an educational technology platform for developer productivity, software engineering, and practical AI-assisted development workflows. The flagship course, **AI-Powered Developer Productivity for Software Engineers**, teaches ways to apply AI across planning, implementation, debugging, testing, documentation, and delivery.
 
-The approved course title, 8 sections, 43 chapters, and stable section/chapter IDs are centralized in [`src/data/curriculum.js`](src/data/curriculum.js) at curriculum version `1.0.0`. Lesson-content contracts and curriculum validation live under `src/data/schemas/` and `src/data/validation/`. See [`DOCUMENTATION.md`](DOCUMENTATION.md) for the course overview and project setup.
+**Ownership:** BrianE-Dev and this project are the property of Chukwuemeka Nkama. The codebase and brand are proprietary, subject to the licenses of third-party components and assets. No open-source license is granted by this notice.
 
-## Run locally
+- Production website: <https://briane-dev.online>
+- Privacy Policy: <https://briane-dev.online/privacy>
+- Course overview: <https://briane-dev.online/course/ai-powered-developer-productivity>
 
-```sh
-npm install
-npm run dev
+## Stack and features
+
+- React 19, Vite 8, JavaScript, and CSS frontend
+- Express 5 API, Node.js, MongoDB, and Mongoose
+- Paystack checkout with backend-side payment verification and signed webhook handling
+- Learner accounts, email verification, protected lessons, course progress, assessments, and required exercise acknowledgements
+- Course narration generation and playback, persistent S3-compatible production object storage, and protected course ebook
+- Eligibility-checked certificate creation, download, and public verification
+- Business enquiry and quote request pages with opt-in marketing consent
+
+The approved course curriculum is maintained in [`src/data/curriculum.js`](src/data/curriculum.js). It currently contains 8 sections and 43 chapters. Lesson content is authored under `content/lessons/`, with validation contracts under `src/data/schemas/` and `src/data/validation/`.
+
+## Repository map
+
+```text
+backend/       Express API, models, routes, services, config, backend guide
+content/       Authored lessons and protected ebook source/output
+public/        Brand assets, social preview, robots.txt, sitemap.xml
+scripts/       Course validation and ebook generation
+src/           React app, components, curriculum, services, styles
+tests/         Node test suite
+index.html     Vite HTML shell and default homepage metadata
+render.yaml    Render API service blueprint
+vercel.json    Vercel frontend build, API proxy, headers, and SPA fallback
 ```
 
-## Commerce backend
+## Requirements and local setup
 
-The API is a separate Express service backed by MongoDB. See [`backend/README.md`](backend/README.md) for database setup, Paystack configuration, development Super Admin creation, webhook setup, deployment, and API details.
-
-Copy `backend/.env.example` to `backend/.env`, configure MongoDB and server-only credentials for the existing DevPortix Paystack integration, then run:
+Use Node.js 22 or later (Vite 8 requires a current Node release) and npm. Install dependencies from the repository root:
 
 ```sh
-npm run seed
+npm ci
+```
+
+The frontend alone can run with `npm run dev`. To use the commerce and learning API, configure the backend environment and run the API with the Vite server:
+
+```sh
 npm run dev:all
 ```
 
-Validate curriculum/content structure and run the automated tests with:
+The backend loads `backend/.env`; copy [`backend/.env.example`](backend/.env.example) to that ignored file. The root `.env.example` currently only shows the Vite API URL example and is not the backend configuration source. Set a reachable `MONGODB_URI`, a random `JWT_SECRET` of at least 32 characters, `CLIENT_URL`, Paystack test keys, and the appropriate local `NODE_ENV` / `APP_ENV`. Keep `.env` files untracked. Never place private keys in Vite `VITE_*` variables or commit secrets. Production secrets belong in the deployment provider's secure runtime configuration.
 
-```sh
-npm run validate:curriculum
-npm test
-```
+MongoDB must be reachable before using database-backed API features. The API startup checks configuration and connects to MongoDB; set up the intended database and access restrictions before running the seed command. `npm run seed` upserts the course and initial pricing records; inspect the target database and seed implementation before running it against a shared or production database. It does not overwrite existing pricing. Temporary `SEED_ADMIN_*` values are optional and should only be used through the documented trusted setup process.
 
-The seed command creates the published 8-section, 43-chapter course and initial prices (international: USD 15 with a 40% promotion; Nigeria: independently configurable NGN 15,000 with a 40% promotion). It does not create an admin unless temporary `SEED_ADMIN_*` values are provided. BrianE-Dev Paystack references use the `BDE-` namespace and transactions include a `brianedev` application identifier, so they remain distinguishable when using the shared DevPortix Paystack business.
+See [`backend/README.md`](backend/README.md) for the complete backend variable reference, database setup, payment flow, access rules, TTS and storage architecture, admin setup, and deployment operations.
 
-Local development uses `APP_ENV=development` and Paystack TEST credentials. Production uses `APP_ENV=production` and LIVE credentials. The backend validates required Paystack variables and known key prefixes at startup; credentials stay backend-only. See [`backend/README.md`](backend/README.md) for the environment variable list and live migration setup.
+## Available commands
 
-The detailed payment metadata, authenticated callback verification, signed webhook endpoint, route list, data model, security notes, and deployment instructions are in [`backend/README.md`](backend/README.md).
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite frontend |
+| `npm run dev:all` | Start the Vite frontend and watched API |
+| `npm run server:dev` | Start the watched API only |
+| `npm run server:start` | Start the API |
+| `npm run build` | Build the Vite app into `dist/` |
+| `npm run preview` | Serve the local production build for review |
+| `npm run lint` | Run ESLint |
+| `npm test` | Run the Node test suite |
+| `npm run validate:curriculum` | Validate curriculum and authored lesson content |
+| `npm run validate:content:complete` | Require complete lesson content while validating |
+| `npm run ebook:build` | Generate the course ebook (requires Chrome, Edge, or Chromium) |
+| `npm run seed` | Upsert course and pricing setup data in the configured database |
 
-The React app includes learner sign-in and free account registration at `/learn/login` and `/learn/register`, a learner dashboard at `/learn`, and lesson reading at `/courses/:courseSlug/learn/:chapterId`. Registration creates an account only; the Chapter 1 preview is public, and the backend grants full lessons, assessments, progress, ebook, and certificate eligibility only after a verified paid purchase. The 43 authored lessons remain validated JSON under `content/lessons/`. Paid learners can download the course ebook; eligible completers can download an owner-protected Certificate of Completion PDF and share its public verification endpoint. Progress, required exercise acknowledgment, assessment retries, and certificate eligibility are evaluated and stored server-side.
+## Payments, course access, and certificates
 
-Super Admin sign-in is available at `/super-admin`; the protected commerce dashboard is at `/admin`. Accounts are created through the documented seed/admin setup and there is no public Super Admin registration. Production static hosting must serve the React app entry point for these paths.
+Paystack receives checkout requests. The backend selects the active course and configured regional price, creates a payment record, validates Paystack responses against that record, and handles callbacks and signed webhooks. New purchases currently use the configured Nigeria / NGN pricing. Configure test credentials first; the backend keeps provider credentials server-side. Browser code does not decide the payable amount.
 
-## Deploy frontend and backend
+The Chapter 1 preview is public. Full lessons, assessments, progress, ebook access, and certificate eligibility require verified paid course access. Certificate completion is evaluated by the backend from course progress and required learning tasks; the current canonical curriculum has 43 chapters. Do not use preview UI or public course metadata to grant access or represent a learner as completed.
 
-Deployment files are included for Vercel (`vercel.json`) and Render (`render.yaml`). Import the repository into Vercel with the project root as the root directory; it builds the Vite app to `dist` and rewrites `/api/*` to the Render API, while the final rewrite supports `/super-admin` and `/admin` deep links. The frontend defaults to same-origin `/api` in production and `http://localhost:4000/api` in local development. If the Render service name changes from `briane-dev-api`, update its external rewrite target in `vercel.json`.
+Course audio generation can send lesson text to Google Gemini when the server-side TTS feature is configured. Production audio is stored in persistent S3-compatible storage (Cloudflare R2 is described in current operations documentation); MongoDB stores audio metadata. Local storage is intended for development only. Never expose the Gemini key in frontend configuration.
 
-Create the Render Blueprint service and supply its prompted secrets in Render. Start with `APP_ENV=development` and Paystack TEST credentials; the blueprint sets `NODE_ENV=production` so deployed cookies use HTTPS. Configure Atlas `MONGODB_URI`, a Vercel `CLIENT_URL`, JWT secret, and test Paystack keys. After deploying Vercel, set Render's `CLIENT_URL` to the deployed Vercel origin, then redeploy the API. Add the Paystack TEST webhook URL as `https://briane-dev-api.onrender.com/api/brianedev/payments/paystack/webhook`. Run `npm run seed` from a trusted environment connected to the intended Atlas database. See [`backend/README.md`](backend/README.md) for the full variable list and eventual LIVE-mode switch.
+## Deployment
 
-## Project checks
+The checked-in architecture separates a static Vite frontend on Vercel from an Express API on Render. Vercel builds the repository root to `dist/`, forwards `/api/*` to the Render service configured in `vercel.json`, and rewrites application paths to the SPA shell. Render runs `npm run server:start` and connects to MongoDB. The API uses `CLIENT_URL` for allowed origins and deployed cookie behavior. Confirm the Render service hostname, Vercel project URL, database, Paystack mode, and secrets in the provider dashboards before deployment. See the backend guide for the full deployment checklist. Do not put MongoDB, JWT, Paystack secret, or Gemini credentials in Vercel frontend variables.
 
-```sh
-npm run lint
-npm run build
-```
+## Search indexing and SEO
+
+The app provides canonical page metadata, Open Graph and X/Twitter cards, a static social image, `public/robots.txt`, `public/sitemap.xml`, and Organization, WebSite, and Course JSON-LD on public pages. The sitemap lists the homepage, public course overview, services, and privacy page only. Private learner and admin paths and protected course lessons are excluded. Static Vercel assets are served before the SPA fallback.
+
+To submit the site to Google Search:
+
+1. Open [Google Search Console](https://search.google.com/search-console/).
+2. Add `briane-dev.online` as a **Domain** property.
+3. Copy the TXT verification value Search Console provides and add it to the domain's DNS records with the DNS provider. Wait for DNS propagation, then verify in Search Console.
+4. In the property, open **Sitemaps** and submit `https://briane-dev.online/sitemap.xml`.
+5. Use **URL Inspection** for `https://briane-dev.online/` and request indexing when appropriate.
+6. Review indexing status, crawl errors, Google's selected canonical, and search performance over time.
+
+This repository does not assert that Search Console verification or indexing has occurred. Crawling, indexing, and result updates are controlled by search engines and may take time. HTML-tag or file verification is also possible if preferred, but DNS TXT verification avoids putting a verification token in source control.
+
+## Privacy and security
+
+The public [`Privacy Policy`](https://briane-dev.online/privacy) describes account, course, progress, payment-reference, certificate, enquiry, session-cookie, and configured provider data flows. Paystack processes payment details; the app stores references and transaction state, not full card details. The policy provides `info@briane-dev.online` as a contact route for privacy requests. No automatic deletion flow or fixed retention schedule is represented as available.
+
+Use HTTPS and provider-managed secret storage in production. Keep JWT, Paystack secret, Gemini, database, and object-storage credentials server-side. Do not grant admin roles through public registration. Protect MongoDB access, validate payment callbacks and webhooks, and avoid logging private credentials or personal learner data.
+
+## Troubleshooting
+
+- API startup fails: check required `JWT_SECRET`, Paystack configuration, `PORT`, MongoDB reachability, Atlas network access, and backend environment file location.
+- Frontend requests fail locally: run `npm run dev:all` and confirm the Vite API URL in the root `.env` configuration.
+- Payment does not grant access: verify the payment in Paystack and confirm the API's test/live mode, webhook URL, configured course price, and matching checkout email.
+- Production narration is unavailable: check the backend Gemini configuration and production S3-compatible storage settings; production intentionally requires persistent audio storage.
+- Deep link reload fails: confirm Vercel is using the repository `vercel.json` and publishing the root Vite build output.
+
+## Contribution and licensing
+
+Keep the canonical curriculum and stable course IDs in `src/data/curriculum.js`. Validate content changes with `npm run validate:curriculum`; use the existing scripts for build, lint, and tests. Keep changes focused and preserve API contracts, payment verification, access restrictions, and certificate checks.
+
+No `LICENSE` file is present in this repository. BrianE-Dev code and brand are proprietary to Chukwuemeka Nkama, subject to applicable third-party component and asset licenses. This README does not grant an open-source license or override third-party licenses.
