@@ -104,7 +104,8 @@ export default function DeveloperIntelligenceSphere() {
       const elapsed = reducedMotion.matches ? 0 : (now - startedAt) / 1000
       const progress = reducedMotion.matches ? 1 : Math.min(elapsed / 1.4, 1)
       const eased = 1 - ((1 - progress) ** 3)
-      root.scale.setScalar(0.72 + eased * 0.28)
+      // Keep the mesh fixed in size; the entrance is handled by the hero layout.
+      root.scale.setScalar(1)
       root.rotation.y = reducedMotion.matches ? 0 : elapsed * 0.12 + pointer.x * 0.16
       root.rotation.x = reducedMotion.matches ? 0 : pointer.y * 0.11 + Math.sin(elapsed * 0.35) * 0.025
       root.visible = true
