@@ -162,21 +162,21 @@ function LandingPage() {
           <div className="hero-copy" key={`hero-copy-${heroRun}`}>
             <div className="eyebrow"><span className="status-dot"/> ENGINEERING EDUCATION <span className="eyebrow-sep">/</span> AI WORKFLOWS</div>
             <h1>Master AI Throughout the Software Lifecycle.<br/><span>Reading-First. Code-Centric.</span></h1>
-            <p className="hero-description">No isolated demos. Learn to work more effectively with AI across real software workflowsâ€”from planning and debugging to testing, refactoring, documentation, and delivery.</p>
+            <p className="hero-description">No isolated demos. Learn to work more effectively with AI across real software workflows—from planning and debugging to testing, refactoring, documentation, and delivery.</p>
             <div className="hero-actions">
               <a className="button button-primary" href="#curriculum">Explore Curriculum <Icon name="arrow" size={16}/></a>
               <a className="button button-secondary" href="#method"><span className="play-mini"><Icon name="book" size={11}/></span> How the course works</a>
             </div>
             <div className="hero-stats">
               <div><strong>Read. Listen. Apply.</strong><span>Learn in your own workflow</span></div>
-              <div><strong>{curriculum.sections.length} Sections <i>Â·</i> {totalChapters} Chapters</strong><span>Structured course content</span></div>
-              <div><strong>Depth <i>Â·</i> Code Impact</strong><span>Skills you can apply at work</span></div>
+              <div><strong>{curriculum.sections.length} Sections <i>·</i> {totalChapters} Chapters</strong><span>Structured course content</span></div>
+              <div><strong>Depth <i>·</i> Code Impact</strong><span>Skills you can apply at work</span></div>
             </div>
           </div>
           <div className="hero-visual" key={`hero-visual-${heroRun}`}>
             <div className="visual-window-bar"><div className="window-dots"><i/><i/><i/></div><span>COURSE OVERVIEW</span><span className="live-label"><b/> AI WORKFLOWS</span></div>
             <div className="hero-image-wrap"><img src="/course-hero.png" alt="Software engineer working through an AI-assisted coding lesson"/></div>
-            <div className="visual-caption"><span><Icon name="book" size={13}/> DEVELOPER PRODUCTIVITY</span><span>01 / {curriculum.sections.length} â€” {curriculum.sections[0].title}</span></div>
+            <div className="visual-caption"><span><Icon name="book" size={13}/> DEVELOPER PRODUCTIVITY</span><span>01 / {curriculum.sections.length} — {curriculum.sections[0].title}</span></div>
           </div>
         </section>
 
@@ -200,9 +200,9 @@ function LandingPage() {
 
         <section id="curriculum" className="curriculum-section section-wrap section-block">
           <div className="course-name">{curriculum.title}</div>
-          <SectionHeading eyebrow="CURRICULUM / PROGRESSION" title={<>{curriculum.sections.length} Sections <span>Â·</span> {totalChapters} Chapters</>} description="A structured path for using AI effectively throughout the software development lifecycle." action={<a className="text-link" href="#courses">Course content <Icon name="arrow" size={15}/></a>}/>
+          <SectionHeading eyebrow="CURRICULUM / PROGRESSION" title={<>{curriculum.sections.length} Sections <span>·</span> {totalChapters} Chapters</>} description="A structured path for using AI effectively throughout the software development lifecycle." action={<a className="text-link" href="#courses">Course content <Icon name="arrow" size={15}/></a>}/>
           <div className="curriculum-grid">{curriculum.sections.map((section) => <CurriculumCard section={section} key={section.id}/>)}</div>
-          <div className="curriculum-footer"><span><span className="status-dot green-dot"/> WRITTEN LESSONS Â· CODE EXAMPLES Â· AI WORKFLOWS</span><span>{totalChapters} APPROVED CHAPTERS</span></div>
+          <div className="curriculum-footer"><span><span className="status-dot green-dot"/> WRITTEN LESSONS · CODE EXAMPLES · AI WORKFLOWS</span><span>{totalChapters} APPROVED CHAPTERS</span></div>
         </section>
 
         <section id="method" className="split-section section-wrap section-block">
@@ -223,7 +223,7 @@ function LandingPage() {
         <section className="final-cta"><div><span className="eyebrow">AI-POWERED DEVELOPER PRODUCTIVITY</span><h2>Use AI Throughout<br/>the Software Lifecycle.</h2><p>Study practical AI workflows for planning, debugging, refactoring, documentation, testing, and delivery.</p><div className="hero-actions"><a className="button button-primary" href="#curriculum">View the Curriculum <Icon name="arrow" size={15}/></a><a className="button button-secondary" href="#courses">Explore Course Content</a></div></div></section>
       </main>
 
-      <footer className="site-footer section-wrap"><Brand/><span>ENGINEERING EDUCATION / BUILT FOR THE SOFTWARE LIFECYCLE</span><div><a href="#curriculum">CURRICULUM</a><a href="#preview">FREE PREVIEW</a><a href="#pricing">ACCESS</a><a href="#faq">SUPPORT</a></div><span>Â© 2026 BRIANE-DEV</span></footer>
+      <footer className="site-footer section-wrap"><Brand/><span>ENGINEERING EDUCATION / BUILT FOR THE SOFTWARE LIFECYCLE</span><div><a href="#curriculum">CURRICULUM</a><a href="#preview">FREE PREVIEW</a><a href="#pricing">ACCESS</a><a href="#faq">SUPPORT</a></div><span>© 2026 BRIANE-DEV</span></footer>
       <nav className="mobile-dock" aria-label="Quick navigation"><a href="#top"><Icon name="grid" size={17}/><span>HOME</span></a><a href="#curriculum"><Icon name="book" size={17}/><span>CURRICULUM</span></a><a href="#preview"><Icon name="code" size={17}/><span>PREVIEW</span></a><a href="#pricing"><Icon name="lock" size={17}/><span>ACCESS</span></a></nav>
     </div>
   )
