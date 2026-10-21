@@ -7,6 +7,7 @@ import Icon from './components/Icon.jsx'
 import PricingCard from './components/PricingCard.jsx'
 import SectionHeading from './components/SectionHeading.jsx'
 import { courseFormats, features, plans, questions } from './data/homepage.js'
+import { pageDescriptions } from './data/pageDescriptions.js'
 import { curriculum, totalChapters } from './data/curriculum.js'
 import { courseStructuredData } from './data/structuredData.js'
 import { api } from './services/api.js'
@@ -285,12 +286,6 @@ function App() {
 }
 
 export default App
-
-const pageDescriptions = {
-  '/privacy': ['BrianE-Dev Privacy Policy', 'Learn how BrianE-Dev handles learner account, course, payment, progress, certificate, and enquiry information.'],
-  '/services': ['Digital Services | BrianE-Dev', 'Explore BrianE-Dev website, e-commerce, web application, and integration services.'],
-  '/course/ai-powered-developer-productivity': ['AI-Powered Developer Productivity Course | BrianE-Dev', 'Learn AI-powered developer workflows, coding with AI, debugging strategies and practical techniques to improve software engineering productivity with BrianE-Dev.'],
-}
 
 function setPageMetadata(path, title, description) {
   document.title = title
