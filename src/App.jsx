@@ -20,6 +20,7 @@ import LearnerDashboard from './components/learner/LearnerDashboard.jsx'
 import CourseReader from './components/learner/CourseReader.jsx'
 import BusinessPages from './components/BusinessPages.jsx'
 import PasswordRecovery from './components/PasswordRecovery.jsx'
+import EmailVerification from './components/EmailVerification.jsx'
 import SiteNavigation from './components/SiteNavigation.jsx'
 import DeveloperIntelligenceSphere from './components/DeveloperIntelligenceSphere.jsx'
 import { getPromotionDateRange } from './utils/promotionDates.js'
@@ -176,6 +177,55 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
     promotionDates: getPromotionDateRange(pricing.startDate, pricing.endDate),
   } : null
 
+  if (isCourseLanding) return <div className="site-shell" data-theme={theme}>
+    <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin} isCoursePage/>
+    <main id="top" className="course-landing-page">
+      <section ref={heroRef} onPointerMove={moveHeroSquare} onPointerLeave={hideHeroSquare} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
+        <span ref={heroSquareRef} className="hero-pointer-square" aria-hidden="true"/>
+        <div className="hero-copy" key={`course-hero-copy-${heroRun}`}>
+          <div className="eyebrow"><span className="status-dot"/> BRIANE-DEV / FLAGSHIP COURSE</div>
+          <h1>AI-Powered Developer Productivity<br/><span>for Software Engineers.</span></h1>
+          <p className="hero-description">Learn practical AI workflows for planning, coding, debugging, testing, documentation, and delivery—with the engineering reasoning to use them well.</p>
+          <div className="hero-actions">
+            <a className="button button-primary" href="#pricing">Explore enrollment <Icon name="arrow" size={16}/></a>
+            <a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer"><Icon name="book" size={13}/> Read the free preview</a>
+          </div>
+          <div className="hero-stats">
+            <div><strong>{curriculum.sections.length} Sections <i>·</i> {totalChapters} Chapters</strong><span>Structured written curriculum</span></div>
+            <div><strong>Read. Listen. Apply.</strong><span>Learn in your own workflow</span></div>
+            <div><strong>Practical workflows</strong><span>Skills for real software work</span></div>
+          </div>
+        </div>
+        <div className="hero-visual" key={`course-hero-visual-${heroRun}`}><div className="hero-image-wrap"><DeveloperIntelligenceSphere/></div></div>
+      </section>
+
+      {children}
+
+      <section id="curriculum" className="curriculum-section section-wrap section-block">
+        <div className="course-name">THE LEARNING PATH</div>
+        <SectionHeading eyebrow="CURRICULUM / PROGRESSION" title={<>{curriculum.sections.length} Sections <span>·</span> {totalChapters} Chapters</>} description="A structured path for using AI effectively throughout the software development lifecycle."/>
+        <div className="curriculum-grid">{curriculum.sections.map((section) => <CurriculumCard section={section} key={section.id}/>)}</div>
+        <div className="curriculum-footer"><span><span className="status-dot green-dot"/> WRITTEN LESSONS · CODE EXAMPLES · AI WORKFLOWS</span><span>{totalChapters} APPROVED CHAPTERS</span></div>
+      </section>
+
+      <section id="learning-format" className="architecture-section section-wrap section-block">
+        <SectionHeading eyebrow="HOW THE COURSE WORKS" title="Technical learning with context." description="Study the concept, inspect the code, and understand the engineering decisions behind each AI workflow."/>
+        <div className="method-grid course-format-grid">{courseFormats.map((format, index) => <article key={format.title}><span>CONTENT FORMAT {String(index + 1).padStart(2, '0')}</span><h3>{format.title}</h3><p>{format.description}</p></article>)}</div>
+      </section>
+
+      <section id="pricing" className="pricing-section section-wrap section-block">
+        <div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Pay first, then create your learner account with the same email address.</p></div>
+        {paymentReturn && <div className={`payment-message payment-message-${paymentReturn.state}`} role={paymentReturn.state === 'error' ? 'alert' : 'status'}>{paymentReturn.message}{paymentReturn.state !== 'confirmed' && <button type="button" className="payment-retry" onClick={() => verifyPaymentReturn(paymentReturn.reference)} disabled={paymentReturn.state === 'checking'}>{paymentReturn.state === 'checking' ? 'Checking…' : 'Retry verification'}</button>}{paymentReturn.state === 'confirmed' && <a className="button button-primary" href="/learn/register">Create your learner account</a>}</div>}
+        <div className="pricing-grid">{regionalPrice ? <div className="pricing-checkout"><label>Email for course access<input type="email" value={checkoutEmail} onChange={(event) => setCheckoutEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com"/></label><PricingCard item={{...regionalPrice, action: 'Pay and continue'}} selected busy={paymentBusy} error={pricingError} onSelect={purchaseCourse}/></div> : <p className="pricing-error" role="alert">{pricingError || 'Loading current Nigerian pricing…'}</p>}</div>
+        <p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> Narration</p>
+      </section>
+
+      <section id="faq" className="faq-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">FAQ</span><h2>Frequently Asked Questions</h2><p>Details about course access, the curriculum, and the learning format.</p></div><FaqList items={questions} openIndex={openFaq} onToggle={setOpenFaq}/></section>
+    </main>
+    <footer className="site-footer section-wrap"><Brand/><span>Practical AI workflows for software engineers</span><div><a href="/#top">HOME</a><a href="#curriculum">CURRICULUM</a><a href="/about">ABOUT</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
+    <nav className="mobile-dock" aria-label="Course navigation"><a href="#top"><Icon name="grid" size={17}/><span>COURSE</span></a><a href="#curriculum"><Icon name="book" size={17}/><span>CURRICULUM</span></a><a href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer"><Icon name="code" size={17}/><span>PREVIEW</span></a><a href="#pricing"><Icon name="lock" size={17}/><span>ACCESS</span></a></nav>
+  </div>
+
   return (
     <div className="site-shell" data-theme={theme}>
       <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
@@ -318,6 +368,7 @@ function App() {
   else if (path === '/learn/register') page = <LearnerRegister />
   else if (path === '/learn/forgot-password') page = <PasswordRecovery />
   else if (path === '/learn/reset-password') page = <PasswordRecovery reset />
+  else if (path === '/learn/verify-email') page = <EmailVerification />
   else if (path === '/learn') page = <LearnerDashboard />
   else if (/^\/courses\/[^/]+\/learn\/chapter-[a-z0-9-]+$/.test(path)) page = <CourseReader />
   else if (path === '/') page = <LandingPage />
@@ -371,5 +422,5 @@ function PublicCourseStructuredData() {
 }
 
 function CoursePage() {
-  return <><PublicCourseStructuredData/><LandingPage metadataPath="/course/ai-powered-developer-productivity" isCourseLanding><section className="course-detail-page section-wrap"><span className="eyebrow">BRIANE-DEV / FLAGSHIP COURSE</span><h2>Practical AI workflows for software engineers</h2><p>Learn how to integrate AI into software planning, coding, debugging, testing, documentation, and delivery. Written instruction and code-focused examples explain the workflow and the engineering reasoning behind it.</p><h2>Learning outcomes</h2><ul><li>Choose AI tools and apply them responsibly to software work.</li><li>Turn requirements into user flows, architecture choices, roadmaps, and implementation tasks.</li><li>Use AI while building frontend and backend features, working with databases, and integrating APIs.</li><li>Investigate errors, debug complex problems, and strengthen tests and quality checks.</li><li>Review code, document decisions, consider security, and maintain AI-assisted codebases.</li><li>Combine the methods into a practical developer workflow.</li></ul><h2>Course topics</h2><ul>{curriculum.sections.map((section) => <li key={section.id}><strong>{section.title}:</strong> {section.description}</li>)}</ul><p>The curriculum contains {curriculum.sections.length} sections and {totalChapters} chapters. Chapter 1 is available as a free preview. Full course access is paid through Paystack for customers in Nigeria; the current configured price and any active promotion appear in the enrollment section. Certificate eligibility follows purchase and completion of required course activities.</p><div className="hero-actions"><a className="button button-primary" href="/#pricing">Explore enrollment</a><a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Read the free Chapter 1 preview</a></div><p><a className="text-link" href="/privacy">Read the BrianE-Dev Privacy Policy</a></p></section></LandingPage></>
+  return <><PublicCourseStructuredData/><LandingPage metadataPath="/course/ai-powered-developer-productivity" isCourseLanding><section id="course-overview" className="course-detail-page section-wrap"><span className="eyebrow">BRIANE-DEV / FLAGSHIP COURSE</span><h2>Practical AI workflows for software engineers</h2><p>Learn how to integrate AI into software planning, coding, debugging, testing, documentation, and delivery. Written instruction and code-focused examples explain the workflow and the engineering reasoning behind it.</p><h2>Learning outcomes</h2><ul><li>Choose AI tools and apply them responsibly to software work.</li><li>Turn requirements into user flows, architecture choices, roadmaps, and implementation tasks.</li><li>Use AI while building frontend and backend features, working with databases, and integrating APIs.</li><li>Investigate errors, debug complex problems, and strengthen tests and quality checks.</li><li>Review code, document decisions, consider security, and maintain AI-assisted codebases.</li><li>Combine the methods into a practical developer workflow.</li></ul><h2>Course topics</h2><ul>{curriculum.sections.map((section) => <li key={section.id}><strong>{section.title}:</strong> {section.description}</li>)}</ul><p>The curriculum contains {curriculum.sections.length} sections and {totalChapters} chapters. Chapter 1 is available as a free preview. Full course access is paid through Paystack for customers in Nigeria; the current configured price and any active promotion appear in the enrollment section. Certificate eligibility follows purchase and completion of required course activities.</p><div className="hero-actions"><a className="button button-primary" href="#pricing">Explore enrollment</a><a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Read the free Chapter 1 preview</a></div><p><a className="text-link" href="/privacy">Read the BrianE-Dev Privacy Policy</a></p></section></LandingPage></>
 }

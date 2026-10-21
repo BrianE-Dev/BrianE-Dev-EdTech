@@ -77,6 +77,8 @@ Paystack receives checkout requests. The backend selects the active course and c
 
 The Chapter 1 preview is public. Full lessons, assessments, progress, ebook access, and certificate eligibility require verified paid course access. Certificate completion is evaluated by the backend from course progress and required learning tasks; the current canonical curriculum has 43 chapters. Do not use preview UI or public course metadata to grant access or represent a learner as completed.
 
+New learner registration requires a matching successful purchase and email verification. Password recovery and verification email use the API's server-side SMTP transport. Configure the values documented in [`backend/.env.example`](backend/.env.example) in the API runtime environment; do not put them in Vercel or other frontend build variables. The CRM stores contact/quote requests before attempting email, and provides a safe admin retry path. SMTP acceptance is not proof of inbox delivery. Marketing campaigns are draft-only until unsubscribe, suppression, and delivery-event handling are implemented.
+
 Course audio generation can send lesson text to Google Gemini when the server-side TTS feature is configured. Production audio is stored in persistent S3-compatible storage (Cloudflare R2 is described in current operations documentation); MongoDB stores audio metadata. Local storage is intended for development only. Never expose the Gemini key in frontend configuration.
 
 ## Deployment
@@ -102,7 +104,7 @@ This repository does not assert that Search Console verification or indexing has
 
 The public [`Privacy Policy`](https://briane-dev.online/privacy) describes account, course, progress, payment-reference, certificate, enquiry, session-cookie, and configured provider data flows. Paystack processes payment details; the app stores references and transaction state, not full card details. The policy provides `info@briane-dev.online` as a contact route for privacy requests. No automatic deletion flow or fixed retention schedule is represented as available.
 
-Use HTTPS and provider-managed secret storage in production. Keep JWT, Paystack secret, Gemini, database, and object-storage credentials server-side. Do not grant admin roles through public registration. Protect MongoDB access, validate payment callbacks and webhooks, and avoid logging private credentials or personal learner data.
+Use HTTPS and provider-managed secret storage in production. Keep JWT, Paystack secret, Gemini, SMTP, database, and object-storage credentials server-side. Do not grant admin roles through public registration. Protect MongoDB access, validate payment callbacks and webhooks, and avoid logging private credentials or personal learner data.
 
 ## Troubleshooting
 

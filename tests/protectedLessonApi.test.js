@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { createServer } from 'node:http'
 import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
+import nodemailer from 'nodemailer'
 import test from 'node:test'
 
 process.env.JWT_SECRET = 'phase-four-test-secret-with-enough-length'
@@ -11,6 +12,15 @@ process.env.APP_ENV = 'development'
 process.env.PAYSTACK_PUBLIC_KEY = 'pk_test_phase_four'
 process.env.PAYSTACK_SECRET_KEY = 'sk_test_phase_four'
 process.env.PAYSTACK_BASE_URL = 'https://api.paystack.co'
+process.env.PUBLIC_APP_URL = 'https://briane-dev.online'
+process.env.SMTP_HOST = 'smtp.example.test'
+process.env.SMTP_PORT = '465'
+process.env.SMTP_SECURE = 'true'
+process.env.SMTP_USER = 'info@briane-dev.online'
+process.env.SMTP_PASSWORD = 'test-only-mail-password'
+process.env.EMAIL_ADMIN_RECIPIENT = 'info@briane-dev.online'
+const sentEmails = []
+nodemailer.createTransport = () => ({ sendMail: async (message) => { sentEmails.push(message); return { accepted: [message.to], messageId: message.messageId || '<test@briane-dev.online>' } } })
 
 const [{ default: app }, models] = await Promise.all([
   import('../backend/src/app.js'),
@@ -66,6 +76,8 @@ const originals = {
   securityTokenDeleteMany: SecurityToken.deleteMany,
   securityTokenCreate: SecurityToken.create,
   securityTokenFindOne: SecurityToken.findOne,
+  securityTokenFindOneAndDelete: SecurityToken.findOneAndDelete,
+  userFindOneAndUpdate: User.findOneAndUpdate,
 }
 const initialDatabaseReadyState = mongoose.connection.readyState
 let progressRecords
@@ -89,7 +101,7 @@ test.before(async () => {
   userRows.set(adminUserId, { id: adminUserId, name: 'Admin User', email: 'admin@example.test', passwordHash, role: 'super_admin' })
   userRows.set('admin-auth-test', { id: 'admin-auth-test', name: 'Auth Test Admin', email: 'admin@example.test', passwordHash, role: 'super_admin' })
   User.findById = async (id) => userRows.get(String(id)) || null
-  User.findOne = (filter) => query([...userRows.values()].find((user) => user.email === filter.email) || null)
+  User.findOne = (filter) => query([...userRows.values()].find((user) => Object.entries(filter).every(([key, value]) => user[key] === value)) || null)
   User.create = async (input) => {
     if ([...userRows.values()].some((user) => user.email === input.email)) throw Object.assign(new Error('duplicate key'), { code: 11000 })
     const user = { ...input, id: '507f1f77bcf86cd799439015', role: input.role || 'user' }
@@ -97,9 +109,11 @@ test.before(async () => {
     return user
   }
   User.updateOne = async (filter, update) => { const user = userRows.get(String(filter._id)); if (!user) return { matchedCount: 0 }; Object.assign(user, update.$set || {}); if (update.$inc) for (const [key, amount] of Object.entries(update.$inc)) user[key] = (user[key] || 0) + amount; return { matchedCount: 1 } }
+  User.findOneAndUpdate = async (filter, update) => { const user = userRows.get(String(filter._id)); if (!user || (filter.emailVerified !== undefined && user.emailVerified !== filter.emailVerified)) return null; Object.assign(user, update.$set || {}); if (update.$inc) for (const [key, amount] of Object.entries(update.$inc)) user[key] = (user[key] || 0) + amount; return user }
   SecurityToken.deleteMany = async ({ user, purpose }) => { for (const [key, row] of securityTokenRows) if (String(row.user) === String(user) && row.purpose === purpose) securityTokenRows.delete(key); return { deletedCount: 0 } }
   SecurityToken.create = async (input) => { securityTokenRows.set(input.tokenHash, { ...input, deleteOne: async () => securityTokenRows.delete(input.tokenHash) }); return input }
   SecurityToken.findOne = async (filter) => [...securityTokenRows.values()].find((row) => row.purpose === filter.purpose && row.tokenHash === filter.tokenHash && row.expiresAt > filter.expiresAt.$gt) || null
+  SecurityToken.findOneAndDelete = async (filter) => { const entry = [...securityTokenRows.entries()].find(([, row]) => row.purpose === filter.purpose && row.tokenHash === filter.tokenHash && row.expiresAt > filter.expiresAt.$gt); if (!entry) return null; securityTokenRows.delete(entry[0]); return entry[1] }
   Course.findById = async (id) => id === course.id ? course : null
   Course.findOne = () => query(course)
   Course.find = () => query([course])
@@ -111,6 +125,7 @@ test.before(async () => {
     return row
   }
   Payment.findOne = async (filter) => {
+    if (filter.checkoutEmail && paid) return { id: 'successful-payment', checkoutEmail: filter.checkoutEmail }
     if (filter.$or && paid) return { id: 'successful-payment', checkoutEmail: filter.$or[0].checkoutEmail }
     const row = paymentRows.get(filter.reference)
     return row && Object.entries(filter).every(([key, value]) => String(row[key]) === String(value)) ? row : null
@@ -209,11 +224,13 @@ test.after(async () => {
   SecurityToken.deleteMany = originals.securityTokenDeleteMany
   SecurityToken.create = originals.securityTokenCreate
   SecurityToken.findOne = originals.securityTokenFindOne
+  SecurityToken.findOneAndDelete = originals.securityTokenFindOneAndDelete
+  User.findOneAndUpdate = originals.userFindOneAndUpdate
   mongoose.connection.readyState = initialDatabaseReadyState
 })
 
 function sessionCookie(userId = userDbId) {
-  const token = jwt.sign({ sub: userId }, process.env.JWT_SECRET)
+  const token = jwt.sign({ sub: userId, version: userRows.get(String(userId))?.sessionVersion || 0 }, process.env.JWT_SECRET)
   return `session=${token}`
 }
 
@@ -716,7 +733,8 @@ test('learner login, invalid credentials, registration role isolation, and admin
   paid = false
   progressRecords.clear()
   const newLearnerLogin = await apiJson('/auth/login', { method: 'POST', body: { email: 'new@example.test', password: 'new-learner-password' } })
-  assert.equal(newLearnerLogin.status, 200)
+  assert.equal(newLearnerLogin.status, 403)
+  assert.equal((await newLearnerLogin.json()).code, 'EMAIL_VERIFICATION_REQUIRED')
   const newLearnerId = registeredUser.id
   assert.equal((await apiJson('/auth/me', { userId: newLearnerId })).status, 200)
   const purchases = await apiJson('/me/purchases', { userId: newLearnerId })
@@ -730,10 +748,13 @@ test('learner login, invalid credentials, registration role isolation, and admin
     assert.equal(fullLesson.status, 403)
     assert.equal((await fullLesson.json()).code, 'EMAIL_VERIFICATION_REQUIRED')
   }
-  const verifyResponse = await apiJson('/auth/verify-email', { method: 'POST', userId: null, body: { token: registered.developmentVerificationToken } })
+  const verificationMail = [...sentEmails].reverse().find((message) => message.subject.includes('Verify your email address'))
+  const verificationUrl = verificationMail.html.match(/href="(https:[^"]+learn\/verify-email[^"]*)"/)[1]
+  const verificationToken = new URL(verificationUrl).searchParams.get('token')
+  const verifyResponse = await apiJson('/auth/verify-email', { method: 'POST', userId: null, body: { token: verificationToken } })
   assert.equal(verifyResponse.status, 200)
   assert.equal(userRows.get(newLearnerId).emailVerified, true)
-  const reusedVerification = await apiJson('/auth/verify-email', { method: 'POST', userId: null, body: { token: registered.developmentVerificationToken } })
+  const reusedVerification = await apiJson('/auth/verify-email', { method: 'POST', userId: null, body: { token: verificationToken } })
   assert.equal(reusedVerification.status, 400)
 
   const unpaidProgress = await apiJson(`/courses/${course.id}/progress`, { userId: newLearnerId })
@@ -786,8 +807,7 @@ test('authentication handles normalized emails, admin credentials, malformed has
   assert.equal(registered.status, 201)
   const body = await registered.json()
   assert.equal(body.verificationRequired, true)
-  assert.equal(typeof body.developmentVerificationToken, 'string')
-  assert.equal(body.developmentVerificationToken.length >= 32, true)
+  assert.equal('developmentVerificationToken' in body, false)
   assert.equal(JSON.stringify(body).includes('passwordHash'), false)
   const row = [...userRows.values()].find((user) => user.email === 'new.user@example.test')
   assert.equal(row.role, 'user')
@@ -796,27 +816,28 @@ test('authentication handles normalized emails, admin credentials, malformed has
   assert.equal(await bcrypt.compare('normalized-password', row.passwordHash), true)
   paid = false
   const normalizedLogin = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: ' NEW.USER@example.test ', password: 'normalized-password' } })
-  assert.equal(normalizedLogin.status, 200)
+  assert.equal(normalizedLogin.status, 403)
   const resetSession = sessionCookie(row.id)
   const unknownRecovery = await apiJson('/auth/forgot-password', { method: 'POST', userId: null, body: { email: 'unknown@example.test' } })
   const unknownRecoveryBody = await unknownRecovery.json()
   assert.equal(unknownRecoveryBody.ok, true)
-  assert.equal(typeof unknownRecoveryBody.developmentResetToken, 'string')
   const recovery = await apiJson('/auth/forgot-password', { method: 'POST', userId: null, body: { email: 'new.user@example.test' } })
   const recoveryBody = await recovery.json()
-  assert.equal(recovery.status, 200)
+  assert.equal(recovery.status, 202)
   assert.deepEqual(Object.keys(recoveryBody).sort(), Object.keys(unknownRecoveryBody).sort())
-  assert.equal(typeof recoveryBody.developmentResetToken, 'string')
-  const reset = await apiJson('/auth/reset-password', { method: 'POST', userId: null, body: { token: recoveryBody.developmentResetToken, password: 'updated-normalized-password', confirmPassword: 'updated-normalized-password' } })
+  const resetMail = [...sentEmails].reverse().find((message) => message.subject.includes('Reset your password'))
+  const resetUrl = resetMail.html.match(/href="(https:[^"]+learn\/reset-password[^"]*)"/)[1]
+  const resetToken = new URL(resetUrl).searchParams.get('token')
+  const reset = await apiJson('/auth/reset-password', { method: 'POST', userId: null, body: { token: resetToken, password: 'updated-normalized-password', confirmPassword: 'updated-normalized-password' } })
   assert.equal(reset.status, 200)
   assert.equal(await bcrypt.compare('updated-normalized-password', row.passwordHash), true)
   const invalidated = await fetch(`${baseUrl}/api/me/profile`, { headers: { cookie: resetSession } })
   assert.equal(invalidated.status, 401)
-  const reusedReset = await apiJson('/auth/reset-password', { method: 'POST', userId: null, body: { token: recoveryBody.developmentResetToken, password: 'another-normalized-password', confirmPassword: 'another-normalized-password' } })
+  const reusedReset = await apiJson('/auth/reset-password', { method: 'POST', userId: null, body: { token: resetToken, password: 'another-normalized-password', confirmPassword: 'another-normalized-password' } })
   assert.equal(reusedReset.status, 400)
 
   const duplicate = await apiJson('/auth/register', { method: 'POST', userId: null, body: { name: 'Duplicate', email: 'NEW.USER@example.test', password: 'duplicate-password' } })
-  assert.equal(duplicate.status, 409)
+  assert.equal(duplicate.status, 202)
 
   userRows.set('bad-hash', { id: 'bad-hash', name: 'Bad Hash', email: 'bad-hash@example.test', passwordHash: 'not-a-bcrypt-hash', role: 'user' })
   const malformedHash = await apiJson('/auth/login', { method: 'POST', userId: null, body: { email: 'bad-hash@example.test', password: 'password' } })

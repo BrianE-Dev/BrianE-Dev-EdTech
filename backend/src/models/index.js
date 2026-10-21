@@ -122,11 +122,23 @@ const businessRequestSchema = new Schema({
   name: { type: String, required: true, trim: true, maxlength: 120 }, email: { type: String, required: true, lowercase: true, trim: true, index: true },
   phone: { type: String, trim: true, maxlength: 40, default: '' }, company: { type: String, trim: true, maxlength: 160, default: '' }, website: { type: String, trim: true, maxlength: 300, default: '' },
   subject: { type: String, trim: true, maxlength: 160, default: '' }, message: { type: String, trim: true, maxlength: 5000, default: '' }, details: { type: Schema.Types.Mixed, default: {} },
+  category: { type: String, trim: true, maxlength: 100, default: '' }, sourcePage: { type: String, trim: true, maxlength: 240, default: '' }, campaign: { type: String, trim: true, maxlength: 160, default: '' },
+  submissionId: { type: String, maxlength: 64, unique: true, sparse: true },
+  assignedTo: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   status: { type: String, enum: ['New', 'Under Review', 'Awaiting Customer', 'Qualified', 'Proposal Sent', 'Won', 'Lost', 'Closed'], default: 'New', index: true },
   internalNotes: [{ body: { type: String, maxlength: 4000 }, author: { type: Schema.Types.ObjectId, ref: 'User' }, createdAt: { type: Date, default: Date.now } }],
   statusHistory: [{ status: String, changedBy: { type: Schema.Types.ObjectId, ref: 'User' }, changedAt: { type: Date, default: Date.now } }],
+  assignmentHistory: [{ assignedTo: { type: Schema.Types.ObjectId, ref: 'User', default: null }, changedBy: { type: Schema.Types.ObjectId, ref: 'User' }, changedAt: { type: Date, default: Date.now } }],
+  emailNotifications: {
+    requesterStatus: { type: String, enum: ['not_attempted', 'sending', 'accepted', 'not_configured', 'failed'], default: 'not_attempted' },
+    adminStatus: { type: String, enum: ['not_attempted', 'sending', 'accepted', 'not_configured', 'failed'], default: 'not_attempted' },
+    requesterErrorCode: { type: String, default: '' }, adminErrorCode: { type: String, default: '' },
+    requesterRetryUntil: Date, adminRetryUntil: Date,
+  },
 }, timestamps)
-businessRequestSchema.index({ createdAt: -1 })
+businessRequestSchema.index({ createdAt: -1, status: 1 })
+businessRequestSchema.index({ category: 1, createdAt: -1 })
+businessRequestSchema.index({ sourcePage: 1, createdAt: -1 })
 
 const businessContactSchema = new Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true }, name: { type: String, required: true, trim: true, maxlength: 120 }, company: { type: String, trim: true, maxlength: 160, default: '' },

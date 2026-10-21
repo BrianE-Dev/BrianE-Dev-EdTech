@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Brand from './Brand.jsx'
 import SiteNavigation from './SiteNavigation.jsx'
 import { api } from '../services/api.js'
@@ -11,6 +11,15 @@ const services = [
   ['SaaS platforms', 'Web product foundations, account flows, and integrations planned around your service.'],
   ['Redesign and support', 'Improve an existing site, connect APIs, or keep your web product maintained.'],
 ]
+
+function createSubmissionId() {
+  if (window.crypto.randomUUID) return window.crypto.randomUUID()
+  const bytes = window.crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
 
 function AboutPage() {
   return <>
@@ -31,6 +40,7 @@ function PrivacyPolicy() {
 export default function BusinessPages({ page }) {
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(false)
+  const submissionId = useRef(null)
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem('briane-dev-theme')
     if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme
@@ -42,12 +52,22 @@ export default function BusinessPages({ page }) {
   }, [theme])
   async function submit(event) {
     event.preventDefault(); setBusy(true); setResult(null)
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     const body = Object.fromEntries(form.entries())
+    if (!submissionId.current) submissionId.current = createSubmissionId()
+    body.submissionId = submissionId.current
+    body.sourcePage = window.location.pathname
+    body.campaign = new URLSearchParams(window.location.search).get('utm_campaign') || ''
     body.privacyAccepted = form.has('privacyAccepted')
     body.marketingConsent = form.has('marketingConsent')
     if (page === 'quote') body.requiredFeatures = String(form.get('requiredFeatures') || '').split(',').map((item) => item.trim()).filter(Boolean)
-    try { setResult(await api(`/business/${page === 'quote' ? 'quotes' : 'enquiries'}`, { method: 'POST', body: JSON.stringify(body) })); event.currentTarget.reset() }
+    try {
+      const saved = await api(`/business/${page === 'quote' ? 'quotes' : 'enquiries'}`, { method: 'POST', body: JSON.stringify(body) })
+      setResult(saved)
+      formElement.reset()
+      submissionId.current = null
+    }
     catch (error) { setResult({ error: error.message }) }
     finally { setBusy(false) }
   }
@@ -62,7 +82,9 @@ export default function BusinessPages({ page }) {
     </> : <>
       <section className="business-hero compact"><span className="eyebrow">BRIANE-DEV / {page === 'quote' ? 'PROJECT BRIEF' : 'CONTACT'}</span><h1>{page === 'quote' ? 'Tell us what you are planning.' : 'Start a conversation.'}</h1><p>{page === 'quote' ? 'Share the essentials and we will have a useful starting point for a discussion.' : 'Send a note about your project, question, or business need.'}</p>{page === 'contact' && <a className="button button-primary" href="/quote">Request a Quote</a>}</section>
       <form className="business-form" onSubmit={submit}>
-        {result?.reference ? <div className="business-result" role="status"><strong>Request saved.</strong><span>Your reference is {result.reference}. Email acknowledgement is currently unavailable.</span></div> : result?.error && <div className="business-error" role="alert">{result.error}</div>}
+        {result?.reference && <div className="business-result" role="status"><strong>Request saved.</strong><span>Your reference is {result.reference}.</span><span>{result.emailDelivery === 'accepted' ? 'The email provider accepted your acknowledgement.' : 'We could not send an acknowledgement email. Keep your reference for follow-up.'}</span><button type="button" className="button button-secondary" onClick={() => setResult(null)}>Send another request</button></div>}
+        {result?.error && <div className="business-error" role="alert">{result.error}</div>}
+        {!result?.reference && <>
         <label>Full name<input name="name" required minLength="2" maxLength="120" autoComplete="name" /></label>
         <label>Email address<input name="email" type="email" required maxLength="254" autoComplete="email" /></label>
         <label>Phone number <span>(optional)</span><input name="phone" maxLength="40" autoComplete="tel" /></label>
@@ -79,6 +101,7 @@ export default function BusinessPages({ page }) {
         <label className="business-check wide"><input type="checkbox" name="privacyAccepted" required /> I acknowledge the <a href="/privacy">privacy notice</a> for handling this request.</label>
         {page === 'quote' && <label className="business-check wide"><input type="checkbox" name="marketingConsent" /> I would like to receive occasional product and service updates by email.</label>}
         <button className="button button-primary wide" disabled={busy}>{busy ? 'Sending…' : page === 'quote' ? 'Submit project request' : 'Send message'}</button>
+        </>}
       </form>
     </>}
     <footer className="business-footer"><Brand /><span>BrianE-Dev is a technology brand focused on digital solutions, developer productivity, and practical software engineering resources.<br/>Founded by Chukwuemeka Brian Nkama.</span><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a><a href="/privacy">Privacy Policy</a><a href="/">Explore developer education</a><span>© {new Date().getFullYear()} BrianE-Dev</span></footer>

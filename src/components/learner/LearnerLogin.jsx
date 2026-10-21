@@ -9,8 +9,10 @@ function safeReturnPath(value) {
 export default function LearnerLogin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [verificationToken, setVerificationToken] = useState('')
-  const [notice, setNotice] = useState(() => new URLSearchParams(window.location.search).get('created') === '1' ? 'Your account is ready. Sign in to enter the course.' : '')
+  const [verificationEmail, setVerificationEmail] = useState('')
+  const [verificationNotice, setVerificationNotice] = useState('')
+  const [resending, setResending] = useState(false)
+  const [notice] = useState(() => new URLSearchParams(window.location.search).get('created') === '1' ? 'If your account was created, verify your email before signing in. Check your inbox or request another link below.' : '')
   const returnTo = safeReturnPath(new URLSearchParams(window.location.search).get('returnTo'))
 
   async function submit(event) {
@@ -20,15 +22,10 @@ export default function LearnerLogin() {
     const form = new FormData(event.currentTarget)
     try {
       const { user } = await loginLearner(form.get('email'), form.get('password'))
-      if (!user.emailVerified && user.role !== 'super_admin') {
-        const resend = await api('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email: user.email }) })
-        setVerificationToken(resend.developmentVerificationToken || '')
-        setNotice('This account is awaiting email verification. Protected course features remain locked.')
-        return
-      }
       window.location.assign(user.role === 'super_admin' ? '/admin' : returnTo)
     } catch (requestError) {
       setError(requestError.message)
+      if (requestError.code === 'EMAIL_VERIFICATION_REQUIRED') setVerificationEmail(String(form.get('email') || ''))
     } finally {
       setBusy(false)
     }
@@ -41,10 +38,11 @@ export default function LearnerLogin() {
       <h1>Welcome back</h1>
       <p>Sign in to continue your course. Paid course access is checked securely by the server.</p>
       <form onSubmit={submit}>
-        {notice && <div className="learner-error" role="status"><strong>{notice}</strong>{verificationToken && <p><button type="button" className="button button-primary" onClick={async () => { try { await api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token: verificationToken }) }); setNotice('Email verified. Sign in again to continue.'); setVerificationToken('') } catch (verifyError) { setError(verifyError.message) } }}>Verify in this development environment</button></p>}</div>}
+        {notice && <div className="learner-error" role="status"><strong>{notice}</strong></div>}
         <label>Email address<input type="email" name="email" autoComplete="username" required /></label>
         <label>Password<input type="password" name="password" autoComplete="current-password" required /></label>
         {error && <p className="learner-error" role="alert">{error}</p>}
+        {verificationEmail && <div className="learner-error" role="status"><strong>Verify your email before signing in.</strong><p>Request a new verification link if the original email is unavailable.</p><button type="button" className="button button-primary" disabled={resending} onClick={async () => { setResending(true); setVerificationNotice(''); try { const result = await api('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email: verificationEmail }) }); setVerificationNotice(result.message) } catch (resendError) { setVerificationNotice(resendError.message) } finally { setResending(false) } }}>{resending ? 'Sending…' : 'Resend verification email'}</button>{verificationNotice && <p role="status">{verificationNotice}</p>}</div>}
         <button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <p className="learner-auth-switch"><a href="/learn/forgot-password">Forgot your password?</a></p>

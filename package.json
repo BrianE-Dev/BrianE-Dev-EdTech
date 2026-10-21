@@ -29,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^1.50.0",
     "mongoose": "^8.18.0",
+    "nodemailer": "^10.1.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "^0.186.1",

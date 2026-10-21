@@ -6,7 +6,8 @@ import { z } from 'zod'
 import mongoose from 'mongoose'
 import { AuditLog, BusinessContact, BusinessRequest, Certificate, CertificateTemplate, Course, EmailCampaign, Payment, Pricing, Progress, SecurityToken, TtsAudio, User } from '../models/index.js'
 import { authenticate, requireAdmin, requireVerified } from '../middleware/auth.js'
-import { issueSecurityToken, mailStatus, saveBusinessRequest } from '../services/business.js'
+import { consumeSecurityToken, issueSecurityToken, mailStatus, saveBusinessRequest, sendBusinessNotifications } from '../services/business.js'
+import { sendPasswordChangedNotification, sendSecurityEmail } from '../services/email.js'
 import { getFinalPrice } from '../utils/pricing.js'
 import { getPaystackConfig } from '../config/paystack.js'
 import { initializeTransaction, verifyTransaction } from '../services/paystack.js'
@@ -83,15 +84,17 @@ router.get('/diagnostics/hostinger-network', async (req, res) => {
 router.post('/auth/register', async (req, res) => {
   const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()), password: z.string().min(10).max(128) })
   const input = schema.parse(req.body)
-  const existingUser = await User.findOne({ email: input.email }).select('_id')
-  if (existingUser) return res.status(409).json({ error: 'An account already exists for this email. Please sign in.' })
-  const paidAccess = await Payment.findOne({ application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, productType: 'course', status: { $in: ['paid', 'successful'] }, $or: [{ checkoutEmail: input.email }, ...(existingUser ? [{ user: existingUser._id }] : [])] })
+  const existingUser = await User.findOne({ email: input.email }).select('_id emailVerified')
+  if (existingUser) return res.status(202).json({ verificationRequired: true, emailDelivery: mailStatus(), message: 'If an eligible account needs verification, instructions can be requested from the sign-in page.' })
+  const paidAccess = await Payment.findOne({ application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, productType: 'course', status: { $in: ['paid', 'successful'] }, checkoutEmail: input.email })
   if (!paidAccess) return res.status(403).json({ error: 'Complete payment successfully with this email before creating your learner account.' })
   const country = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
   const user = await User.create({ name: input.name, email: input.email, emailVerified: false, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
   await Payment.updateMany({ $or: [{ checkoutEmail: input.email }, ...(existingUser ? [{ user: existingUser._id }] : [])], application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, status: { $in: ['paid', 'successful'] } }, { $set: { user: user._id, checkoutEmail: input.email } })
   const verificationToken = await issueSecurityToken(user, 'verify')
-  res.status(201).json({ verificationRequired: true, emailDelivery: mailStatus(), ...(process.env.NODE_ENV !== 'production' ? { developmentVerificationToken: verificationToken } : {}) })
+  let delivery
+  try { delivery = await sendSecurityEmail(user, 'verify', verificationToken) } catch { delivery = { state: 'failed', errorCode: 'EMAIL_CONFIGURATION_INVALID' } }
+  res.status(201).json({ verificationRequired: true, emailDelivery: { state: delivery.state, ...(delivery.missing ? { missing: delivery.missing } : {}) } })
 })
 
 router.post('/auth/login', async (req, res) => {
@@ -102,42 +105,54 @@ router.post('/auth/login', async (req, res) => {
   }
   if (!(await bcrypt.compare(input.password, user.passwordHash))) return res.status(401).json({ error: 'Invalid email or password' })
   if (user.disabledAt) return res.status(403).json({ error: 'This learner account has been disabled.' })
+  if (user.role !== 'super_admin' && user.emailVerified === false) return res.status(403).json({ error: 'Verify your email before signing in. You can request another verification link below.', code: 'EMAIL_VERIFICATION_REQUIRED' })
   const token = jwt.sign({ sub: user.id, version: user.sessionVersion || 0 }, process.env.JWT_SECRET, { expiresIn: '7d' })
   res.cookie('session', token, sessionCookie).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, emailVerified: user.role === 'super_admin' || user.emailVerified !== false } })
 })
 
 router.post('/auth/verify-email', async (req, res) => {
   const token = z.string().min(32).max(128).parse(req.body.token)
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
-  const stored = await SecurityToken.findOne({ purpose: 'verify', tokenHash, expiresAt: { $gt: new Date() } })
+  const stored = await consumeSecurityToken(token, 'verify')
   if (!stored) return res.status(400).json({ error: 'Verification link is invalid or expired.' })
-  await User.updateOne({ _id: stored.user }, { $set: { emailVerified: true } })
-  await stored.deleteOne()
+  const user = await User.findOneAndUpdate({ _id: stored.user, emailVerified: false }, { $set: { emailVerified: true }, $inc: { sessionVersion: 1 } }, { new: true })
+  if (!user) return res.status(400).json({ error: 'Verification link is invalid or expired.' })
+  await SecurityToken.deleteMany({ user: stored.user, purpose: 'verify' })
   res.json({ verified: true })
 })
 
 router.post('/auth/resend-verification', async (req, res) => {
   const email = z.string().trim().toLowerCase().pipe(z.email()).parse(req.body.email)
+  if (!mailStatus().configured) return res.status(503).json({ error: 'Email delivery is temporarily unavailable. Please try again later.', code: 'EMAIL_UNAVAILABLE' })
   const user = await User.findOne({ email, role: 'user', emailVerified: false })
-  const token = user ? await issueSecurityToken(user, 'verify') : crypto.randomBytes(32).toString('base64url')
-  res.json({ ok: true, emailDelivery: mailStatus(), ...(process.env.NODE_ENV !== 'production' ? { developmentVerificationToken: token } : {}) })
+  if (user) {
+    const token = await issueSecurityToken(user, 'verify')
+    const delivery = await sendSecurityEmail(user, 'verify', token)
+    if (delivery.state !== 'accepted') return res.status(503).json({ error: 'Email delivery is temporarily unavailable. Please try again later.', code: 'EMAIL_UNAVAILABLE' })
+  }
+  res.status(202).json({ ok: true, message: 'If an unverified account exists for that address, a new verification link will be sent.' })
 })
 
 router.post('/auth/forgot-password', async (req, res) => {
   const email = z.string().trim().toLowerCase().pipe(z.email()).parse(req.body.email)
-  const user = await User.findOne({ email, role: 'user' })
-  const token = user ? await issueSecurityToken(user, 'reset') : crypto.randomBytes(32).toString('base64url')
-  res.json({ ok: true, emailDelivery: mailStatus(), ...(process.env.NODE_ENV !== 'production' ? { developmentResetToken: token } : {}) })
+  if (!mailStatus().configured) return res.status(503).json({ error: 'Password recovery email is temporarily unavailable. Please try again later.', code: 'EMAIL_UNAVAILABLE' })
+  const user = await User.findOne({ email })
+  if (user) {
+    const token = await issueSecurityToken(user, 'reset')
+    const delivery = await sendSecurityEmail(user, 'reset', token)
+    if (delivery.state !== 'accepted') return res.status(503).json({ error: 'Password recovery email is temporarily unavailable. Please try again later.', code: 'EMAIL_UNAVAILABLE' })
+  }
+  res.status(202).json({ ok: true, message: 'If an account exists for that address, password recovery instructions will be sent.' })
 })
 
 router.post('/auth/reset-password', async (req, res) => {
   const input = z.object({ token: z.string().min(32).max(128), password: z.string().min(10).max(128), confirmPassword: z.string().min(10).max(128) }).refine((value) => value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords do not match' }).parse(req.body)
-  const tokenHash = crypto.createHash('sha256').update(input.token).digest('hex')
-  const stored = await SecurityToken.findOne({ purpose: 'reset', tokenHash, expiresAt: { $gt: new Date() } })
+  const stored = await consumeSecurityToken(input.token, 'reset')
   if (!stored) return res.status(400).json({ error: 'Reset link is invalid or expired.' })
   const passwordHash = await bcrypt.hash(input.password, 12)
-  await User.updateOne({ _id: stored.user }, { $set: { passwordHash }, $inc: { sessionVersion: 1 } })
+  const user = await User.findOneAndUpdate({ _id: stored.user }, { $set: { passwordHash }, $inc: { sessionVersion: 1 } }, { new: true })
+  if (!user) return res.status(400).json({ error: 'Reset link is invalid or expired.' })
   await SecurityToken.deleteMany({ user: stored.user, purpose: 'reset' })
+  await sendPasswordChangedNotification(user)
   res.json({ ok: true, message: 'Password updated. Sign in with your new password.' })
 })
 
@@ -145,8 +160,11 @@ router.post('/auth/logout', (_req, res) => res.clearCookie('session', { ...sessi
 router.get('/auth/me', authenticate, (req, res) => res.json({ user: { id: req.user.id, name: req.user.name, email: req.user.email, role: req.user.role, emailVerified: req.user.role === 'super_admin' || req.user.emailVerified !== false } }))
 
 const requestSchema = z.object({
+  submissionId: z.string().uuid().optional(),
   name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()),
   phone: z.string().trim().max(40).optional().default(''), company: z.string().trim().max(160).optional().default(''),
+  sourcePage: z.string().trim().max(240).optional().default('').refine((value) => !value || (/^\/(?!\/)/.test(value) && !/[<>]/.test(value)), 'Enter a valid source page'),
+  campaign: z.string().trim().max(160).optional().default(''),
   website: z.string().trim().max(300).optional().default('').refine((value) => { if (!value) return true; try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) } catch { return false } }, 'Enter a valid website URL'), subject: z.string().trim().max(160).optional().default(''),
   message: z.string().trim().min(10).max(5000), privacyAccepted: z.literal(true),
   projectType: z.string().trim().max(100).optional(), requiredFeatures: z.array(z.string().trim().max(120)).max(30).optional().default([]),
@@ -155,15 +173,17 @@ const requestSchema = z.object({
 router.post('/business/enquiries', async (req, res) => {
   const input = requestSchema.parse(req.body)
   if (!input.subject) return res.status(400).json({ error: 'Enquiry subject is required.' })
-  const row = await saveBusinessRequest('enquiry', { name: input.name, email: input.email, phone: input.phone, company: input.company, website: input.website, subject: input.subject, message: input.message })
-  res.status(201).json({ saved: true, reference: row.reference, emailDelivery: mailStatus() })
+  const row = await saveBusinessRequest('enquiry', { submissionId: input.submissionId, name: input.name, email: input.email, phone: input.phone, company: input.company, website: input.website, subject: input.subject, category: 'General enquiry', sourcePage: input.sourcePage, campaign: input.campaign, message: input.message })
+  const emailDelivery = await sendBusinessNotifications(row._id)
+  res.status(201).json({ saved: true, reference: row.reference, emailDelivery: emailDelivery.requester })
 })
 router.post('/business/quotes', async (req, res) => {
   const input = requestSchema.parse(req.body)
   if (!input.projectType) return res.status(400).json({ error: 'Project type is required.' })
-  const row = await saveBusinessRequest('quote', { name: input.name, email: input.email, phone: input.phone, company: input.company, website: input.website, subject: input.projectType || 'Project quote', message: input.message, details: { projectType: input.projectType || '', requiredFeatures: input.requiredFeatures, budget: input.budget || '', timeline: input.timeline || '', notes: input.notes, marketingConsent: input.marketingConsent } })
+  const row = await saveBusinessRequest('quote', { submissionId: input.submissionId, name: input.name, email: input.email, phone: input.phone, company: input.company, website: input.website, subject: input.projectType, category: input.projectType, sourcePage: input.sourcePage, campaign: input.campaign, message: input.message, details: { projectType: input.projectType || '', requiredFeatures: input.requiredFeatures, budget: input.budget || '', timeline: input.timeline || '', notes: input.notes, marketingConsent: input.marketingConsent } })
   if (input.marketingConsent) await BusinessContact.updateOne({ email: input.email, unsubscribedAt: null }, { $set: { marketingConsent: true, marketingConsentAt: new Date(), marketingConsentSource: 'quote-request', marketingPolicyVersion: '2026-10' } })
-  res.status(201).json({ saved: true, reference: row.reference, emailDelivery: mailStatus() })
+  const emailDelivery = await sendBusinessNotifications(row._id)
+  res.status(201).json({ saved: true, reference: row.reference, emailDelivery: emailDelivery.requester })
 })
 
 const profileSchema = z.object({
@@ -683,7 +703,7 @@ router.get('/admin/business/overview', authenticate, requireAdmin, async (_req, 
     BusinessRequest.countDocuments({ kind: 'quote' }), BusinessRequest.countDocuments({ status: 'New' }), BusinessContact.countDocuments(),
     EmailCampaign.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]), BusinessRequest.find().sort({ createdAt: -1 }).limit(8).select('-internalNotes').lean(),
   ])
-  res.json({ users, unverifiedUsers, enquiries, quotes, unassigned, contacts, campaigns: Object.fromEntries(campaigns.map(({ _id, count }) => [_id, count])), recentRequests })
+  res.json({ users, unverifiedUsers, enquiries, quotes, unassigned, contacts, campaigns: Object.fromEntries(campaigns.map(({ _id, count }) => [_id, count])), recentRequests, emailDelivery: mailStatus() })
 })
 router.get('/admin/business/requests', authenticate, requireAdmin, async (req, res) => {
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1)
@@ -691,18 +711,54 @@ router.get('/admin/business/requests', authenticate, requireAdmin, async (req, r
   const filter = {}
   if (['enquiry', 'quote'].includes(req.query.kind)) filter.kind = req.query.kind
   if (req.query.status) filter.status = z.enum(['New', 'Under Review', 'Awaiting Customer', 'Qualified', 'Proposal Sent', 'Won', 'Lost', 'Closed']).parse(req.query.status)
-  if (req.query.search) { const safe = String(req.query.search).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); filter.$or = [{ reference: new RegExp(safe, 'i') }, { name: new RegExp(safe, 'i') }, { email: new RegExp(safe, 'i') }, { company: new RegExp(safe, 'i') }] }
-  const [rows, total] = await Promise.all([BusinessRequest.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).populate('internalNotes.author', 'name').lean(), BusinessRequest.countDocuments(filter)])
+  if (req.query.category) filter.category = z.string().trim().max(100).parse(req.query.category)
+  if (req.query.source) filter.sourcePage = z.string().trim().max(240).parse(req.query.source)
+  if (req.query.dateFrom || req.query.dateTo) {
+    const createdAt = {}
+    if (req.query.dateFrom) {
+      const from = new Date(`${z.iso.date().parse(req.query.dateFrom)}T00:00:00.000Z`)
+      createdAt.$gte = from
+    }
+    if (req.query.dateTo) {
+      const to = new Date(`${z.iso.date().parse(req.query.dateTo)}T00:00:00.000Z`)
+      to.setUTCDate(to.getUTCDate() + 1)
+      createdAt.$lt = to
+    }
+    filter.createdAt = createdAt
+  }
+  if (req.query.search) { const safe = String(req.query.search).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); filter.$or = [{ reference: new RegExp(safe, 'i') }, { name: new RegExp(safe, 'i') }, { email: new RegExp(safe, 'i') }, { company: new RegExp(safe, 'i') }, { subject: new RegExp(safe, 'i') }] }
+  const [rows, total] = await Promise.all([BusinessRequest.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).populate('internalNotes.author', 'name').populate('statusHistory.changedBy', 'name').populate('assignmentHistory.assignedTo', 'name email').populate('assignmentHistory.changedBy', 'name').populate('assignedTo', 'name email').lean(), BusinessRequest.countDocuments(filter)])
   res.json({ rows, total, page, pages: Math.ceil(total / limit) })
 })
+router.get('/admin/business/requests/:id', authenticate, requireAdmin, async (req, res) => {
+  const row = await BusinessRequest.findById(req.params.id).populate('internalNotes.author', 'name').populate('statusHistory.changedBy', 'name').populate('assignmentHistory.assignedTo', 'name email').populate('assignmentHistory.changedBy', 'name').populate('assignedTo', 'name email').lean()
+  if (!row) return res.status(404).json({ error: 'Request not found' })
+  res.json(row)
+})
 router.patch('/admin/business/requests/:id', authenticate, requireAdmin, async (req, res) => {
-  const input = z.object({ status: z.enum(['New', 'Under Review', 'Awaiting Customer', 'Qualified', 'Proposal Sent', 'Won', 'Lost', 'Closed']).optional(), note: z.string().trim().min(1).max(4000).optional() }).refine((value) => value.status || value.note).parse(req.body)
+  const input = z.object({ status: z.enum(['New', 'Under Review', 'Awaiting Customer', 'Qualified', 'Proposal Sent', 'Won', 'Lost', 'Closed']).optional(), note: z.string().trim().min(1).max(4000).optional(), assignedTo: z.union([z.string().regex(/^[a-f\d]{24}$/i), z.literal('')]).optional() }).strict().refine((value) => value.status || value.note || value.assignedTo !== undefined).parse(req.body)
   const row = await BusinessRequest.findById(req.params.id)
   if (!row) return res.status(404).json({ error: 'Request not found' })
+  const priorAssignment = String(row.assignedTo || '')
   if (input.status && input.status !== row.status) { row.status = input.status; row.statusHistory.push({ status: input.status, changedBy: req.user.id }) }
   if (input.note) row.internalNotes.push({ body: input.note, author: req.user.id })
+  if (input.assignedTo !== undefined) {
+    if (!input.assignedTo) row.assignedTo = null
+    else {
+      const assignee = await User.findOne({ _id: input.assignedTo, role: 'super_admin' }).select('_id')
+      if (!assignee) return res.status(400).json({ error: 'Assignee must be an active administrator.' })
+      row.assignedTo = assignee._id
+    }
+    if (priorAssignment !== String(row.assignedTo || '')) row.assignmentHistory.push({ assignedTo: row.assignedTo, changedBy: req.user.id })
+  }
   await row.save()
-  res.json({ id: row.id, reference: row.reference, status: row.status, internalNotes: row.internalNotes })
+  await row.populate([{ path: 'internalNotes.author', select: 'name' }, { path: 'assignedTo', select: 'name email' }])
+  res.json({ id: row.id, reference: row.reference, status: row.status, assignedTo: row.assignedTo, internalNotes: row.internalNotes })
+})
+router.post('/admin/business/requests/:id/notifications/retry', authenticate, requireAdmin, async (req, res) => {
+  const row = await BusinessRequest.findById(req.params.id).select('_id')
+  if (!row) return res.status(404).json({ error: 'Request not found' })
+  res.json({ emailDelivery: await sendBusinessNotifications(row._id) })
 })
 router.get('/admin/business/requests.csv', authenticate, requireAdmin, async (_req, res) => {
   const rows = await BusinessRequest.find().sort({ createdAt: -1 }).limit(5000).lean()
@@ -710,7 +766,8 @@ router.get('/admin/business/requests.csv', authenticate, requireAdmin, async (_r
   res.type('text/csv').attachment('briane-dev-requests.csv').send(['Reference,Type,Name,Email,Company,Subject,Status,Created', ...rows.map((row) => [row.reference, row.kind, row.name, row.email, row.company, row.subject, row.status, row.createdAt?.toISOString()].map(cell).join(','))].join('\n'))
 })
 router.get('/admin/business/contacts', authenticate, requireAdmin, async (req, res) => {
-  const filter = req.query.search ? { $or: [{ email: new RegExp(String(req.query.search).slice(0, 80), 'i') }, { name: new RegExp(String(req.query.search).slice(0, 80), 'i') }, { company: new RegExp(String(req.query.search).slice(0, 80), 'i') }] } : {}
+  const safe = String(req.query.search || '').slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const filter = safe ? { $or: [{ email: new RegExp(safe, 'i') }, { name: new RegExp(safe, 'i') }, { company: new RegExp(safe, 'i') }] } : {}
   res.json(await BusinessContact.find(filter).sort({ updatedAt: -1 }).limit(500).lean())
 })
 router.patch('/admin/business/contacts/:id', authenticate, requireAdmin, async (req, res) => {
