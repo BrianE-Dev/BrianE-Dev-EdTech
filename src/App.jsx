@@ -75,7 +75,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
     let observer
     try {
       observer = new window.IntersectionObserver((entries) => {
-        const entry = entries?.[0]
+        const entry = Array.isArray(entries) ? entries[0] : undefined
         if (!entry) return
         if (entry.isIntersecting && !wasVisible) setHeroRun((run) => run + 1)
         wasVisible = entry.isIntersecting
@@ -243,6 +243,7 @@ function MotionPage({ children }) {
     let observer
     try {
       observer = new window.IntersectionObserver((entries, activeObserver) => {
+        if (!Array.isArray(entries)) return
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return
           entry.target.classList.add('whip-section-visible')
