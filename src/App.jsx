@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Brand from './components/Brand.jsx'
 import CurriculumCard from './components/CurriculumCard.jsx'
 import FaqList from './components/FaqList.jsx'
@@ -226,22 +226,45 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   )
 }
 
+function MotionPage({ children }) {
+  useLayoutEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return undefined
+    const sections = [...document.querySelectorAll('.section-block, .feature-band, .home-services, .final-cta, .course-detail-page, .business-hero, .business-services, .business-process, .privacy-content')]
+    sections.forEach((section, index) => {
+      section.classList.add('whip-section')
+      if (index % 2 === 1) section.classList.add('whip-from-right')
+    })
+    const observer = new IntersectionObserver((entries, activeObserver) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        entry.target.classList.add('whip-section-visible')
+        activeObserver.unobserve(entry.target)
+      })
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
+    sections.forEach((section) => observer.observe(section))
+    return () => observer.disconnect()
+  }, [])
+  return children
+}
+
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
-  if (path === '/super-admin') return <AdminLogin />
-  if (path === '/services') return <><PublicPageMetadata path={path}/><BusinessPages page="services" /></>
-  if (path === '/privacy') return <><PublicPageMetadata path={path}/><BusinessPages page="privacy" /></>
-  if (path === '/course/ai-powered-developer-productivity') return <CoursePage />
-  if (path === '/contact') return <BusinessPages page="contact" />
-  if (path === '/quote') return <BusinessPages page="quote" />
-  if (path === '/admin' || path.startsWith('/admin/')) return <AdminDashboard />
-  if (path === '/learn/login') return <LearnerLogin />
-  if (path === '/learn/register') return <LearnerRegister />
-  if (path === '/learn/forgot-password') return <PasswordRecovery />
-  if (path === '/learn/reset-password') return <PasswordRecovery reset />
-  if (path === '/learn') return <LearnerDashboard />
-  if (/^\/courses\/[^/]+\/learn\/chapter-[a-z0-9-]+$/.test(path)) return <CourseReader />
-  return <LandingPage />
+  let page
+  if (path === '/super-admin') page = <AdminLogin />
+  else if (path === '/services') page = <><PublicPageMetadata path={path}/><BusinessPages page="services" /></>
+  else if (path === '/privacy') page = <><PublicPageMetadata path={path}/><BusinessPages page="privacy" /></>
+  else if (path === '/course/ai-powered-developer-productivity') page = <CoursePage />
+  else if (path === '/contact') page = <BusinessPages page="contact" />
+  else if (path === '/quote') page = <BusinessPages page="quote" />
+  else if (path === '/admin' || path.startsWith('/admin/')) page = <AdminDashboard />
+  else if (path === '/learn/login') page = <LearnerLogin />
+  else if (path === '/learn/register') page = <LearnerRegister />
+  else if (path === '/learn/forgot-password') page = <PasswordRecovery />
+  else if (path === '/learn/reset-password') page = <PasswordRecovery reset />
+  else if (path === '/learn') page = <LearnerDashboard />
+  else if (/^\/courses\/[^/]+\/learn\/chapter-[a-z0-9-]+$/.test(path)) page = <CourseReader />
+  else page = <LandingPage />
+  return <MotionPage>{page}</MotionPage>
 }
 
 export default App
