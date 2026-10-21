@@ -1,7 +1,12 @@
 ﻿User-agent: *
 Allow: /
 Disallow: /learn
+Disallow: /learn/login
+Disallow: /learn/register
+Disallow: /learn/forgot-password
+Disallow: /learn/reset-password
 Disallow: /admin
 Disallow: /super-admin
 Disallow: /courses/*/learn/
+Disallow: /quote
 Sitemap: https://briane-dev.online/sitemap.xml

@@ -229,7 +229,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
         <section className="final-cta"><div><span className="eyebrow">AI-POWERED DEVELOPER PRODUCTIVITY</span><h2>Use AI Throughout<br/>the Software Lifecycle.</h2><p>Study practical AI workflows for planning, debugging, refactoring, documentation, testing, and delivery.</p><div className="hero-actions"><a className="button button-primary" href="#curriculum">View the Curriculum <Icon name="arrow" size={15}/></a><a className="button button-secondary" href="#courses">Explore Course Content</a></div></div></section>
       </main>
 
-      <footer className="site-footer section-wrap"><Brand/><span>ENGINEERING EDUCATION / BUILT FOR THE SOFTWARE LIFECYCLE</span><div><a href="#curriculum">CURRICULUM</a><a href="#preview">FREE PREVIEW</a><a href="#pricing">ACCESS</a><a href="#faq">SUPPORT</a></div><span>© 2026 BRIANE-DEV</span></footer>
+      <footer className="site-footer section-wrap"><Brand/><span>Technology, digital solutions & developer productivity</span><div><a href="/about">ABOUT</a><a href="/services">SERVICES</a><a href="#preview">FREE PREVIEW</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
       <nav className="mobile-dock" aria-label="Quick navigation"><a href="#top"><Icon name="grid" size={17}/><span>HOME</span></a><a href="#curriculum"><Icon name="book" size={17}/><span>CURRICULUM</span></a><a href="#preview"><Icon name="code" size={17}/><span>PREVIEW</span></a><a href="#pricing"><Icon name="lock" size={17}/><span>ACCESS</span></a></nav>
     </div>
   )
@@ -269,11 +269,12 @@ function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
   let page
   if (path === '/super-admin') page = <AdminLogin />
+  else if (path === '/about') page = <><PublicPageMetadata path={path}/><BusinessPages page="about" /></>
   else if (path === '/services') page = <><PublicPageMetadata path={path}/><BusinessPages page="services" /></>
   else if (path === '/privacy') page = <><PublicPageMetadata path={path}/><BusinessPages page="privacy" /></>
   else if (path === '/course/ai-powered-developer-productivity') page = <CoursePage />
-  else if (path === '/contact') page = <BusinessPages page="contact" />
-  else if (path === '/quote') page = <BusinessPages page="quote" />
+  else if (path === '/contact') page = <><PublicPageMetadata path={path}/><BusinessPages page="contact" /></>
+  else if (path === '/quote') page = <><PublicPageMetadata path={path}/><BusinessPages page="quote" /></>
   else if (path === '/admin' || path.startsWith('/admin/')) page = <AdminDashboard />
   else if (path === '/learn/login') page = <LearnerLogin />
   else if (path === '/learn/register') page = <LearnerRegister />
@@ -281,8 +282,19 @@ function App() {
   else if (path === '/learn/reset-password') page = <PasswordRecovery reset />
   else if (path === '/learn') page = <LearnerDashboard />
   else if (/^\/courses\/[^/]+\/learn\/chapter-[a-z0-9-]+$/.test(path)) page = <CourseReader />
-  else page = <LandingPage />
+  else if (path === '/') page = <LandingPage />
+  else page = <NotFoundPage />
   return <MotionPage>{page}</MotionPage>
+}
+
+function NotFoundPage() {
+  useEffect(() => {
+    document.title = 'Page Not Found | BrianE-Dev'
+    const robots = document.querySelector('meta[name="robots"]') || document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'robots' }))
+    robots.setAttribute('content', 'noindex,follow')
+    return () => { robots.remove(); document.title = pageDescriptions['/'][0] }
+  }, [])
+  return <main className="business-page"><SiteNavigation/><section className="business-hero compact"><span className="eyebrow">BRIANE-DEV / 404</span><h1>Page not found.</h1><p>The page may have moved or the address may be incorrect.</p><a className="button button-primary" href="/">Return to BrianE-Dev</a></section></main>
 }
 
 export default App
@@ -295,11 +307,13 @@ function setPageMetadata(path, title, description) {
   set('meta[property="og:title"]', 'content', title)
   set('meta[property="og:description"]', 'content', description)
   set('meta[property="og:url"]', 'content', `https://briane-dev.online${path === '/' ? '/' : path}`)
+  set('meta[name="twitter:title"]', 'content', title)
+  set('meta[name="twitter:description"]', 'content', description)
 }
 
 function PublicPageMetadata({ path }) {
   useEffect(() => {
-    const [title, description] = pageDescriptions[path]
+    const [title, description] = pageDescriptions[path] || pageDescriptions['/']
     setPageMetadata(path, title, description)
   }, [path])
   return null

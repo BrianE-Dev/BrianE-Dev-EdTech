@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { publicPageMetadata, renderCourseHtml, renderPublicPageHtml } from '../scripts/generate-seo-pages.mjs'
+import { publicPageMetadata, renderAboutHtml, renderCourseHtml, renderPublicPageHtml } from '../scripts/generate-seo-pages.mjs'
 import { courseStructuredData } from '../src/data/structuredData.js'
 
 const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8')
@@ -14,7 +14,7 @@ test('homepage has a single initial title, description, and canonical with match
   assert.equal((indexHtml.match(/<title>/gi) || []).length, 1)
   assert.equal((indexHtml.match(/<meta\s+name="description"/gi) || []).length, 1)
   assert.equal((indexHtml.match(/<link\s+rel="canonical"/gi) || []).length, 1)
-  assert.match(indexHtml, /<title>BrianE-Dev \| AI-Powered Developer Productivity<\/title>/)
+  assert.match(indexHtml, /<title>BrianE-Dev \| Digital Technology &amp; Developer Productivity<\/title>/)
   assert.match(indexHtml, /<link rel="canonical" href="https:\/\/briane-dev\.online\/"/)
   assert.match(indexHtml, /<meta property="og:url" content="https:\/\/briane-dev\.online\/"/)
   assert.match(indexHtml, /<meta name="description" content="[^"]*developer productivity[^"]*"/i)
@@ -54,6 +54,18 @@ test('course SPA route injects Course JSON-LD only when the initial HTML did not
   assert.match(app, /return <><PublicCourseStructuredData\/>/)
 })
 
+test('About page gets distinct first-response metadata and links its page entity to the shared organization', () => {
+  const html = renderAboutHtml(indexHtml)
+  const metadata = publicPageMetadata['/about']
+  assert.ok(html.includes(`<title>${metadata.title.replaceAll('&', '&amp;')}</title>`))
+  assert.ok(html.includes(`href="${metadata.url}"`))
+  assert.ok(html.includes(`content="${metadata.url}"`))
+  const aboutData = JSON.parse(html.match(/<script type="application\/ld\+json" id="about-page-structured-data">([\s\S]*?)<\/script>/)?.[1])
+  assert.equal(aboutData['@type'], 'AboutPage')
+  assert.equal(aboutData.about['@id'], 'https://briane-dev.online/#organization')
+  assert.match(html, /Chukwuemeka Brian Nkama/)
+})
+
 test('public services and privacy sitemap pages get matching first-response canonical metadata', () => {
   for (const path of ['/services', '/privacy']) {
     const metadata = publicPageMetadata[path]
@@ -70,7 +82,10 @@ test('deployment rewrites route public URLs to their generated HTML before the S
   const rewrites = vercelConfig.rewrites
   for (const [source, destination] of [
     ['/course/ai-powered-developer-productivity', '/course/ai-powered-developer-productivity/index.html'],
+    ['/about', '/about/index.html'],
     ['/services', '/services/index.html'],
+    ['/contact', '/contact/index.html'],
+    ['/quote', '/quote/index.html'],
     ['/privacy', '/privacy/index.html'],
   ]) {
     const routeIndex = rewrites.findIndex((rule) => rule.source === source)
@@ -82,16 +97,17 @@ test('deployment rewrites route public URLs to their generated HTML before the S
 })
 
 test('homepage exposes a crawlable link to the public course page and course content links to privacy', () => {
-  assert.match(app, /<a className="text-link" href="\/course\/ai-powered-developer-productivity">Explore the Course/)
+  assert.match(app, /<a className="text-link" href="\/course\/ai-powered-developer-productivity">Explore the full course/)
   assert.match(app, /href="\/privacy">Read the BrianE-Dev Privacy Policy/)
   assert.match(app, /href="\/#pricing">Explore enrollment/)
   assert.match(app, /href="\/courses\/ai-powered-developer-productivity\/learn\/chapter-ai-assisted-developer">Read the free Chapter 1 preview/)
 })
 
-test('sitemap includes the four public canonical pages and excludes restricted routes', () => {
+test('sitemap includes public canonical pages and excludes restricted routes', () => {
   const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1])
   assert.deepEqual(urls, [
     'https://briane-dev.online/',
+    'https://briane-dev.online/about',
     'https://briane-dev.online/course/ai-powered-developer-productivity',
     'https://briane-dev.online/services',
     'https://briane-dev.online/privacy',
@@ -102,5 +118,5 @@ test('sitemap includes the four public canonical pages and excludes restricted r
 test('robots rules allow public pages and point crawlers to the sitemap', () => {
   assert.match(robots, /User-agent: \*\s+Allow: \/\s/)
   assert.match(robots, /Sitemap: https:\/\/briane-dev\.online\/sitemap\.xml/)
-  assert.doesNotMatch(robots, /Disallow: \/(?:$|course(?:\/|$)|services(?:\/|$)|privacy(?:\/|$))/m)
+  assert.doesNotMatch(robots, /Disallow: \/(?:$|about(?:\/|$)|course(?:\/|$)|services(?:\/|$)|privacy(?:\/|$))/m)
 })

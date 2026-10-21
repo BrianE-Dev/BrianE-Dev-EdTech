@@ -12,6 +12,7 @@ export default function SiteNavigation({ theme = 'dark', onThemeToggle, isAdmin 
     <a href="/" aria-label="BrianE-Dev homepage" onClick={closeMenu}><Brand /></a>
     <nav className={`main-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Main navigation">
       <a href="/#top" onClick={closeMenu}>Home</a>
+      <a href="/about" onClick={closeMenu}>About</a>
       <a href="/#curriculum" onClick={closeMenu}>Curriculum</a>
       <a href="/course/ai-powered-developer-productivity" onClick={closeMenu}>Course</a>
       <a href={previewUrl} onClick={closeMenu}>Free Preview</a>

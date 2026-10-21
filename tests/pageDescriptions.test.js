@@ -5,8 +5,8 @@ import { pageDescriptions } from '../src/data/pageDescriptions.js'
 test('homepage metadata has a title and description for its default route', () => {
   const [title, description] = pageDescriptions['/']
 
-  assert.equal(title, 'BrianE-Dev | AI-Powered Developer Productivity')
-  assert.match(description, /AI-assisted software development workflows/)
+  assert.equal(title, 'BrianE-Dev | Digital Technology & Developer Productivity')
+  assert.match(description, /technology brand focused on digital solutions/)
 })
 
 test('all public page metadata entries are title and description pairs', () => {

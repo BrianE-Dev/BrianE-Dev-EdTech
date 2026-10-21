@@ -10,7 +10,10 @@
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://briane-dev-api.onrender.com/api/:path*" },
     { "source": "/course/ai-powered-developer-productivity", "destination": "/course/ai-powered-developer-productivity/index.html" },
+    { "source": "/about", "destination": "/about/index.html" },
     { "source": "/services", "destination": "/services/index.html" },
+    { "source": "/contact", "destination": "/contact/index.html" },
+    { "source": "/quote", "destination": "/quote/index.html" },
     { "source": "/privacy", "destination": "/privacy/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
