@@ -20,6 +20,7 @@ export default function DeveloperIntelligenceSphere() {
     let renderer
     let resizeObserver
     let visibilityObserver
+    let usingWindowResize = false
     let frame = 0
     let visible = false
     let disposed = false
@@ -147,15 +148,22 @@ export default function DeveloperIntelligenceSphere() {
     }
     function onContextLost(event) { event.preventDefault(); stop(); host.dataset.fallback = 'true' }
 
-    resizeObserver = new ResizeObserver(resize)
-    resizeObserver.observe(host)
+    if (typeof window.ResizeObserver === 'function') {
+      resizeObserver = new window.ResizeObserver(resize)
+      resizeObserver.observe(host)
+    } else {
+      usingWindowResize = true
+      window.addEventListener('resize', resize)
+    }
     renderer.domElement.addEventListener('pointermove', onPointerMove)
     renderer.domElement.addEventListener('pointerleave', onPointerLeave)
     renderer.domElement.addEventListener('webglcontextlost', onContextLost)
     reducedMotion.addEventListener('change', onMotionChange)
     resize()
-    if ('IntersectionObserver' in window) {
-      visibilityObserver = new IntersectionObserver(([entry]) => {
+    if (typeof window.IntersectionObserver === 'function') {
+      visibilityObserver = new window.IntersectionObserver((entries) => {
+        const entry = entries?.[0]
+        if (!entry) return
         if (entry.isIntersecting) start()
         else if (visible) stop()
       }, { threshold: 0.01, rootMargin: '100px 0px' })
@@ -167,6 +175,7 @@ export default function DeveloperIntelligenceSphere() {
       stop()
       visibilityObserver?.disconnect()
       resizeObserver?.disconnect()
+      if (usingWindowResize) window.removeEventListener('resize', resize)
       reducedMotion.removeEventListener('change', onMotionChange)
       renderer.domElement.removeEventListener('pointermove', onPointerMove)
       renderer.domElement.removeEventListener('pointerleave', onPointerLeave)

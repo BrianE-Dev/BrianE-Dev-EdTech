@@ -69,14 +69,21 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   useEffect(() => {
     const hero = heroRef.current
     if (!hero) return undefined
+    if (typeof window.IntersectionObserver !== 'function') return undefined
 
     let wasVisible = false
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !wasVisible) setHeroRun((run) => run + 1)
-      wasVisible = entry.isIntersecting
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
-
-    observer.observe(hero)
+    let observer
+    try {
+      observer = new window.IntersectionObserver((entries) => {
+        const entry = entries?.[0]
+        if (!entry) return
+        if (entry.isIntersecting && !wasVisible) setHeroRun((run) => run + 1)
+        wasVisible = entry.isIntersecting
+      }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
+      observer.observe(hero)
+    } catch {
+      return undefined
+    }
     return () => observer?.disconnect()
   }, [])
 
