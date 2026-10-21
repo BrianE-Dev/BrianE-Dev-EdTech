@@ -90,8 +90,8 @@ export default function CurriculumAssembly() {
       const delta = previousTime ? Math.min((now - previousTime) / 1000, 0.05) : 0.016
       previousTime = now
       const destination = inside ? 1 : 0
-      const duration = reducedMotion.matches ? 1 : 1 - Math.exp(-delta * 2.8)
-      transition += (destination - transition) * duration
+      const transitionRate = reducedMotion.matches ? 1 : 1 - Math.exp(-delta * 1.4)
+      transition += (destination - transition) * transitionRate
       if (Math.abs(destination - transition) < 0.004) transition = destination
       applyProgress(transition)
       if ((inside || transition !== destination) && !reducedMotion.matches) frame = window.requestAnimationFrame(render)
