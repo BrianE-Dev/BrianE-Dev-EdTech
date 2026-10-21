@@ -98,7 +98,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
     sections.forEach((section, index) => {
       section.dataset.scrollTone = String(index % 8)
-      if (['curriculum', 'pricing', 'preview', 'learning-format'].includes(section.id) || section.classList.contains('final-cta') || section.classList.contains('hero-section')) return
+      if (['curriculum', 'pricing', 'preview', 'learning-format', 'home-services', 'method'].includes(section.id) || section.classList.contains('final-cta') || section.classList.contains('hero-section')) return
       section.classList.add('scroll-story-section')
       section.style.setProperty('--scroll-story-layer', String(index + 1))
     })
@@ -107,7 +107,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
       const stickyOffset = document.querySelector('.topbar')?.getBoundingClientRect().height || 0
       const availableHeight = Math.max(window.innerHeight - stickyOffset, 1)
       sections.forEach((section) => {
-        if (['curriculum', 'pricing', 'preview', 'learning-format'].includes(section.id) || section.classList.contains('final-cta') || section.classList.contains('hero-section')) return
+        if (['curriculum', 'pricing', 'preview', 'learning-format', 'home-services', 'method'].includes(section.id) || section.classList.contains('final-cta') || section.classList.contains('hero-section')) return
         section.classList.toggle('scroll-story-overflow', section.scrollHeight > availableHeight + 12)
       })
     }

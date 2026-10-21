@@ -700,6 +700,8 @@ h1,h2,h3 { font-family: var(--display); }
 .site-shell main#top > section#curriculum,
 .site-shell main#top > section#preview,
 .site-shell main#top > section#learning-format,
+.site-shell main#top > section#home-services,
+.site-shell main#top > section#method,
 .site-shell main#top > section.hero-section,
 .site-shell main#top > section.final-cta {
   position: relative;
