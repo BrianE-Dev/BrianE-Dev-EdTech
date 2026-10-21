@@ -6,11 +6,13 @@ import { fileURLToPath } from 'node:url'
 const localRoot = fileURLToPath(new URL('../../.local-tts/', import.meta.url))
 
 export class TtsStorageError extends Error {
-  constructor(cause) {
+  constructor(cause, operation = 'unknown', httpStatus = null) {
     super('Persistent audio storage is unavailable', { cause })
     this.name = 'TtsStorageError'
     this.status = 503
     this.code = 'AUDIO_STORAGE_UNAVAILABLE'
+    this.operation = operation
+    this.httpStatus = httpStatus
   }
 }
 
@@ -81,15 +83,15 @@ function createS3Storage(env = process.env) {
     try {
       return await fetch(objectUrl, { method, headers: { ...headers, authorization }, body: method === 'PUT' ? body : undefined })
     } catch (error) {
-      throw new TtsStorageError(error)
+      throw new TtsStorageError(error, method)
     }
   }
 
   return {
-    async exists(key) { const response = await request('HEAD', key); if (response.status === 404) return false; if (!response.ok) throw new TtsStorageError(new Error(`Object check failed (${response.status})`)); return true },
-    async upload(key, buffer, mimeType = 'audio/wav') { const response = await request('PUT', key, buffer, mimeType); if (!response.ok) throw new TtsStorageError(new Error(`Object upload failed (${response.status})`)) },
-    async read(key) { const response = await request('GET', key); if (!response.ok) throw new TtsStorageError(new Error(`Object read failed (${response.status})`)); return Buffer.from(await response.arrayBuffer()) },
-    async delete(key) { const response = await request('DELETE', key); if (!response.ok && response.status !== 404) throw new TtsStorageError(new Error(`Object deletion failed (${response.status})`)) },
+    async exists(key) { const response = await request('HEAD', key); if (response.status === 404) return false; if (!response.ok) throw new TtsStorageError(new Error(`Object check failed (${response.status})`), 'HEAD', response.status); return true },
+    async upload(key, buffer, mimeType = 'audio/wav') { const response = await request('PUT', key, buffer, mimeType); if (!response.ok) throw new TtsStorageError(new Error(`Object upload failed (${response.status})`), 'PUT', response.status) },
+    async read(key) { const response = await request('GET', key); if (!response.ok) throw new TtsStorageError(new Error(`Object read failed (${response.status})`), 'GET', response.status); return Buffer.from(await response.arrayBuffer()) },
+    async delete(key) { const response = await request('DELETE', key); if (!response.ok && response.status !== 404) throw new TtsStorageError(new Error(`Object deletion failed (${response.status})`), 'DELETE', response.status) },
   }
 }
 

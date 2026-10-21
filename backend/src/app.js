@@ -52,7 +52,7 @@ app.use((error, _req, res, next) => {
   }
   if (error.code === 'AUDIO_STORAGE_UNAVAILABLE') {
     const storageIssue = classifyTtsDiagnosticStorageError(error)
-    console.error(`TTS storage failure: ${storageIssue}`)
+    console.error(`TTS storage failure: ${storageIssue}; operation=${error.operation || 'unknown'}; httpStatus=${error.httpStatus || 'unknown'}`)
     return res.status(503).json({ error: 'Persistent audio storage is unavailable', code: 'AUDIO_STORAGE_UNAVAILABLE', storageIssue })
   }
   const status = error.status || (error.name === 'ZodError' ? 400 : error.code === 11000 ? 409 : 500)
