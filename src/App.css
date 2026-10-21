@@ -473,6 +473,8 @@ h1,h2,h3 { font-family: var(--display); }
 @media (max-width: 700px) { .method-grid.course-format-grid { grid-template-columns: 1fr 1fr; }.course-content-notes { grid-template-columns: 1fr; }.course-content-context { font-size: 10px; } }
 @media (min-width: 701px) and (max-width: 1050px) { .method-grid.course-format-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 .topbar { height: 96px; }.brand-logo { display: block; width: 130px; height: auto; max-width: calc(100vw - 850px); object-fit: contain; }.brand-logo-light { display: none; }html[data-theme='light'] .brand-logo-light { display: block; }html[data-theme='light'] .brand-logo-dark { display: none; }
+.brand-compact { width: 52px; height: 40px; flex: 0 0 52px; overflow: hidden; }
+.brand-compact .brand-logo { width: 52px; height: 40px; max-width: none; object-fit: contain; }
 @media (min-width: 701px) and (max-width: 1199px) { .topbar { height: 90px; }.brand-logo { width: 112px; max-width: calc(100vw - 430px); } }
 
 /* Native same-origin document transitions keep the existing link and history model intact. */

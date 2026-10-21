@@ -255,7 +255,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
         <p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> Narration</p>
       </section>
     </main>
-    <footer className="site-footer section-wrap"><Brand/><span>Practical AI workflows for software engineers</span><div><a href="/">HOME</a><a href="/course/ai-powered-developer-productivity">COURSE</a><a href="/about">ABOUT</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
+    <footer className="site-footer section-wrap"><Brand compact/><span>Practical AI workflows for software engineers</span><div><a href="/">HOME</a><a href="/course/ai-powered-developer-productivity">COURSE</a><a href="/about">ABOUT</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
   </div>
 
   if (isCourseLanding) return <div className="site-shell" data-theme={theme}>
@@ -306,7 +306,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
       <section id="faq" className="faq-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">FAQ</span><h2>Frequently Asked Questions</h2><p>Details about course access, the curriculum, and the learning format.</p></div><FaqList items={questions} openIndex={openFaq} onToggle={setOpenFaq}/></section>
     </main>
-    <footer className="site-footer section-wrap"><Brand/><span>Practical AI workflows for software engineers</span><div><a href="/#top">HOME</a><a href="#curriculum">CURRICULUM</a><a href="/about">ABOUT</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
+    <footer className="site-footer section-wrap"><Brand compact/><span>Practical AI workflows for software engineers</span><div><a href="/#top">HOME</a><a href="#curriculum">CURRICULUM</a><a href="/about">ABOUT</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
     <nav className="mobile-dock" aria-label="Course navigation"><a href="#top"><Icon name="grid" size={17}/><span>COURSE</span></a><a href="#curriculum"><Icon name="book" size={17}/><span>CURRICULUM</span></a><a href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer"><Icon name="code" size={17}/><span>PREVIEW</span></a><a href="#pricing"><Icon name="lock" size={17}/><span>ACCESS</span></a></nav>
   </div>
 
@@ -399,7 +399,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
         <section className="final-cta"><div><span className="eyebrow">AI-POWERED DEVELOPER PRODUCTIVITY</span><h2>Use AI Throughout<br/>the Software Lifecycle.</h2><p>Study practical AI workflows for planning, debugging, refactoring, documentation, testing, and delivery.</p><div className="hero-actions"><a className="button button-primary" href="#curriculum">View the Curriculum <Icon name="arrow" size={15}/></a><a className="button button-secondary" href="#courses">Explore Course Content</a></div></div></section>
       </main>
 
-      <footer className="site-footer section-wrap"><Brand/><span>Technology, digital solutions & developer productivity</span><div><a href="/about">ABOUT</a><a href="/services">SERVICES</a><a href="#preview">FREE PREVIEW</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
+      <footer className="site-footer section-wrap"><Brand compact/><span>Technology, digital solutions & developer productivity</span><div><a href="/about">ABOUT</a><a href="/services">SERVICES</a><a href="#preview">FREE PREVIEW</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
       <nav className="mobile-dock" aria-label="Quick navigation"><a href="#top"><Icon name="grid" size={17}/><span>HOME</span></a><a href="#curriculum"><Icon name="book" size={17}/><span>CURRICULUM</span></a><a href="#preview"><Icon name="code" size={17}/><span>PREVIEW</span></a><a href="#pricing"><Icon name="lock" size={17}/><span>ACCESS</span></a></nav>
     </div>
   )

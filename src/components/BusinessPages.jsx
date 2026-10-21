@@ -104,7 +104,7 @@ export default function BusinessPages({ page }) {
         </>}
       </form>
     </>}
-    <footer className="business-footer"><Brand /><span>BrianE-Dev is a technology brand focused on digital solutions, developer productivity, and practical software engineering resources.<br/>Founded by Chukwuemeka Brian Nkama.</span><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a><a href="/privacy">Privacy Policy</a><a href="/">Explore developer education</a><span>© {new Date().getFullYear()} BrianE-Dev</span></footer>
+    <footer className="business-footer"><Brand compact /><span>BrianE-Dev is a technology brand focused on digital solutions, developer productivity, and practical software engineering resources.<br/>Founded by Chukwuemeka Brian Nkama.</span><a href="/about">About</a><a href="/services">Services</a><a href="/contact">Contact</a><a href="/privacy">Privacy Policy</a><a href="/">Explore developer education</a><span>© {new Date().getFullYear()} BrianE-Dev</span></footer>
 
 
   </main>
