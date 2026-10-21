@@ -163,6 +163,9 @@ h1,h2,h3 { font-family: var(--display); }
 
 /* Light theme surfaces retain the same technical hierarchy with brighter neutral panels. */
 :root[data-theme='light'] .site-shell { --section-glow: rgba(68,149,177,.12); }
+:root[data-theme='light'] .payment-message { border-color: #9ad2b1; background: #effaf3; color: #17633b; }
+:root[data-theme='light'] .payment-message-pending,:root[data-theme='light'] .payment-message-checking { border-color: #91d5e2; background: #eefafd; color: #155e75; }
+:root[data-theme='light'] .payment-message-error { border-color: #efaaaa; background: #fff1f1; color: #9f1c1c; }
 :root[data-theme='light'] .site-shell[data-section-tone='1'] { --section-glow: rgba(6,182,212,.10); }
 :root[data-theme='light'] .site-shell[data-section-tone='2'] { --section-glow: rgba(99,102,241,.09); }
 :root[data-theme='light'] .site-shell[data-section-tone='3'] { --section-glow: rgba(31,154,125,.09); }
