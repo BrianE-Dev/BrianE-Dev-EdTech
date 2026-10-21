@@ -9,7 +9,7 @@
     "server:dev": "node --watch backend/src/start.js",
     "server:start": "node backend/src/start.js",
     "seed": "node backend/src/seed.js",
-    "build": "vite build",
+    "build": "vite build && node scripts/generate-seo-pages.mjs",
     "lint": "eslint .",
     "test": "node --test",
     "validate:curriculum": "node scripts/validate-course-content.mjs",

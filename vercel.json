@@ -9,6 +9,9 @@
   ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://briane-dev-api.onrender.com/api/:path*" },
+    { "source": "/course/ai-powered-developer-productivity", "destination": "/course/ai-powered-developer-productivity/index.html" },
+    { "source": "/services", "destination": "/services/index.html" },
+    { "source": "/privacy", "destination": "/privacy/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

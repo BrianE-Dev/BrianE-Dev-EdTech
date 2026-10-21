@@ -23,7 +23,7 @@ import DeveloperIntelligenceSphere from './components/DeveloperIntelligenceSpher
 import { getPromotionDateRange } from './utils/promotionDates.js'
 import './App.css'
 
-function LandingPage({ children = null, showPromotion = true }) {
+function LandingPage({ children = null, metadataPath = '/', isCourseLanding = false }) {
   const sampleSection = curriculum.sections[1]
   const sampleChapter = sampleSection.chapters[0]
   const [theme, setTheme] = useState(() => {
@@ -100,9 +100,9 @@ function LandingPage({ children = null, showPromotion = true }) {
   }, [])
 
   useEffect(() => {
-    document.title = 'BrianE-Dev | AI-Powered Developer Productivity'
-    setPageMetadata('/', 'BrianE-Dev | AI-Powered Developer Productivity', 'Learn practical AI-assisted software development workflows with BrianE-Dev. Explore code-focused techniques for planning, coding, debugging, testing, and improving developer productivity.')
-  }, [])
+    const [title, description] = pageDescriptions[metadataPath] || pageDescriptions['/']
+    setPageMetadata(metadataPath, title, description)
+  }, [metadataPath])
 
   useEffect(() => {
     api('/pricing').then(setPricing).catch((error) => setPricingError(error.message))
@@ -139,13 +139,12 @@ function LandingPage({ children = null, showPromotion = true }) {
       <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
 
       <main id="top">
-        {children}
         <section ref={heroRef} onPointerMove={moveHeroSquare} onPointerLeave={hideHeroSquare} className={`hero-section section-wrap ${heroRun > 0 ? 'hero-is-visible' : ''}`}>
           <span ref={heroSquareRef} className="hero-pointer-square" aria-hidden="true"/>
           <div className="hero-copy" key={`hero-copy-${heroRun}`}>
             <div className="eyebrow"><span className="status-dot"/> ENGINEERING EDUCATION <span className="eyebrow-sep">/</span> AI WORKFLOWS</div>
-            <h1>Master AI Throughout the Software Lifecycle.<br/><span>Reading-First. Code-Centric.</span></h1>
-            <p className="hero-description">No isolated demos. Learn to work more effectively with AI across real software workflows—from planning and debugging to testing, refactoring, documentation, and delivery.</p>
+            <h1>{isCourseLanding ? <>AI-Powered Developer Productivity<br/><span>for Software Engineers.</span></> : <>Master AI Throughout the Software Lifecycle.<br/><span>Reading-First. Code-Centric.</span></>}</h1>
+            <p className="hero-description">{isCourseLanding ? 'Learn AI-powered developer workflows, coding with AI, debugging strategies, and practical techniques for planning, testing, documentation, and software engineering productivity.' : 'No isolated demos. Learn to work more effectively with AI across real software workflows—from planning and debugging to testing, refactoring, documentation, and delivery.'}</p>
             <div className="hero-actions">
               <a className="button button-primary" href="#curriculum">Explore Curriculum <Icon name="arrow" size={16}/></a>
               <a className="button button-secondary" href="#method"><span className="play-mini"><Icon name="book" size={11}/></span> How the course works</a>
@@ -161,6 +160,8 @@ function LandingPage({ children = null, showPromotion = true }) {
             <div className="hero-image-wrap"><DeveloperIntelligenceSphere/></div>
           </div>
         </section>
+
+        {children}
 
         <section id="home-services" className="home-services section-wrap" aria-labelledby="home-services-title">
           <div className="home-services-heading"><div><span className="eyebrow">BRIANE-DEV / DIGITAL SERVICES</span><h2 id="home-services-title">Digital services for your next idea.</h2><p>Explore practical web, commerce, and software solutions for your business.</p></div><a className="button button-secondary" href="/services">Explore all services <Icon name="arrow" size={15}/></a></div>
@@ -184,6 +185,7 @@ function LandingPage({ children = null, showPromotion = true }) {
             <span className="eyebrow">START HERE / FREE COURSE PREVIEW</span>
             <h2 id="course-preview-title">See how the course teaches.</h2>
             <p>Open the free Chapter 1 preview to read a real lesson and try its narration controls before enrolling.</p>
+            <a className="text-link" href="/course/ai-powered-developer-productivity">Explore the Course <Icon name="arrow" size={15}/></a>
           </div>
           <a className="course-preview-card" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">
             <span className="course-preview-card-label"><Icon name="book" size={14}/> CHAPTER 1 / FREE PREVIEW</span>
@@ -246,7 +248,7 @@ export default App
 const pageDescriptions = {
   '/privacy': ['BrianE-Dev Privacy Policy', 'Learn how BrianE-Dev handles learner account, course, payment, progress, certificate, and enquiry information.'],
   '/services': ['Digital Services | BrianE-Dev', 'Explore BrianE-Dev website, e-commerce, web application, and integration services.'],
-  '/course/ai-powered-developer-productivity': ['AI-Powered Developer Productivity Course | BrianE-Dev', 'Explore practical AI-assisted software engineering workflows, the public course preview, curriculum, and enrollment.'],
+  '/course/ai-powered-developer-productivity': ['AI-Powered Developer Productivity Course | BrianE-Dev', 'Learn AI-powered developer workflows, coding with AI, debugging strategies and practical techniques to improve software engineering productivity with BrianE-Dev.'],
 }
 
 function setPageMetadata(path, title, description) {
@@ -268,5 +270,5 @@ function PublicPageMetadata({ path }) {
 }
 
 function CoursePage() {
-  return <><PublicPageMetadata path="/course/ai-powered-developer-productivity"/><LandingPage showPromotion={false}><section className="course-detail-page section-wrap"><span className="eyebrow">BRIANE-DEV / FLAGSHIP COURSE</span><h1>AI-Powered Developer Productivity for Software Engineers</h1><p>Learn practical ways to integrate AI into software planning, coding, debugging, testing, documentation, and delivery. The course uses written instruction and code-focused examples to explain both the workflow and the engineering reasoning behind it.</p><h2>What you will explore</h2><ul><li>Eight structured sections and the canonical 43-chapter curriculum</li><li>AI-assisted workflows grounded in real software engineering contexts</li><li>Written lessons, code examples, prompts, and course narration</li><li>Certificate eligibility after purchase and completion of required course activities</li></ul><div className="hero-actions"><a className="button button-primary" href="/#pricing">Explore enrollment</a><a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Read the free Chapter 1 preview</a></div></section></LandingPage></>
+  return <LandingPage metadataPath="/course/ai-powered-developer-productivity" isCourseLanding><section className="course-detail-page section-wrap"><span className="eyebrow">BRIANE-DEV / FLAGSHIP COURSE</span><h2>Practical AI workflows for software engineers</h2><p>Learn how to integrate AI into software planning, coding, debugging, testing, documentation, and delivery. Written instruction and code-focused examples explain the workflow and the engineering reasoning behind it.</p><h2>Learning outcomes</h2><ul><li>Choose AI tools and apply them responsibly to software work.</li><li>Turn requirements into user flows, architecture choices, roadmaps, and implementation tasks.</li><li>Use AI while building frontend and backend features, working with databases, and integrating APIs.</li><li>Investigate errors, debug complex problems, and strengthen tests and quality checks.</li><li>Review code, document decisions, consider security, and maintain AI-assisted codebases.</li><li>Combine the methods into a practical developer workflow.</li></ul><h2>Course topics</h2><ul>{curriculum.sections.map((section) => <li key={section.id}><strong>{section.title}:</strong> {section.description}</li>)}</ul><p>The curriculum contains {curriculum.sections.length} sections and {totalChapters} chapters. Chapter 1 is available as a free preview. Full course access is paid through Paystack for customers in Nigeria; the current configured price and any active promotion appear in the enrollment section. Certificate eligibility follows purchase and completion of required course activities.</p><div className="hero-actions"><a className="button button-primary" href="/#pricing">Explore enrollment</a><a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Read the free Chapter 1 preview</a></div><p><a className="text-link" href="/privacy">Read the BrianE-Dev Privacy Policy</a></p></section></LandingPage>
 }
