@@ -77,7 +77,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
     }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
 
     observer.observe(hero)
-    return () => observer.disconnect()
+    return () => observer?.disconnect()
   }, [])
 
   useEffect(() => {
@@ -229,20 +229,27 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
 function MotionPage({ children }) {
   useLayoutEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return undefined
-    const sections = [...document.querySelectorAll('.section-block, .feature-band, .home-services, .final-cta, .course-detail-page, .business-hero, .business-services, .business-process, .privacy-content')]
-    sections.forEach((section, index) => {
-      section.classList.add('whip-section')
-      if (index % 2 === 1) section.classList.add('whip-from-right')
-    })
-    const observer = new IntersectionObserver((entries, activeObserver) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return
-        entry.target.classList.add('whip-section-visible')
-        activeObserver.unobserve(entry.target)
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || typeof window.IntersectionObserver !== 'function') return undefined
+    const sections = Array.from(document.querySelectorAll('.section-block, .feature-band, .home-services, .final-cta, .course-detail-page, .business-hero, .business-services, .business-process, .privacy-content'))
+    if (!sections.length) return undefined
+    let observer
+    try {
+      observer = new window.IntersectionObserver((entries, activeObserver) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return
+          entry.target.classList.add('whip-section-visible')
+          activeObserver.unobserve(entry.target)
+        })
+      }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
+      sections.forEach((section, index) => {
+        section.classList.add('whip-section')
+        if (index % 2 === 1) section.classList.add('whip-from-right')
+        observer.observe(section)
       })
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
-    sections.forEach((section) => observer.observe(section))
+    } catch {
+      observer?.disconnect()
+      sections.forEach((section) => section.classList.add('whip-section-visible'))
+    }
     return () => observer.disconnect()
   }, [])
   return children
