@@ -89,6 +89,30 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   }, [])
 
   useEffect(() => {
+    if (typeof window.IntersectionObserver !== 'function') return undefined
+    const shell = document.querySelector('.site-shell')
+    const sections = Array.from(document.querySelectorAll('main#top > section'))
+    if (!shell || !sections.length) return undefined
+
+    sections.forEach((section, index) => {
+      section.dataset.scrollTone = String(index % 8)
+    })
+    const observer = new window.IntersectionObserver((entries) => {
+      const activeSection = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]?.target
+      if (activeSection) shell.dataset.sectionTone = activeSection.dataset.scrollTone
+    }, { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: '-38% 0px -38% 0px' })
+
+    sections.forEach((section) => observer.observe(section))
+    return () => {
+      observer.disconnect()
+      delete shell.dataset.sectionTone
+      sections.forEach((section) => delete section.dataset.scrollTone)
+    }
+  }, [])
+
+  useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('briane-dev-theme', theme)
   }, [theme])
@@ -125,9 +149,18 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   }, [verifyPaymentReturn])
 
   const purchaseCourse = useCallback(async () => {
+    const email = checkoutEmail.trim()
+    if (!email) {
+      setPricingError('Enter your email address to continue with payment.')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setPricingError('Enter a valid email address to continue with payment.')
+      return
+    }
     setPaymentBusy(true); setPricingError('')
     try {
-      const { authorizationUrl } = await api('/brianedev/payments/initialize-public', { method: 'POST', body: JSON.stringify({ email: checkoutEmail }) })
+      const { authorizationUrl } = await api('/brianedev/payments/initialize-public', { method: 'POST', body: JSON.stringify({ email }) })
       window.location.assign(authorizationUrl)
     } catch (error) {
       setPaymentBusy(false)

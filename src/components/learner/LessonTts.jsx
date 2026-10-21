@@ -14,7 +14,10 @@ function findPreferredFemaleVoice(voices) {
 }
 
 function getEnglishVoices() {
-  return window.speechSynthesis.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith('en'))
+  const availableVoices = window.speechSynthesis.getVoices()
+  return availableVoices.filter((voice) => voice.lang.toLowerCase().startsWith('en')).length
+    ? availableVoices.filter((voice) => voice.lang.toLowerCase().startsWith('en'))
+    : availableVoices
 }
 
 function getVisibleLessonText() {
@@ -52,7 +55,8 @@ export default function LessonTts() {
       const availableVoices = getEnglishVoices()
       if (!active) return
       setVoices(availableVoices)
-      setSelectedVoiceId((current) => current || (findPreferredFemaleVoice(availableVoices) ? voiceId(findPreferredFemaleVoice(availableVoices)) : ''))
+      const defaultVoice = findPreferredFemaleVoice(availableVoices) || availableVoices[0]
+      setSelectedVoiceId((current) => current || (defaultVoice ? voiceId(defaultVoice) : ''))
     }
     refreshVoices()
     window.speechSynthesis.addEventListener('voiceschanged', refreshVoices)
@@ -76,10 +80,11 @@ export default function LessonTts() {
     const availableVoices = voices.length ? voices : getEnglishVoices()
     const selectedVoice = availableVoices.find((voice) => voiceId(voice) === selectedVoiceId)
       || findPreferredFemaleVoice(availableVoices)
+      || availableVoices[0]
     if (!selectedVoice) {
       setVoiceMessage(availableVoices.length
         ? 'Choose an English voice. This browser does not identify voice gender, so select one that sounds right to you.'
-        : 'No English speech voices are available in this browser. Add an English voice in your device settings and try again.')
+        : 'No speech voices are available in this browser. Add a voice in your device settings and try again.')
       return
     }
     setSelectedVoiceId(voiceId(selectedVoice))

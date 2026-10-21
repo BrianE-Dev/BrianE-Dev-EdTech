@@ -1,5 +1,16 @@
 #root { min-height: 100vh; }
-.site-shell { overflow: clip; background: radial-gradient(ellipse at 57% 0%, rgba(22, 43, 69, .22), transparent 34rem), var(--canvas); }
+@property --section-glow { syntax: '<color>'; inherits: true; initial-value: rgba(22, 43, 69, .22); }
+.site-shell { position: relative; isolation: isolate; overflow: clip; background: var(--canvas); --section-glow: rgba(22, 43, 69, .22); }
+.site-shell::before { position: fixed; z-index: 0; inset: 0; content: ''; pointer-events: none; background: radial-gradient(ellipse at 50% 42%, var(--section-glow), transparent 74%); transition: --section-glow 850ms ease; }
+.site-shell > * { position: relative; z-index: 1; }
+.site-shell > :first-child { z-index: 20; }
+.site-shell[data-section-tone='1'] { --section-glow: rgba(6, 182, 212, .14); }
+.site-shell[data-section-tone='2'] { --section-glow: rgba(99, 102, 241, .14); }
+.site-shell[data-section-tone='3'] { --section-glow: rgba(31, 154, 125, .13); }
+.site-shell[data-section-tone='4'] { --section-glow: rgba(168, 85, 247, .13); }
+.site-shell[data-section-tone='5'] { --section-glow: rgba(234, 130, 61, .12); }
+.site-shell[data-section-tone='6'] { --section-glow: rgba(6, 182, 212, .12); }
+.site-shell[data-section-tone='7'] { --section-glow: rgba(59, 130, 246, .14); }
 .course-ad { display:grid; grid-template-columns:minmax(0,1fr) minmax(360px,.92fr); align-items:center; gap:clamp(30px,6vw,82px); padding-block:56px; border-bottom:1px solid rgba(47,66,89,.44); }
 .course-ad-copy h1 { max-width:660px; margin:15px 0; color:#e5ecf7; font:600 clamp(34px,4.2vw,57px)/1.08 var(--display); letter-spacing:-.045em; }
 .course-ad-copy > p { max-width:640px; color:#a2b1c5; font-size:15px; line-height:1.75; }
@@ -135,7 +146,14 @@ h1,h2,h3 { font-family: var(--display); }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior: auto!important; transition-duration: .01ms!important; animation-duration: .01ms!important; animation-iteration-count: 1!important; } }
 
 /* Light theme surfaces retain the same technical hierarchy with brighter neutral panels. */
-:root[data-theme='light'] .site-shell { background: radial-gradient(ellipse at 57% 0%, rgba(68,149,177,.10), transparent 34rem), var(--canvas); }
+:root[data-theme='light'] .site-shell { --section-glow: rgba(68,149,177,.12); }
+:root[data-theme='light'] .site-shell[data-section-tone='1'] { --section-glow: rgba(6,182,212,.10); }
+:root[data-theme='light'] .site-shell[data-section-tone='2'] { --section-glow: rgba(99,102,241,.09); }
+:root[data-theme='light'] .site-shell[data-section-tone='3'] { --section-glow: rgba(31,154,125,.09); }
+:root[data-theme='light'] .site-shell[data-section-tone='4'] { --section-glow: rgba(168,85,247,.09); }
+:root[data-theme='light'] .site-shell[data-section-tone='5'] { --section-glow: rgba(234,130,61,.08); }
+:root[data-theme='light'] .site-shell[data-section-tone='6'] { --section-glow: rgba(6,182,212,.09); }
+:root[data-theme='light'] .site-shell[data-section-tone='7'] { --section-glow: rgba(59,130,246,.10); }
 :root[data-theme='light'] .topbar { border-color: var(--line); background: rgba(248,250,253,.92); }
 :root[data-theme='light'] .brand { color: #17283e; }
 :root[data-theme='light'] .brand-mark { color: #087f9a; border-color: #a8d9e3; background: #e8f7fa; }

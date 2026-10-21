@@ -5,7 +5,6 @@ import ChapterNavigation from './ChapterNavigation.jsx'
 import LessonAssessment from './LessonAssessment.jsx'
 import LessonBlockRenderer from './LessonBlockRenderer.jsx'
 import LessonTts from './LessonTts.jsx'
-import LessonAudioPlayer from './LessonAudioPlayer.jsx'
 import PurchaseGate from './PurchaseGate.jsx'
 
 function readRoute() {
@@ -161,7 +160,7 @@ export default function CourseReader() {
       <article className="reader-main">
         <header className="reader-lesson-header"><span className="eyebrow">CHAPTER {String(chapter.number).padStart(2, '0')} / {course.title}</span>{isPreview && <span className="preview-badge">Free preview</span>}<h1>{lesson.title}</h1><p>{chapter.sectionTitle}</p></header>
         {lesson.objectives.length > 0 && <section className="reader-objectives"><h2>In this chapter</h2><ul>{lesson.objectives.map((objective, index) => <li key={index}>{objective}</li>)}</ul></section>}
-        {isPreview ? <LessonTts/> : <LessonAudioPlayer courseId={course.id} chapterId={lesson.chapterId}/>}
+        <LessonTts/>
         <LessonBlockRenderer blocks={lesson.blocks} courseId={course.id} chapterId={lesson.chapterId}/>
         {isPreview && <PurchaseGate preview/>}
         {!isPreview && lesson.exercises.length > 0 && <section className="reader-exercises"><span className="eyebrow">PRACTICE</span><h2>Exercises</h2>{lesson.exercises.map((exercise) => <article className="reader-exercise" key={exercise.id}>
