@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildTtsTranscript, hashTranscript } from '../backend/src/services/ttsTranscript.js'
-import { combineWavBuffers, generateChapterAudio, isReadyChapterAudio, loadReadyChapterAudio, processBatch, resumeCourseAudioBatches, splitTtsTranscript, startCourseAudioBatch, writeOwnedTtsAudio } from '../backend/src/services/ttsGeneration.js'
+import { combineWavBuffers, generateChapterAudio, isReadyChapterAudio, loadReadyChapterAudio, processBatch, requestGeminiAudio, resumeCourseAudioBatches, splitTtsTranscript, startCourseAudioBatch, writeOwnedTtsAudio } from '../backend/src/services/ttsGeneration.js'
 import { curriculum } from '../src/data/curriculum.js'
 
 function wav(pcmBytes = 4800) {
@@ -312,6 +312,87 @@ test('missing stored audio is regenerated and failed forced regeneration preserv
   await assert.rejects(generateChapterAudio('course-1', lesson(), { ...options, force: true, generateAudio: async () => { throw new Error('temporary generation failure') } }), /temporary generation failure/)
   assert.equal([...records.values()][0].status, 'ready')
   assert.equal(objects.has(validKey), true)
+})
+
+test('failed forced upload preserves the prior ready metadata even when checking the old key would fail', async () => {
+  const { AudioModel, storage, records, objects } = createFakes()
+  await generateChapterAudio('course-1', lesson(), { AudioModel, storage, env, generateAudio: async () => wav() })
+  const record = [...records.values()][0]
+  const priorKey = record.storageKey
+  const priorChunks = structuredClone(record.chunks)
+  storage.exists = async () => { throw new Error('simulated HEAD 403') }
+  storage.upload = async () => { throw new Error('simulated storage PUT 404') }
+
+  await assert.rejects(generateChapterAudio('course-1', lesson(), { AudioModel, storage, env, force: true, generateAudio: async () => wav() }), /simulated storage PUT 404/)
+  assert.equal(record.status, 'ready')
+  assert.equal(record.storageKey, priorKey)
+  assert.deepEqual(record.chunks, priorChunks)
+  assert.equal(objects.has(priorKey), true)
+})
+
+test('new failed upload records failure without publishing an unverified storage key', async () => {
+  const { AudioModel, storage, records } = createFakes()
+  storage.upload = async () => { throw new Error('simulated storage PUT 404') }
+  await assert.rejects(generateChapterAudio('course-1', lesson(), { AudioModel, storage, env, generateAudio: async () => wav() }), /simulated storage PUT 404/)
+  const record = [...records.values()][0]
+  assert.equal(record.status, 'failed')
+  assert.equal(record.storageKey, undefined)
+  assert.equal(record.chunks, undefined)
+})
+
+test('Gemini 429 retries are bounded and a failed forced generation preserves ready metadata', async (context) => {
+  const originalFetch = globalThis.fetch
+  context.after(() => { globalThis.fetch = originalFetch })
+  let requests = 0
+  globalThis.fetch = async () => {
+    requests += 1
+    return new Response(null, { status: 429, headers: { 'retry-after': '0.001' } })
+  }
+  await assert.rejects(requestGeminiAudio('synthetic lesson text', { apiKey: 'synthetic-key', model: 'synthetic-model', voice: 'Kore', language: 'en-US' }), (error) => {
+    assert.match(error.message, /quota or rate limit was reached after retries/)
+    assert.equal(error.code, 'GEMINI_TTS_RATE_LIMIT')
+    return true
+  })
+  assert.equal(requests, 4, 'three configured retries allow at most four requests')
+
+  const { AudioModel, storage, records, objects } = createFakes()
+  await generateChapterAudio('course-1', lesson(), { AudioModel, storage, env, generateAudio: async () => wav() })
+  const record = [...records.values()][0]
+  const priorKey = record.storageKey
+  const priorChunks = structuredClone(record.chunks)
+  await assert.rejects(generateChapterAudio('course-1', lesson(), {
+    AudioModel, storage, env, force: true,
+    generateAudio: async () => { throw new Error('Gemini TTS quota or rate limit was reached after retries') },
+  }), /quota or rate limit was reached after retries/)
+  assert.equal(record.status, 'ready')
+  assert.equal(record.storageKey, priorKey)
+  assert.deepEqual(record.chunks, priorChunks)
+  assert.equal(objects.has(priorKey), true)
+})
+
+test('batch stops after a Gemini 429 instead of requesting audio for every remaining chapter', async () => {
+  const { row, options } = batchFakes({ mode: 'force' })
+  const { AudioModel, storage, records } = createFakes()
+  const chapters = curriculum.sections.flatMap((section) => section.chapters).slice(0, 2)
+  let generationRequests = 0
+  Object.assign(options, {
+    AudioModel,
+    storage,
+    chapters,
+    env,
+    generateAudio: async () => {
+      generationRequests += 1
+      throw Object.assign(new Error('Gemini TTS quota or rate limit was reached after retries'), { code: 'GEMINI_TTS_RATE_LIMIT' })
+    },
+    getAudioStatus: async () => ({ total: 2, ready: 0, generating: 0, failed: 1, missing: 1, stale: 0 }),
+  })
+
+  await processBatch(row._id, options)
+  assert.equal(generationRequests, 1, JSON.stringify(row.results))
+  assert.equal(records.size, 1)
+  assert.equal(row.results.length, 1)
+  assert.equal(row.results[0].status, 'failed')
+  assert.equal(row.status, 'completed_with_errors')
 })
 
 test('saved audio remains retrievable when the current Gemini model or voice differs', async () => {

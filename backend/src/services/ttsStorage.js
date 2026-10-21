@@ -6,13 +6,14 @@ import { fileURLToPath } from 'node:url'
 const localRoot = fileURLToPath(new URL('../../.local-tts/', import.meta.url))
 
 export class TtsStorageError extends Error {
-  constructor(cause, operation = 'unknown', httpStatus = null) {
+  constructor(cause, operation = 'unknown', httpStatus = null, providerCode = null) {
     super('Persistent audio storage is unavailable', { cause })
     this.name = 'TtsStorageError'
     this.status = 503
     this.code = 'AUDIO_STORAGE_UNAVAILABLE'
     this.operation = operation
     this.httpStatus = httpStatus
+    this.providerCode = providerCode
   }
 }
 
@@ -42,6 +43,14 @@ function awsSigningKey(secret, date, region) {
   const regionKey = createHmac('sha256', dateKey).update(region, 'utf8').digest()
   const serviceKey = createHmac('sha256', regionKey).update('s3', 'utf8').digest()
   return createHmac('sha256', serviceKey).update('aws4_request', 'utf8').digest()
+}
+
+async function responseError(response, operation, label) {
+  const body = await response.text().catch(() => '')
+  const reportedCode = body.match(/<Code>\s*([^<\s]{1,80})\s*<\/Code>/i)?.[1]
+  const knownProviderCodes = new Set(['NoSuchKey', 'NoSuchObject', 'NoSuchBucket', 'InvalidBucketName'])
+  const providerCode = knownProviderCodes.has(reportedCode) ? reportedCode : null
+  return new TtsStorageError(new Error(`${label} (${response.status})`), operation, response.status, providerCode)
 }
 
 function createS3Storage(env = process.env) {
@@ -88,10 +97,10 @@ function createS3Storage(env = process.env) {
   }
 
   return {
-    async exists(key) { const response = await request('HEAD', key); if (response.status === 404) return false; if (!response.ok) throw new TtsStorageError(new Error(`Object check failed (${response.status})`), 'HEAD', response.status); return true },
-    async upload(key, buffer, mimeType = 'audio/wav') { const response = await request('PUT', key, buffer, mimeType); if (!response.ok) throw new TtsStorageError(new Error(`Object upload failed (${response.status})`), 'PUT', response.status) },
-    async read(key) { const response = await request('GET', key); if (!response.ok) throw new TtsStorageError(new Error(`Object read failed (${response.status})`), 'GET', response.status); return Buffer.from(await response.arrayBuffer()) },
-    async delete(key) { const response = await request('DELETE', key); if (!response.ok && response.status !== 404) throw new TtsStorageError(new Error(`Object deletion failed (${response.status})`), 'DELETE', response.status) },
+    async exists(key) { const response = await request('HEAD', key); if (response.status === 404) return false; if (!response.ok) throw await responseError(response, 'HEAD', 'Object check failed'); return true },
+    async upload(key, buffer, mimeType = 'audio/wav') { const response = await request('PUT', key, buffer, mimeType); if (!response.ok) throw await responseError(response, 'PUT', 'Object upload failed') },
+    async read(key) { const response = await request('GET', key); if (!response.ok) throw await responseError(response, 'GET', 'Object read failed'); return Buffer.from(await response.arrayBuffer()) },
+    async delete(key) { const response = await request('DELETE', key); if (!response.ok && response.status !== 404) throw await responseError(response, 'DELETE', 'Object deletion failed') },
   }
 }
 

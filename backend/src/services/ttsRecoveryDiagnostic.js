@@ -9,9 +9,20 @@ export function classifyTtsDiagnosticStorageError(error) {
   if (error?.code === 'AUDIO_STORAGE_UNAVAILABLE') {
     const detail = String(error.cause?.message || '')
     const httpStatus = detail.match(/(?:failed|check failed) \((\d{3})\)/)?.[1]
+    const operation = (error.operation && error.operation !== 'unknown' ? error.operation : null) || ({
+      'Object upload failed': 'PUT',
+      'Object read failed': 'GET',
+      'Object check failed': 'HEAD',
+      'Object deletion failed': 'DELETE',
+    }[detail.match(/^Object (?:upload|read|check|deletion) failed/)?.[0]] || 'unknown')
+    const providerCode = error.providerCode || null
     if (httpStatus === '401') return 'authentication_error'
     if (httpStatus === '403') return 'permission_error'
-    if (httpStatus === '404') return 'missing_object'
+    if (httpStatus === '404') {
+      if (['NoSuchBucket', 'InvalidBucketName'].includes(providerCode) || operation === 'PUT') return 'storage_target_not_found'
+      if (['NoSuchKey', 'NoSuchObject'].includes(providerCode)) return 'missing_object'
+      return 'storage_http_404'
+    }
     if (httpStatus && Number(httpStatus) < 500) return `endpoint_or_request_http_${httpStatus}`
     if (httpStatus) return `provider_http_${httpStatus}`
     if (/credentials are incomplete|endpoint must use HTTPS|provider is invalid/i.test(detail)) return 'storage_configuration_error'

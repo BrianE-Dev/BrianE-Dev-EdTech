@@ -6,7 +6,9 @@ function audioRequestError(error) {
   const guidance = {
     authentication_error: 'Object storage rejected its credentials (401). Check the storage access key and secret in the API service environment.',
     permission_error: 'Object storage denied access (403). Check bucket permissions for reading and writing audio objects.',
-    missing_object: 'Object storage reported a missing object (404). Check the configured endpoint, bucket, and object path.',
+    missing_object: 'Object storage confirmed that this audio object is missing (404). The saved audio reference was left unchanged.',
+    storage_target_not_found: 'Object storage returned 404 during upload. Check that the configured bucket exists at the configured endpoint.',
+    storage_http_404: 'Object storage returned 404 without identifying a missing key or bucket. Check the endpoint and bucket configuration.',
     storage_configuration_error: 'Object storage configuration is incomplete or invalid. Check the provider, endpoint, region, bucket, and credentials in the API service environment.',
     dns_error: 'The API could not resolve the object storage host. Check the configured storage endpoint and API network access.',
     tls_error: 'The API could not establish a secure connection to object storage. Check the endpoint and TLS configuration.',

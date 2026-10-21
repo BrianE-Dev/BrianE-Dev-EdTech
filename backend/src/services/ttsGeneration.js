@@ -90,7 +90,7 @@ export function combineWavBuffers(waves) {
   return Buffer.concat([header, pcm])
 }
 
-async function requestGeminiAudio(text, config) {
+export async function requestGeminiAudio(text, config) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`
   let response
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
@@ -117,7 +117,7 @@ async function requestGeminiAudio(text, config) {
   }
   if (!response.ok) {
     const reason = response.status === 429 ? 'Gemini TTS quota or rate limit was reached after retries' : response.status === 401 || response.status === 403 ? 'Gemini TTS credentials were rejected' : `Gemini TTS request failed (${response.status})`
-    throw new Error(reason)
+    throw Object.assign(new Error(reason), response.status === 429 ? { code: 'GEMINI_TTS_RATE_LIMIT' } : {})
   }
   const result = await response.json()
   const audio = result.candidates?.[0]?.content?.parts?.find((part) => part.inlineData?.data)?.inlineData
@@ -210,7 +210,9 @@ export async function generateChapterAudio(courseId, lesson, { generatedBy, forc
     return { status: 'generating', cacheHit: false, chapterId: lesson.chapterId, transcriptHash }
   }
 
-  const previous = current?.status === 'ready' && await audioExists(current, storage) ? current : null
+  // Keep the prior key and metadata available for rollback even if HEAD fails or reports a missing object.
+  // Availability is checked separately by status/playback; replacement failure must not erase the prior record.
+  const previous = current?.status === 'ready' ? current : null
   try {
     const chunks = splitTtsTranscript(transcript)
     const generated = []
@@ -302,7 +304,7 @@ export async function getCourseAudioStatus(courseId, { AudioModel = TtsAudio, st
   } : null }
 }
 
-export async function processBatch(jobId, { BatchModel = TtsBatchJob, AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env, chapters = curriculum.sections.flatMap((section) => section.chapters), getAudioStatus = getCourseAudioStatus, scheduleHeartbeat = setInterval, cancelHeartbeat = clearInterval } = {}, { resume = false } = {}) {
+export async function processBatch(jobId, { BatchModel = TtsBatchJob, AudioModel = TtsAudio, storage = createTtsStorage(), env = process.env, chapters = curriculum.sections.flatMap((section) => section.chapters), getAudioStatus = getCourseAudioStatus, generateAudio = requestGeminiAudio, scheduleHeartbeat = setInterval, cancelHeartbeat = clearInterval } = {}, { resume = false } = {}) {
   const workerToken = crypto.randomUUID()
   const now = new Date()
   const job = await BatchModel.findOneAndUpdate({ _id: jobId, status: 'running', $or: [{ leaseUntil: { $lte: now } }, { leaseUntil: { $exists: false } }, { leaseUntil: null }] }, { $set: { workerToken, leaseUntil: new Date(Date.now() + BATCH_LEASE_MS) } }, { new: true })
@@ -324,11 +326,12 @@ export async function processBatch(jobId, { BatchModel = TtsBatchJob, AudioModel
             continue
           }
         }
-        const result = await generateChapterAudio(job.courseId, lesson, { generatedBy: job.initiatedBy, force: job.mode === 'force', AudioModel, storage, env })
+        const result = await generateChapterAudio(job.courseId, lesson, { generatedBy: job.initiatedBy, force: job.mode === 'force', AudioModel, storage, env, generateAudio })
         const resultStatus = ['generating', 'superseded'].includes(result.status) ? 'in_progress' : result.cacheHit ? 'cached' : 'ready'
         await BatchModel.updateOne({ _id: jobId, status: 'running', workerToken }, { $push: { results: { chapterId: chapter.id, status: resultStatus } } })
       } catch (error) {
         await BatchModel.updateOne({ _id: jobId, status: 'running', workerToken }, { $push: { results: { chapterId: chapter.id, status: 'failed', error: error.message.slice(0, 450) } } })
+        if (error.code === 'GEMINI_TTS_RATE_LIMIT') break
       }
     }
     const summary = await getAudioStatus(job.courseId, { AudioModel, storage, env })
