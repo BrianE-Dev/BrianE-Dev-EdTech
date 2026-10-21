@@ -124,7 +124,7 @@ export default function AdminDashboard() {
 
   return <main className="admin-dashboard-page">
     <aside className="admin-sidebar" aria-label="Super Admin navigation"><a href="/admin" className="admin-sidebar-brand"><Brand /></a><div><span>OVERVIEW</span><a href="#overview">Dashboard</a></div><div><span>EDUCATION</span><a href="#courses">Course Management</a><a href="#learners">Students and Enrollments</a><a href="#course-audio">Audio and Ebook Status</a><a href="#certificates">Certificates</a></div><div><span>BUSINESS</span><a href="/services">Marketing Website</a><a href="#requests">Quote Requests and Enquiries</a><a href="#contacts">Contacts and Leads</a><a href="#campaigns">Email Campaigns</a></div><div><span>ADMINISTRATION</span><a href="#settings">Settings</a><button type="button" onClick={logout}>Logout</button></div></aside>
-    <header className="admin-dashboard-header"><a href="/" aria-label="BrianE-Dev homepage"><Brand /></a><div><span className="admin-user-label">SUPER ADMIN / {user.name}</span><button className="button button-secondary" onClick={logout}>Sign out</button></div></header>
+    <header className="admin-dashboard-header"><div><span className="admin-user-label">SUPER ADMIN / {user.name}</span><button className="button button-secondary" onClick={logout}>Sign out</button></div></header>
     <section id="overview" className="admin-dashboard-intro"><span className="eyebrow">PLATFORM / OVERVIEW</span><h1>Super Admin dashboard</h1><p>Education operations, business requests, contacts, and campaign drafts.</p></section>
     <section className="admin-summary-grid" aria-label="Commerce summary">
       <article><span>TRANSACTIONS</span><strong>{summary.transactions}</strong><small>BrianE-Dev records</small></article>
