@@ -8,6 +8,7 @@ import PricingCard from './components/PricingCard.jsx'
 import SectionHeading from './components/SectionHeading.jsx'
 import { courseFormats, features, plans, questions } from './data/homepage.js'
 import { curriculum, totalChapters } from './data/curriculum.js'
+import { courseStructuredData } from './data/structuredData.js'
 import { api } from './services/api.js'
 import { getPaymentReturnState } from './services/paymentReturn.js'
 import AdminLogin from './components/AdminLogin.jsx'
@@ -293,6 +294,19 @@ function PublicPageMetadata({ path }) {
   return null
 }
 
+function PublicCourseStructuredData() {
+  useEffect(() => {
+    if (document.getElementById('course-structured-data')) return undefined
+    const script = document.createElement('script')
+    script.id = 'course-structured-data'
+    script.type = 'application/ld+json'
+    script.textContent = JSON.stringify(courseStructuredData)
+    document.head.appendChild(script)
+    return () => script.remove()
+  }, [])
+  return null
+}
+
 function CoursePage() {
-  return <LandingPage metadataPath="/course/ai-powered-developer-productivity" isCourseLanding><section className="course-detail-page section-wrap"><span className="eyebrow">BRIANE-DEV / FLAGSHIP COURSE</span><h2>Practical AI workflows for software engineers</h2><p>Learn how to integrate AI into software planning, coding, debugging, testing, documentation, and delivery. Written instruction and code-focused examples explain the workflow and the engineering reasoning behind it.</p><h2>Learning outcomes</h2><ul><li>Choose AI tools and apply them responsibly to software work.</li><li>Turn requirements into user flows, architecture choices, roadmaps, and implementation tasks.</li><li>Use AI while building frontend and backend features, working with databases, and integrating APIs.</li><li>Investigate errors, debug complex problems, and strengthen tests and quality checks.</li><li>Review code, document decisions, consider security, and maintain AI-assisted codebases.</li><li>Combine the methods into a practical developer workflow.</li></ul><h2>Course topics</h2><ul>{curriculum.sections.map((section) => <li key={section.id}><strong>{section.title}:</strong> {section.description}</li>)}</ul><p>The curriculum contains {curriculum.sections.length} sections and {totalChapters} chapters. Chapter 1 is available as a free preview. Full course access is paid through Paystack for customers in Nigeria; the current configured price and any active promotion appear in the enrollment section. Certificate eligibility follows purchase and completion of required course activities.</p><div className="hero-actions"><a className="button button-primary" href="/#pricing">Explore enrollment</a><a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Read the free Chapter 1 preview</a></div><p><a className="text-link" href="/privacy">Read the BrianE-Dev Privacy Policy</a></p></section></LandingPage>
+  return <><PublicCourseStructuredData/><LandingPage metadataPath="/course/ai-powered-developer-productivity" isCourseLanding><section className="course-detail-page section-wrap"><span className="eyebrow">BRIANE-DEV / FLAGSHIP COURSE</span><h2>Practical AI workflows for software engineers</h2><p>Learn how to integrate AI into software planning, coding, debugging, testing, documentation, and delivery. Written instruction and code-focused examples explain the workflow and the engineering reasoning behind it.</p><h2>Learning outcomes</h2><ul><li>Choose AI tools and apply them responsibly to software work.</li><li>Turn requirements into user flows, architecture choices, roadmaps, and implementation tasks.</li><li>Use AI while building frontend and backend features, working with databases, and integrating APIs.</li><li>Investigate errors, debug complex problems, and strengthen tests and quality checks.</li><li>Review code, document decisions, consider security, and maintain AI-assisted codebases.</li><li>Combine the methods into a practical developer workflow.</li></ul><h2>Course topics</h2><ul>{curriculum.sections.map((section) => <li key={section.id}><strong>{section.title}:</strong> {section.description}</li>)}</ul><p>The curriculum contains {curriculum.sections.length} sections and {totalChapters} chapters. Chapter 1 is available as a free preview. Full course access is paid through Paystack for customers in Nigeria; the current configured price and any active promotion appear in the enrollment section. Certificate eligibility follows purchase and completion of required course activities.</p><div className="hero-actions"><a className="button button-primary" href="/#pricing">Explore enrollment</a><a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Read the free Chapter 1 preview</a></div><p><a className="text-link" href="/privacy">Read the BrianE-Dev Privacy Policy</a></p></section></LandingPage></>
 }

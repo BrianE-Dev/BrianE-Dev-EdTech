@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { publicPageMetadata, renderCourseHtml, renderPublicPageHtml } from '../scripts/generate-seo-pages.mjs'
+import { courseStructuredData } from '../src/data/structuredData.js'
 
 const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8')
 const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
@@ -27,7 +28,7 @@ test('homepage Organization and WebSite structured data is valid JSON-LD without
   assert.deepEqual(data['@graph'].map((item) => item['@type']), ['Organization', 'WebSite'])
 })
 
-test('course landing page gets distinct metadata in its initial HTML response', () => {
+test('course landing page gets distinct metadata and one valid Course entity in initial HTML', () => {
   const courseHtml = renderCourseHtml(indexHtml)
   assert.equal((courseHtml.match(/<title>/gi) || []).length, 1)
   assert.equal((courseHtml.match(/<meta\s+name="description"/gi) || []).length, 1)
@@ -37,7 +38,20 @@ test('course landing page gets distinct metadata in its initial HTML response', 
   assert.match(courseHtml, /<meta property="og:url" content="https:\/\/briane-dev\.online\/course\/ai-powered-developer-productivity"/)
   assert.match(courseHtml, /<meta name="twitter:title" content="AI-Powered Developer Productivity Course \| BrianE-Dev"/)
   assert.doesNotMatch(courseHtml, /noindex/i)
-  assert.doesNotMatch(courseHtml, /"@type":"Course"/)
+  const courseScripts = [...courseHtml.matchAll(/<script type="application\/ld\+json"(?: id="[^"]+")?>([\s\S]*?)<\/script>/g)]
+  const jsonLd = courseScripts.map((match) => JSON.parse(match[1]))
+  const courseEntities = jsonLd.filter((item) => item['@type'] === 'Course')
+  assert.equal(courseEntities.length, 1)
+  assert.deepEqual(courseEntities[0], courseStructuredData)
+  assert.equal(courseEntities[0].url, 'https://briane-dev.online/course/ai-powered-developer-productivity')
+  assert.equal(courseEntities[0].provider['@id'], 'https://briane-dev.online/#organization')
+  assert.equal(jsonLd.flatMap((item) => item['@graph'] || [item]).filter((item) => item['@type'] === 'Organization').length, 1)
+})
+
+test('course SPA route injects Course JSON-LD only when the initial HTML did not include it', () => {
+  assert.match(app, /function PublicCourseStructuredData\(\)/)
+  assert.match(app, /document\.getElementById\('course-structured-data'\)/)
+  assert.match(app, /return <><PublicCourseStructuredData\/>/)
 })
 
 test('public services and privacy sitemap pages get matching first-response canonical metadata', () => {

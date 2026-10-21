@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { courseStructuredData } from '../src/data/structuredData.js'
 
 export const publicPageMetadata = {
   '/course/ai-powered-developer-productivity': {
@@ -41,7 +42,9 @@ export function renderPublicPageHtml(html, metadata) {
 }
 
 export function renderCourseHtml(html) {
-  return renderPublicPageHtml(html, publicPageMetadata['/course/ai-powered-developer-productivity'])
+  const page = renderPublicPageHtml(html, publicPageMetadata['/course/ai-powered-developer-productivity'])
+  const script = `<script type="application/ld+json" id="course-structured-data">${JSON.stringify(courseStructuredData)}</script>`
+  return page.replace('</head>', `    ${script}\n  </head>`)
 }
 
 async function generate() {
@@ -50,7 +53,10 @@ async function generate() {
   for (const [path, metadata] of Object.entries(publicPageMetadata)) {
     const output = resolve(projectRoot, 'dist', path.slice(1), 'index.html')
     await mkdir(dirname(output), { recursive: true })
-    await writeFile(output, renderPublicPageHtml(html, metadata))
+    const page = path === '/course/ai-powered-developer-productivity'
+      ? renderCourseHtml(html)
+      : renderPublicPageHtml(html, metadata)
+    await writeFile(output, page)
   }
 }
 
