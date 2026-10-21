@@ -628,3 +628,82 @@ h1,h2,h3 { font-family: var(--display); }
 .admin-campaign-form { display:grid; gap:12px; max-width:850px; margin:18px 0; padding:18px; border:1px solid var(--line); border-radius:5px; background:var(--surface); }.admin-campaign-form label { display:grid; gap:6px; color:var(--muted); font-size:12px; }.admin-campaign-form input,.admin-campaign-form textarea { width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--line-bright); border-radius:4px; color:var(--text); background:var(--canvas); font:inherit; }.admin-campaign-form div { display:flex; gap:8px; }
 @media(max-width:800px) { .admin-dashboard-page { padding-left:0; padding-top:74px; }.admin-sidebar { inset:0 0 auto; width:auto; height:54px; flex-direction:row; align-items:center; gap:14px; padding:7px 12px; border-right:0; border-bottom:1px solid var(--line); }.admin-sidebar > div { display:flex; gap:6px; align-items:center; }.admin-sidebar > div > span { display:none; }.admin-sidebar a:not(.admin-sidebar-brand),.admin-sidebar button { padding:7px; white-space:nowrap; font-size:11px; }.admin-sidebar-brand { display:none; } }
 @media(max-width:560px) { .admin-sidebar { overflow-x:auto; }.admin-sidebar > div:nth-child(2) a:nth-of-type(n+2),.admin-sidebar > div:nth-child(3) a:nth-of-type(n+2) { display:none; }.admin-business-list article { grid-template-columns:1fr; } }
+
+/* Scroll story panels pin below the navigation and let the next section cover them. */
+.site-shell { --story-sticky-top: 96px; }
+.site-shell main#top > .scroll-story-section {
+  position: sticky;
+  top: var(--story-sticky-top);
+  z-index: var(--scroll-story-layer, 1);
+  min-height: calc(100svh - var(--story-sticky-top));
+  background-color: var(--canvas);
+  scroll-margin-top: var(--story-sticky-top);
+}
+.site-shell main#top > .scroll-story-section.scroll-story-overflow {
+  height: calc(100svh - var(--story-sticky-top));
+  min-height: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-bright) transparent;
+}
+.curriculum-showcase {
+  display: grid;
+  grid-template-columns: minmax(260px, .82fr) minmax(0, 1.42fr);
+  align-items: start;
+  gap: clamp(24px, 4vw, 64px);
+  margin-top: 30px;
+}
+.curriculum-visual {
+  position: sticky;
+  top: calc(var(--story-sticky-top, 96px) + 25px);
+  align-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--muted);
+  font: 9px var(--mono);
+  letter-spacing: .09em;
+  text-align: center;
+}
+.curriculum-assembly-host {
+  position: relative;
+  width: min(100%, 410px);
+  height: 350px;
+}
+.curriculum-assembly-canvas { display: block; width: 100% !important; height: 100% !important; }
+.curriculum-assembly-fallback {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-content: center;
+  justify-content: center;
+  grid-template-columns: repeat(4, 58px);
+  grid-template-rows: repeat(2, 58px);
+  gap: 5px;
+  transform: rotate(-8deg);
+}
+.curriculum-assembly-fallback i { border: 1px solid rgba(195,247,255,.7); background: linear-gradient(145deg,rgba(34,211,238,.8),rgba(99,102,241,.7)); box-shadow: 0 0 22px rgba(6,182,212,.2); }
+.curriculum-assembly-host[data-fallback='true'] .curriculum-assembly-fallback { display: grid; }
+.curriculum-assembly-host[data-fallback='true'] { display: grid; place-items: center; }
+.curriculum-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-content: start; gap: 12px; }
+@media (min-width: 701px) and (max-width: 1199px) {
+  .site-shell { --story-sticky-top: 90px; }
+  .curriculum-showcase { grid-template-columns: minmax(220px, .74fr) minmax(0, 1.4fr); gap: 24px; }
+  .curriculum-assembly-host { height: 300px; }
+  .curriculum-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 700px) {
+  .site-shell { --story-sticky-top: 64px; }
+  .site-shell main#top > .scroll-story-section { min-height: calc(100svh - var(--story-sticky-top)); }
+  .site-shell main#top > .scroll-story-section.scroll-story-overflow { height: calc(100svh - var(--story-sticky-top)); }
+  .curriculum-showcase { grid-template-columns: 1fr; gap: 12px; margin-top: 22px; }
+  .curriculum-visual { position: relative; top: auto; min-height: 205px; }
+  .curriculum-assembly-host { width: min(100%, 300px); height: 205px; }
+  .curriculum-assembly-fallback { grid-template-columns: repeat(4, 40px); grid-template-rows: repeat(2, 40px); }
+  .curriculum-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-shell main#top > .scroll-story-section { scroll-behavior: auto; }
+}

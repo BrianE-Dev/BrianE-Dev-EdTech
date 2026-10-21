@@ -23,6 +23,7 @@ import PasswordRecovery from './components/PasswordRecovery.jsx'
 import EmailVerification from './components/EmailVerification.jsx'
 import SiteNavigation from './components/SiteNavigation.jsx'
 import DeveloperIntelligenceSphere from './components/DeveloperIntelligenceSphere.jsx'
+import CurriculumAssembly from './components/CurriculumAssembly.jsx'
 import { getPromotionDateRange } from './utils/promotionDates.js'
 import './App.css'
 
@@ -97,7 +98,19 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
     sections.forEach((section, index) => {
       section.dataset.scrollTone = String(index % 8)
+      section.classList.add('scroll-story-section')
+      section.style.setProperty('--scroll-story-layer', String(index + 1))
     })
+
+    const updateTallSections = () => {
+      const stickyOffset = document.querySelector('.topbar')?.getBoundingClientRect().height || 0
+      const availableHeight = Math.max(window.innerHeight - stickyOffset, 1)
+      sections.forEach((section) => {
+        section.classList.toggle('scroll-story-overflow', section.scrollHeight > availableHeight + 12)
+      })
+    }
+    updateTallSections()
+    window.addEventListener('resize', updateTallSections)
     const observer = new window.IntersectionObserver((entries) => {
       const activeSection = entries
         .filter((entry) => entry.isIntersecting)
@@ -108,8 +121,13 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
     sections.forEach((section) => observer.observe(section))
     return () => {
       observer.disconnect()
+      window.removeEventListener('resize', updateTallSections)
       delete shell.dataset.sectionTone
-      sections.forEach((section) => delete section.dataset.scrollTone)
+      sections.forEach((section) => {
+        delete section.dataset.scrollTone
+        section.classList.remove('scroll-story-section', 'scroll-story-overflow')
+        section.style.removeProperty('--scroll-story-layer')
+      })
     }
   }, [])
 
@@ -204,7 +222,10 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
       <section id="curriculum" className="curriculum-section section-wrap section-block">
         <div className="course-name">THE LEARNING PATH</div>
         <SectionHeading eyebrow="CURRICULUM / PROGRESSION" title={<>{curriculum.sections.length} Sections <span>·</span> {totalChapters} Chapters</>} description="A structured path for using AI effectively throughout the software development lifecycle."/>
-        <div className="curriculum-grid">{curriculum.sections.map((section) => <CurriculumCard section={section} key={section.id}/>)}</div>
+        <div className="curriculum-showcase">
+          <div className="curriculum-visual"><CurriculumAssembly/><span>8 BLOCKS / ONE COMPLETE WORKFLOW</span></div>
+          <div className="curriculum-grid">{curriculum.sections.map((section) => <CurriculumCard section={section} key={section.id}/>)}</div>
+        </div>
         <div className="curriculum-footer"><span><span className="status-dot green-dot"/> WRITTEN LESSONS · CODE EXAMPLES · AI WORKFLOWS</span><span>{totalChapters} APPROVED CHAPTERS</span></div>
       </section>
 
@@ -290,7 +311,10 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
         <section id="curriculum" className="curriculum-section section-wrap section-block">
           <div className="course-name">{curriculum.title}</div>
           <SectionHeading eyebrow="CURRICULUM / PROGRESSION" title={<>{curriculum.sections.length} Sections <span>·</span> {totalChapters} Chapters</>} description="A structured path for using AI effectively throughout the software development lifecycle." action={<a className="text-link" href="#courses">Course content <Icon name="arrow" size={15}/></a>}/>
-          <div className="curriculum-grid">{curriculum.sections.map((section) => <CurriculumCard section={section} key={section.id}/>)}</div>
+          <div className="curriculum-showcase">
+            <div className="curriculum-visual"><CurriculumAssembly/><span>8 BLOCKS / ONE COMPLETE WORKFLOW</span></div>
+            <div className="curriculum-grid">{curriculum.sections.map((section) => <CurriculumCard section={section} key={section.id}/>)}</div>
+          </div>
           <div className="curriculum-footer"><span><span className="status-dot green-dot"/> WRITTEN LESSONS · CODE EXAMPLES · AI WORKFLOWS</span><span>{totalChapters} APPROVED CHAPTERS</span></div>
         </section>
 
