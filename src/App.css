@@ -647,6 +647,16 @@ h1,h2,h3 { font-family: var(--display); }
   scrollbar-width: thin;
   scrollbar-color: var(--line-bright) transparent;
 }
+.site-shell main#top > section#pricing {
+  position: relative;
+  top: auto;
+  z-index: 30;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  background-color: var(--canvas);
+  scroll-margin-top: var(--story-sticky-top);
+}
 .curriculum-showcase {
   display: grid;
   grid-template-columns: minmax(260px, .82fr) minmax(0, 1.42fr);

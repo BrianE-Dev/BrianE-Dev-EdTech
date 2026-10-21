@@ -98,6 +98,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
     sections.forEach((section, index) => {
       section.dataset.scrollTone = String(index % 8)
+      if (section.id === 'pricing') return
       section.classList.add('scroll-story-section')
       section.style.setProperty('--scroll-story-layer', String(index + 1))
     })
@@ -106,6 +107,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
       const stickyOffset = document.querySelector('.topbar')?.getBoundingClientRect().height || 0
       const availableHeight = Math.max(window.innerHeight - stickyOffset, 1)
       sections.forEach((section) => {
+        if (section.id === 'pricing') return
         section.classList.toggle('scroll-story-overflow', section.scrollHeight > availableHeight + 12)
       })
     }
