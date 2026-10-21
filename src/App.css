@@ -700,6 +700,7 @@ h1,h2,h3 { font-family: var(--display); }
 .curriculum-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-content: start; gap: 12px; }
 /* Keep the long curriculum and closing call-to-action in normal document flow. */
 .site-shell main#top > section#curriculum,
+.site-shell main#top > section#preview,
 .site-shell main#top > section.final-cta {
   position: relative;
   top: auto;
