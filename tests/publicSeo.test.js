@@ -66,8 +66,8 @@ test('About page gets distinct first-response metadata and links its page entity
   assert.match(html, /Chukwuemeka Brian Nkama/)
 })
 
-test('public services and privacy sitemap pages get matching first-response canonical metadata', () => {
-  for (const path of ['/services', '/privacy']) {
+test('public services, pricing, and privacy sitemap pages get matching first-response canonical metadata', () => {
+  for (const path of ['/services', '/pricing', '/privacy']) {
     const metadata = publicPageMetadata[path]
     const html = renderPublicPageHtml(indexHtml, metadata)
     assert.equal((html.match(/<link\s+rel="canonical"/gi) || []).length, 1)
@@ -84,6 +84,7 @@ test('deployment rewrites route public URLs to their generated HTML before the S
     ['/course/ai-powered-developer-productivity', '/course/ai-powered-developer-productivity/index.html'],
     ['/about', '/about/index.html'],
     ['/services', '/services/index.html'],
+    ['/pricing', '/pricing/index.html'],
     ['/contact', '/contact/index.html'],
     ['/quote', '/quote/index.html'],
     ['/privacy', '/privacy/index.html'],
@@ -99,7 +100,7 @@ test('deployment rewrites route public URLs to their generated HTML before the S
 test('homepage exposes a crawlable link to the public course page and course content links to privacy', () => {
   assert.match(app, /<a className="text-link" href="\/course\/ai-powered-developer-productivity">Explore the full course/)
   assert.match(app, /href="\/privacy">Read the BrianE-Dev Privacy Policy/)
-  assert.match(app, /href="\/#pricing">Explore enrollment/)
+  assert.match(app, /href="#pricing">Explore enrollment/)
   assert.match(app, /href="\/courses\/ai-powered-developer-productivity\/learn\/chapter-ai-assisted-developer">Read the free Chapter 1 preview/)
 })
 
@@ -110,6 +111,7 @@ test('sitemap includes public canonical pages and excludes restricted routes', (
     'https://briane-dev.online/about',
     'https://briane-dev.online/course/ai-powered-developer-productivity',
     'https://briane-dev.online/services',
+    'https://briane-dev.online/pricing',
     'https://briane-dev.online/privacy',
   ])
   assert.doesNotMatch(sitemap, /\/admin|\/super-admin|\/learn|\/courses\/.*\/learn/)

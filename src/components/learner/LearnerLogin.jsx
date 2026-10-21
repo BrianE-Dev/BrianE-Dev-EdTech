@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import Brand from '../Brand.jsx'
-import { api, loginLearner } from '../../services/api.js'
+import { api, getPurchases, loginLearner } from '../../services/api.js'
 
 function safeReturnPath(value) {
-  return typeof value === 'string' && (/^\/#pricing(?:[?].*)?$/.test(value) || /^\/(learn|courses\/[^/]+\/learn\/chapter-[a-z0-9-]+)(?:[/?#]|$)/.test(value)) ? value : '/learn'
+  return typeof value === 'string' && (/^\/#pricing(?:[?].*)?$/.test(value) || /^\/pricing(?:[/?#]|$)/.test(value) || /^\/(learn|courses\/[^/]+\/learn\/chapter-[a-z0-9-]+)(?:[/?#]|$)/.test(value)) ? value : '/learn'
 }
 
 export default function LearnerLogin() {
@@ -22,7 +22,15 @@ export default function LearnerLogin() {
     const form = new FormData(event.currentTarget)
     try {
       const { user } = await loginLearner(form.get('email'), form.get('password'))
-      window.location.assign(user.role === 'super_admin' ? '/admin' : returnTo)
+      if (user.role === 'super_admin') {
+        window.location.assign('/admin')
+        return
+      }
+      const purchases = await getPurchases()
+      const destination = purchases.length
+        ? (returnTo === '/pricing' || returnTo === '/#pricing' ? '/learn' : returnTo)
+        : (returnTo !== '/learn' && returnTo !== '/pricing' ? returnTo : '/pricing')
+      window.location.assign(destination)
     } catch (requestError) {
       setError(requestError.message)
       if (requestError.code === 'EMAIL_VERIFICATION_REQUIRED') setVerificationEmail(String(form.get('email') || ''))
@@ -46,7 +54,7 @@ export default function LearnerLogin() {
         <button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <p className="learner-auth-switch"><a href="/learn/forgot-password">Forgot your password?</a></p>
-      <p className="learner-auth-switch">Already paid? <a href={`/learn/register?returnTo=${encodeURIComponent(returnTo)}`}>Create your learner account</a></p>
+      <p className="learner-auth-switch">New to BrianE-Dev? <a href={`/learn/register?returnTo=${encodeURIComponent(returnTo)}`}>Create your learner account</a></p>
       <a className="admin-back-link" href="/">Back to BrianE-Dev</a>
     </section>
   </main>

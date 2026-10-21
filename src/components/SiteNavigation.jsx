@@ -16,7 +16,7 @@ export default function SiteNavigation({ theme = 'dark', onThemeToggle, isAdmin 
       <a href={isCoursePage ? '#curriculum' : '/#curriculum'} onClick={closeMenu}>Curriculum</a>
       <a href={isCoursePage ? '#course-overview' : '/course/ai-powered-developer-productivity'} onClick={closeMenu}>Course</a>
       <a href={previewUrl} onClick={closeMenu}>Free Preview</a>
-      <a href={isCoursePage ? '#pricing' : '/#pricing'} onClick={closeMenu}>Pricing</a>
+      <a href="/pricing" onClick={closeMenu}>Pricing</a>
       <a href="/services" onClick={closeMenu}>Services</a>
       <a href="/contact" onClick={closeMenu}>Contact</a>
       <a href="/privacy" onClick={closeMenu}>Privacy</a>
@@ -25,7 +25,7 @@ export default function SiteNavigation({ theme = 'dark', onThemeToggle, isAdmin 
       {isAdmin && <a className="sign-in" href="/admin">Dashboard</a>}
       <a className="sign-in" href="/learn/login">Learner sign in</a>
       <button className="theme-toggle" type="button" onClick={onThemeToggle} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15}/><span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button>
-      <a className="button button-small button-primary" href={isCoursePage ? '#pricing' : '/#pricing'}>Enroll Now <Icon name="arrow" size={14}/></a>
+      <a className="button button-small button-primary" href="/pricing">Enroll Now <Icon name="arrow" size={14}/></a>
     </div>
     <button className="menu-toggle" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><Icon name={menuOpen ? 'close' : 'menu'}/></button>
   </header>

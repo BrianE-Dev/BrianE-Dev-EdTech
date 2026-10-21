@@ -24,6 +24,11 @@ export const publicPageMetadata = {
     description: 'Explore BrianE-Dev website, e-commerce, web application, and integration services.',
     url: 'https://briane-dev.online/services',
   },
+  '/pricing': {
+    title: 'Course Pricing | BrianE-Dev',
+    description: 'Review BrianE-Dev course pricing, create and verify your learner account, and purchase full course access.',
+    url: 'https://briane-dev.online/pricing',
+  },
   '/privacy': {
     title: 'BrianE-Dev Privacy Policy',
     description: 'Learn how BrianE-Dev handles learner account, course, payment, progress, certificate, and enquiry information.',

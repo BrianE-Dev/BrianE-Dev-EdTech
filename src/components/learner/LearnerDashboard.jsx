@@ -29,11 +29,16 @@ export default function LearnerDashboard() {
     let active = true
     async function load() {
       try {
-        const [{ user }, purchases, savedProfile] = await Promise.all([getCurrentUser(), getPurchases(), getLearnerProfile()])
+        const [{ user }, purchases] = await Promise.all([getCurrentUser(), getPurchases()])
         if (user.role === 'super_admin') {
           window.location.replace('/admin')
           return
         }
+        if (!purchases.length) {
+          window.location.replace('/pricing')
+          return
+        }
+        const savedProfile = await getLearnerProfile()
         const certificates = purchases.length ? await getCertificates() : []
         const certificateTemplate = certificates.length ? await api('/certificates/template').catch(() => null) : null
         const courses = await Promise.all(purchases

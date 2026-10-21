@@ -15,7 +15,7 @@ export default function EmailVerification() {
     window.history.replaceState({}, '', window.location.pathname)
     let active = true
     api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) })
-      .then(() => { if (active) { setState('success'); setMessage('Your email address is verified. You can now sign in and continue to your course.') } })
+      .then(() => { if (active) { setState('success'); setMessage('Your email address is verified. Sign in to complete course payment and open your dashboard after purchase.') } })
       .catch((error) => { if (active) { setState('invalid'); setMessage(error.message || 'This verification link is invalid or expired.') } })
     return () => { active = false }
   }, [token])

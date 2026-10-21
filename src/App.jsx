@@ -27,7 +27,18 @@ import CurriculumAssembly from './components/CurriculumAssembly.jsx'
 import { getPromotionDateRange } from './utils/promotionDates.js'
 import './App.css'
 
-function LandingPage({ children = null, metadataPath = '/', isCourseLanding = false }) {
+function readRegistrationNotice() {
+  if (new URLSearchParams(window.location.search).get('registered') !== '1') return null
+  try {
+    const notice = JSON.parse(sessionStorage.getItem('briane-dev-registration-notice') || 'null')
+    sessionStorage.removeItem('briane-dev-registration-notice')
+    return notice || { email: '', delivery: 'unknown' }
+  } catch {
+    return { email: '', delivery: 'unknown' }
+  }
+}
+
+function LandingPage({ children = null, metadataPath = '/', isCourseLanding = false, isPricingPage = false }) {
   const sampleSection = curriculum.sections[1]
   const sampleChapter = sampleSection.chapters[0]
   const [theme, setTheme] = useState(() => {
@@ -40,9 +51,12 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   const [pricing, setPricing] = useState(null)
   const [paymentBusy, setPaymentBusy] = useState(false)
   const [pricingError, setPricingError] = useState('')
-  const [checkoutEmail, setCheckoutEmail] = useState('')
   const [paymentReturn, setPaymentReturn] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [viewer, setViewer] = useState(null)
+  const [registrationNotice] = useState(readRegistrationNotice)
+  const [verificationResending, setVerificationResending] = useState(false)
+  const [verificationResent, setVerificationResent] = useState('')
   const [heroRun, setHeroRun] = useState(0)
   const heroRef = useRef(null)
   const heroSquareRef = useRef(null)
@@ -160,7 +174,10 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
   useEffect(() => {
     api('/pricing').then(setPricing).catch((error) => setPricingError(error.message))
-    api('/auth/me').then(({ user }) => setIsAdmin(user.role === 'super_admin')).catch(() => setIsAdmin(false))
+    api('/auth/me').then(({ user }) => {
+      setIsAdmin(user.role === 'super_admin')
+      setViewer(user)
+    }).catch(() => { setIsAdmin(false); setViewer(null) })
     const params = new URLSearchParams(window.location.search)
     if (params.get('payment') === 'return') {
       const reference = params.get('reference') || params.get('trxref') || ''
@@ -170,24 +187,19 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   }, [verifyPaymentReturn])
 
   const purchaseCourse = useCallback(async () => {
-    const email = checkoutEmail.trim()
-    if (!email) {
-      setPricingError('Enter your email address to continue with payment.')
-      return
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setPricingError('Enter a valid email address to continue with payment.')
+    if (!viewer || (viewer.role !== 'super_admin' && viewer.emailVerified === false)) {
+      setPricingError('Create your learner account, verify your email, and sign in before payment.')
       return
     }
     setPaymentBusy(true); setPricingError('')
     try {
-      const { authorizationUrl } = await api('/brianedev/payments/initialize-public', { method: 'POST', body: JSON.stringify({ email }) })
+      const { authorizationUrl } = await api('/brianedev/payments/initialize', { method: 'POST' })
       window.location.assign(authorizationUrl)
     } catch (error) {
       setPaymentBusy(false)
       setPricingError(error.message)
     }
-  }, [checkoutEmail])
+  }, [viewer])
   const regionalPrice = pricing ? {
     ...plans[0],
     price: new Intl.NumberFormat(pricing.currency === 'NGN' ? 'en-NG' : undefined, { style: 'currency', currency: pricing.currency, maximumFractionDigits: 2 }).format(pricing.currentPrice),
@@ -196,6 +208,55 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
     discountLabel: pricing.promotionActive ? `${pricing.discountType === 'percentage' ? pricing.discountValue : Math.round(pricing.discount / pricing.originalPrice * 100)}% OFF` : '',
     promotionDates: getPromotionDateRange(pricing.startDate, pricing.endDate),
   } : null
+
+  async function resendRegistrationVerification() {
+    if (!registrationNotice?.email) return
+    setVerificationResending(true)
+    setVerificationResent('')
+    try {
+      const result = await api('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email: registrationNotice.email }) })
+      setVerificationResent(result.message)
+    } catch (error) {
+      setVerificationResent(error.message)
+    } finally {
+      setVerificationResending(false)
+    }
+  }
+
+  const canPurchase = Boolean(viewer && (viewer.role === 'super_admin' || viewer.emailVerified !== false))
+  const pricingCheckout = regionalPrice ? <div className="pricing-grid">
+    <div className="pricing-checkout">
+      {canPurchase
+        ? <p className="pricing-account-email">Purchasing as <strong>{viewer.email}</strong></p>
+        : <div className="pricing-account-prompt"><strong>{registrationNotice ? 'Verify your email and sign in to continue.' : 'Create your account before checkout.'}</strong><span>Your course purchase will be linked directly to your learner account.</span><div>{!registrationNotice && <a href="/learn/register">Create account</a>}<a href="/learn/login?returnTo=%2Fpricing">Sign in</a></div></div>}
+      <PricingCard item={{ ...regionalPrice, action: 'Pay and continue' }} selected busy={paymentBusy} error={pricingError} disabled={!canPurchase} onSelect={purchaseCourse}/>
+    </div>
+  </div> : <div className="pricing-grid"><p className="pricing-error" role="alert">{pricingError || 'Loading current Nigerian pricing…'}</p></div>
+  const paymentStatus = paymentReturn && <div className={`payment-message payment-message-${paymentReturn.state}`} role={paymentReturn.state === 'error' ? 'alert' : 'status'}>{paymentReturn.message}{paymentReturn.state !== 'confirmed' && <button type="button" className="payment-retry" onClick={() => verifyPaymentReturn(paymentReturn.reference)} disabled={paymentReturn.state === 'checking'}>{paymentReturn.state === 'checking' ? 'Checking…' : 'Retry verification'}</button>}{paymentReturn.state === 'confirmed' && <a className="button button-primary" href="/learn/login?returnTo=%2Flearn">Sign in to open your dashboard</a>}</div>
+  const registrationStatus = registrationNotice && <div className="payment-message" role="status">
+    <strong>Account request received{registrationNotice.email ? ` for ${registrationNotice.email}` : ''}.</strong>
+    <p>{registrationNotice.delivery === 'accepted'
+      ? 'A verification email was accepted for delivery. Verify your address, then sign in here to complete payment.'
+      : registrationNotice.delivery === 'failed' || registrationNotice.delivery === 'not_configured'
+        ? 'Email verification could not be sent. Check your mail configuration and request a new verification link below.'
+        : 'If this address is eligible for a new account, check its inbox for a verification link. After verification, sign in here to complete payment.'}</p>
+    {registrationNotice.email && registrationNotice.delivery !== 'accepted' && <button type="button" className="button button-secondary" disabled={verificationResending} onClick={resendRegistrationVerification}>{verificationResending ? 'Sending…' : 'Resend verification email'}</button>}
+    {verificationResent && <p>{verificationResent}</p>}
+  </div>
+
+  if (isPricingPage) return <div className="site-shell" data-theme={theme}>
+    <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
+    <main className="pricing-page-main">
+      <section id="pricing" className="pricing-section section-wrap section-block">
+        <div className="center-heading"><span className="eyebrow">ACCOUNT / COURSE ACCESS</span><h1>Course pricing</h1><p>Create and verify your learner account first. After payment is confirmed, sign in to open your course dashboard.</p></div>
+        {registrationStatus}
+        {paymentStatus}
+        {pricingCheckout}
+        <p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> Narration</p>
+      </section>
+    </main>
+    <footer className="site-footer section-wrap"><Brand/><span>Practical AI workflows for software engineers</span><div><a href="/">HOME</a><a href="/course/ai-powered-developer-productivity">COURSE</a><a href="/about">ABOUT</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer>
+  </div>
 
   if (isCourseLanding) return <div className="site-shell" data-theme={theme}>
     <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin} isCoursePage/>
@@ -237,9 +298,9 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
       </section>
 
       <section id="pricing" className="pricing-section section-wrap section-block">
-        <div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Pay first, then create your learner account with the same email address.</p></div>
-        {paymentReturn && <div className={`payment-message payment-message-${paymentReturn.state}`} role={paymentReturn.state === 'error' ? 'alert' : 'status'}>{paymentReturn.message}{paymentReturn.state !== 'confirmed' && <button type="button" className="payment-retry" onClick={() => verifyPaymentReturn(paymentReturn.reference)} disabled={paymentReturn.state === 'checking'}>{paymentReturn.state === 'checking' ? 'Checking…' : 'Retry verification'}</button>}{paymentReturn.state === 'confirmed' && <a className="button button-primary" href="/learn/register">Create your learner account</a>}</div>}
-        <div className="pricing-grid">{regionalPrice ? <div className="pricing-checkout"><label>Email for course access<input type="email" value={checkoutEmail} onChange={(event) => setCheckoutEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com"/></label><PricingCard item={{...regionalPrice, action: 'Pay and continue'}} selected busy={paymentBusy} error={pricingError} onSelect={purchaseCourse}/></div> : <p className="pricing-error" role="alert">{pricingError || 'Loading current Nigerian pricing…'}</p>}</div>
+        <div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Create and verify your learner account first, then sign in to complete payment.</p></div>
+        {paymentStatus}
+        {pricingCheckout}
         <p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> Narration</p>
       </section>
 
@@ -331,7 +392,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
           <div className="method-grid course-format-grid">{courseFormats.map((format, index) => <article key={format.title}><span>CONTENT FORMAT {String(index + 1).padStart(2, '0')}</span><h3>{format.title}</h3><p>{format.description}</p></article>)}</div>
           <div className="course-content-notes"><article><span className="eyebrow">LEARNING APPROACH</span><p>Every lesson connects the <strong>concept</strong>, the <strong>software context</strong>, and the <strong>engineering reasoning</strong> behind the workflow.</p><p>Read the explanation. Examine the code. Study the AI interaction. Understand the reasoning. Then adapt the approach to your own development work.</p></article><article><span className="eyebrow">AUDIO NARRATION</span><h3>Prefer to listen while reviewing?</h3><p>TTS narration gives you another way to consume the written lessons while keeping the complete technical content available for deeper reading.</p></article></div>
         </section>
-        <section id="pricing" className="pricing-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Pay first, then create your learner account with the same email address.</p></div>{paymentReturn && <div className={`payment-message payment-message-${paymentReturn.state}`} role={paymentReturn.state === 'error' ? 'alert' : 'status'}>{paymentReturn.message}{paymentReturn.state !== 'confirmed' && <button type="button" className="payment-retry" onClick={() => verifyPaymentReturn(paymentReturn.reference)} disabled={paymentReturn.state === 'checking'}>{paymentReturn.state === 'checking' ? 'Checking…' : 'Retry verification'}</button>}{paymentReturn.state === 'confirmed' && <a className="button button-primary" href="/learn/register">Create your learner account</a>}</div>}<div className="pricing-grid">{regionalPrice ? <div className="pricing-checkout"><label>Email for course access<input type="email" value={checkoutEmail} onChange={(event) => setCheckoutEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com"/></label><PricingCard item={{...regionalPrice, action:'Pay and continue'}} selected busy={paymentBusy} error={pricingError} onSelect={purchaseCourse}/></div> : <p className="pricing-error" role="alert">{pricingError || 'Loading current Nigerian pricing…'}</p>}</div><p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> TTS narration</p></section>
+        <section id="pricing" className="pricing-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">ACCESS / ENROLLMENT</span><h2>Individual Course Access</h2><p>Create and verify your learner account first, then sign in to complete payment.</p></div>{paymentStatus}{pricingCheckout}<p className="pricing-note"><Icon name="lock" size={13}/> Pay securely with Paystack. Available to customers in Nigeria. <span>·</span> Course access <span>·</span> Written lessons <span>·</span> AI prompts and workflows <span>·</span> TTS narration</p></section>
 
         <section id="faq" className="faq-section section-wrap section-block"><div className="center-heading"><span className="eyebrow">FAQ</span><h2>Frequently Asked Inquiries</h2><p>Clear answers about the curriculum, learning format, and access.</p></div><FaqList items={questions} openIndex={openFaq} onToggle={setOpenFaq}/></section>
 
@@ -386,6 +447,7 @@ function App() {
   else if (path === '/about') page = <><PublicPageMetadata path={path}/><BusinessPages page="about" /></>
   else if (path === '/services') page = <><PublicPageMetadata path={path}/><BusinessPages page="services" /></>
   else if (path === '/privacy') page = <><PublicPageMetadata path={path}/><BusinessPages page="privacy" /></>
+  else if (path === '/pricing') page = <LandingPage metadataPath={path} isPricingPage />
   else if (path === '/course/ai-powered-developer-productivity') page = <CoursePage />
   else if (path === '/contact') page = <><PublicPageMetadata path={path}/><BusinessPages page="contact" /></>
   else if (path === '/quote') page = <><PublicPageMetadata path={path}/><BusinessPages page="quote" /></>

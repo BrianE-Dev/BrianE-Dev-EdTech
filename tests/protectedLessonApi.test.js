@@ -716,7 +716,10 @@ test('learner login, invalid credentials, registration role isolation, and admin
 
   const paymentCountBeforeRegistration = paymentRows.size
   const unpaidSignup = await apiJson('/auth/register', { method: 'POST', headers: { 'x-forwarded-for': '192.0.2.88' }, body: { name: 'Unpaid Learner', email: 'unpaid@example.test', password: 'unpaid-learner-password' } })
-  assert.equal(unpaidSignup.status, 403)
+  assert.equal(unpaidSignup.status, 201)
+  const unpaidAccount = [...userRows.values()].find((user) => user.email === 'unpaid@example.test')
+  assert.equal(unpaidAccount.emailVerified, false)
+  assert.equal(paymentRows.size, paymentCountBeforeRegistration)
   paid = true
   const registration = await apiJson('/auth/register', {
     method: 'POST',

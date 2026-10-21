@@ -86,11 +86,9 @@ router.post('/auth/register', async (req, res) => {
   const input = schema.parse(req.body)
   const existingUser = await User.findOne({ email: input.email }).select('_id emailVerified')
   if (existingUser) return res.status(202).json({ verificationRequired: true, emailDelivery: mailStatus(), message: 'If an eligible account needs verification, instructions can be requested from the sign-in page.' })
-  const paidAccess = await Payment.findOne({ application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, productType: 'course', status: { $in: ['paid', 'successful'] }, checkoutEmail: input.email })
-  if (!paidAccess) return res.status(403).json({ error: 'Complete payment successfully with this email before creating your learner account.' })
   const country = (req.get('cf-ipcountry') !== 'XX' && req.get('cf-ipcountry')) || req.get('x-vercel-ip-country')
   const user = await User.create({ name: input.name, email: input.email, emailVerified: false, passwordHash: await bcrypt.hash(input.password, 12), country: /^[A-Z]{2}$/i.test(country || '') ? country.toUpperCase() : undefined, currency: country?.toUpperCase() === 'NG' ? 'NGN' : 'USD' })
-  await Payment.updateMany({ $or: [{ checkoutEmail: input.email }, ...(existingUser ? [{ user: existingUser._id }] : [])], application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, status: { $in: ['paid', 'successful'] } }, { $set: { user: user._id, checkoutEmail: input.email } })
+  await Payment.updateMany({ checkoutEmail: input.email, application: 'brianedev', environment: getPaystackConfig().appEnvironment, productId: COURSE_PRODUCT_ID, productType: 'course', status: { $in: ['paid', 'successful'] } }, { $set: { user: user._id, checkoutEmail: input.email } })
   const verificationToken = await issueSecurityToken(user, 'verify')
   let delivery
   try { delivery = await sendSecurityEmail(user, 'verify', verificationToken) } catch { delivery = { state: 'failed', errorCode: 'EMAIL_CONFIGURATION_INVALID' } }
@@ -302,7 +300,7 @@ async function initializeCoursePayment(req, res) {
   try {
     const transaction = await initializeTransaction({
       email: req.user.email, amount: Math.round(price.currentPrice * 100), currency: price.currency, reference,
-      callback_url: `${process.env.CLIENT_URL}/?payment=return`,
+      callback_url: `${process.env.CLIENT_URL}/pricing?payment=return`,
       metadata: {
         ...metadata,
         course_id: String(course.id),
@@ -324,6 +322,8 @@ router.post('/brianedev/payments/initialize-public', async (req, res) => {
   const course = await Course.findOne({ slug: COURSE_SLUG, published: true })
   if (!course) return res.status(404).json({ error: 'Course not found' })
   const existingUser = await User.findOne({ email: input.email })
+  if (!existingUser) return res.status(403).json({ error: 'Create a learner account before purchasing course access.', code: 'ACCOUNT_REQUIRED' })
+  if (existingUser.role !== 'super_admin' && existingUser.emailVerified === false) return res.status(403).json({ error: 'Verify your email and sign in before purchasing course access.', code: 'EMAIL_VERIFICATION_REQUIRED' })
   if (existingUser && await Payment.exists({ user: existingUser._id, course: course._id, status: { $in: ['paid', 'successful'] }, application: 'brianedev', environment: appEnvironment })) return res.status(409).json({ error: 'This email already has course access. Please sign in.' })
   const config = await Pricing.findOne({ region: 'NG' })
   if (!config || config.currency !== 'NGN') return res.status(503).json({ error: 'Nigerian pricing is not configured' })
@@ -332,7 +332,7 @@ router.post('/brianedev/payments/initialize-public', async (req, res) => {
   const metadata = { application: 'brianedev', application_name: 'BrianE-Dev', product_type: 'course', product_id: COURSE_PRODUCT_ID, product_name: course.title, checkout_email: input.email, region: 'nigeria', currency: price.currency, environment: appEnvironment, source: 'brianedev_web' }
   const payment = await Payment.create({ application: 'brianedev', environment: appEnvironment, provider: 'paystack', productType: 'course', productId: COURSE_PRODUCT_ID, productName: course.title, checkoutEmail: input.email, ...(existingUser ? { user: existingUser._id } : {}), course: course._id, reference, paystackReference: reference, amount: price.currentPrice, currency: price.currency, originalPrice: price.originalPrice, originalAmount: price.originalPrice, discount: price.discount, discountAmount: price.discount, discountType: price.discountType, discountValue: price.discountValue, pricingId: config._id, region: 'NG', metadata })
   try {
-    const transaction = await initializeTransaction({ email: input.email, amount: Math.round(price.currentPrice * 100), currency: price.currency, reference, callback_url: `${process.env.CLIENT_URL}/?payment=return`, metadata: { ...metadata, course_id: String(course._id) } })
+    const transaction = await initializeTransaction({ email: input.email, amount: Math.round(price.currentPrice * 100), currency: price.currency, reference, callback_url: `${process.env.CLIENT_URL}/pricing?payment=return`, metadata: { ...metadata, course_id: String(course._id) } })
     res.json({ authorizationUrl: transaction.authorization_url, reference })
   } catch (error) { payment.status = 'failed'; await payment.save(); throw error }
 })

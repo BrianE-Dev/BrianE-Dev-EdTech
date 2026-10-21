@@ -12,6 +12,7 @@
     { "source": "/course/ai-powered-developer-productivity", "destination": "/course/ai-powered-developer-productivity/index.html" },
     { "source": "/about", "destination": "/about/index.html" },
     { "source": "/services", "destination": "/services/index.html" },
+    { "source": "/pricing", "destination": "/pricing/index.html" },
     { "source": "/contact", "destination": "/contact/index.html" },
     { "source": "/quote", "destination": "/quote/index.html" },
     { "source": "/privacy", "destination": "/privacy/index.html" },

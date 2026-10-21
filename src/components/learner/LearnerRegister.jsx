@@ -1,31 +1,15 @@
-﻿import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Brand from '../Brand.jsx'
-import { api, registerLearner } from '../../services/api.js'
+import { registerLearner } from '../../services/api.js'
 
 function safeReturnPath(value) {
-  return typeof value === 'string' && (/^\/#pricing(?:[?].*)?$/.test(value) || /^\/(learn|courses\/[^/]+\/learn\/chapter-[a-z0-9-]+)(?:[/?#]|$)/.test(value)) ? value : '/learn'
+  return typeof value === 'string' && (/^\/#pricing(?:[?].*)?$/.test(value) || /^\/pricing(?:[/?#]|$)/.test(value) || /^\/(learn|courses\/[^/]+\/learn\/chapter-[a-z0-9-]+)(?:[/?#]|$)/.test(value)) ? value : '/learn'
 }
 
 export default function LearnerRegister() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [verificationPending, setVerificationPending] = useState(null)
-  const [resending, setResending] = useState(false)
-  const [paymentReady, setPaymentReady] = useState(false)
-  const [reference] = useState(() => {
-    const params = new URLSearchParams(window.location.search)
-    return params.get('reference') || params.get('trxref') || sessionStorage.getItem('briane-dev-paid-reference')
-  })
-  const [checkingPayment, setCheckingPayment] = useState(() => Boolean(reference))
   const returnTo = safeReturnPath(new URLSearchParams(window.location.search).get('returnTo'))
-
-  useEffect(() => {
-    if (!reference) return
-    api('/brianedev/payments/verify-public', { method: 'POST', body: JSON.stringify({ reference }) })
-      .then((result) => setPaymentReady(result.status === 'paid'))
-      .catch(() => setPaymentReady(false))
-      .finally(() => { setCheckingPayment(false); window.history.replaceState({}, '', window.location.pathname) })
-  }, [reference])
 
   async function submit(event) {
     event.preventDefault()
@@ -33,24 +17,12 @@ export default function LearnerRegister() {
     setError('')
     const form = new FormData(event.currentTarget)
     try {
-      const result = await registerLearner(form.get('name'), form.get('email'), form.get('password'))
-      sessionStorage.removeItem('briane-dev-paid-reference')
-      setVerificationPending({ email: form.get('email'), delivery: result.emailDelivery?.state || 'unknown', message: result.message || '' })
+      const email = String(form.get('email') || '').trim().toLowerCase()
+      const result = await registerLearner(form.get('name'), email, form.get('password'))
+      sessionStorage.setItem('briane-dev-registration-notice', JSON.stringify({ email, delivery: result.emailDelivery?.state || 'unknown' }))
+      window.location.assign('/pricing?registered=1')
     } catch (requestError) { setError(requestError.message) }
     finally { setBusy(false) }
-  }
-
-  async function resendVerification() {
-    setResending(true)
-    setError('')
-    try {
-      await api('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email: verificationPending.email }) })
-      setVerificationPending((current) => ({ ...current, delivery: 'accepted' }))
-    } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setResending(false)
-    }
   }
 
   return <main className="learner-auth-page">
@@ -61,36 +33,14 @@ export default function LearnerRegister() {
     <section className="learner-auth-card">
       <span className="eyebrow">BRIANE-DEV / LEARNER ACCESS</span>
       <h1>Create your learner account</h1>
-      <p>Complete course payment with this email address first. Once payment succeeds, create your account to enter the full 43-chapter learning space.</p>
-      {checkingPayment && <p role="status">Verifying your payment…</p>}
-      {!checkingPayment && !paymentReady && <div className="learner-error" role="status">
-        <strong>Payment required before signup.</strong>
-        <p>Pay for the course using the same email address, then return here to create your account.</p>
-        <a className="button button-primary" href="/#pricing">Go to course payment</a>
-      </div>}
-      {paymentReady && verificationPending && <div className="learner-error" role="status">
-        <strong>Check your email to verify your account.</strong>
-        <p>{verificationPending.delivery === 'accepted'
-          ? `The email service accepted a verification message for ${verificationPending.email}. Check your inbox and spam folder; the link expires after 24 hours.`
-          : verificationPending.delivery === 'not_configured' || verificationPending.delivery === 'failed'
-            ? `We could not send a verification message to ${verificationPending.email}. You can retry below after email delivery is available.`
-            : 'If an account was eligible for registration, check its inbox for a verification link. Existing accounts can sign in.'}</p>
-        <button
-          type="button"
-          className="button button-primary"
-          disabled={resending}
-          onClick={resendVerification}
-        >{resending ? 'Sending…' : 'Resend verification email'}</button>
-        {error && <p role="alert">{error}</p>}
-        <p><a href={`/learn/login?returnTo=${encodeURIComponent(returnTo)}`}>Return to sign in</a></p>
-      </div>}
-      {paymentReady && !verificationPending && <form onSubmit={submit}>
+      <p>Create your account first so you can verify your email. After verification, sign in to complete payment and unlock the course dashboard.</p>
+      <form onSubmit={submit}>
         <label>Name<input type="text" name="name" autoComplete="name" minLength="2" maxLength="120" required /></label>
         <label>Email address<input type="email" name="email" autoComplete="email" required /></label>
         <label>Password<input type="password" name="password" autoComplete="new-password" minLength="10" maxLength="128" required /></label>
         {error && <p className="learner-error" role="alert">{error}</p>}
         <button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
-      </form>}
+      </form>
       <p className="learner-auth-switch">Already registered? <a href={`/learn/login?returnTo=${encodeURIComponent(returnTo)}`}>Sign in</a></p>
     </section>
   </main>
