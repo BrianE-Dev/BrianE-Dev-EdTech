@@ -237,18 +237,23 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
 function MotionPage({ children }) {
   useLayoutEffect(() => {
-    if ((typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || typeof window.IntersectionObserver !== 'function') return undefined
+    if (typeof window.IntersectionObserver !== 'function') return undefined
     const sections = []
     document.querySelectorAll?.('.section-block, .feature-band, .home-services, .final-cta, .course-detail-page, .business-hero, .business-services, .business-process, .privacy-content')?.forEach((section) => sections.push(section))
     if (!sections.length) return undefined
     let observer
     try {
-      observer = new window.IntersectionObserver((entries, activeObserver) => {
+      observer = new window.IntersectionObserver((entries) => {
         if (!Array.isArray(entries)) return
         entries.forEach((entry) => {
-          if (!entry.isIntersecting) return
-          entry.target.classList.add('whip-section-visible')
-          activeObserver.unobserve(entry.target)
+          if (entry.isIntersecting) {
+            entry.target.classList.remove('whip-section-visible')
+            // Restart the entrance animation on every viewport entry.
+            void entry.target.offsetWidth
+            entry.target.classList.add('whip-section-visible')
+          } else {
+            entry.target.classList.remove('whip-section-visible')
+          }
         })
       }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
       sections.forEach((section, index) => {
@@ -258,7 +263,7 @@ function MotionPage({ children }) {
       })
     } catch {
       observer?.disconnect()
-      sections.forEach((section) => section.classList.add('whip-section-visible'))
+      sections.forEach((section) => section.classList.remove('whip-section'))
     }
     return () => observer?.disconnect()
   }, [])
