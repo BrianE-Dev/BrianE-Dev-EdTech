@@ -174,11 +174,11 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
         <section id="home-services" className="home-services section-wrap" aria-labelledby="home-services-title">
           <div className="home-services-heading"><div><span className="eyebrow">BRIANE-DEV / DIGITAL SERVICES</span><h2 id="home-services-title">Digital services for your next idea.</h2><p>Explore practical web, commerce, and software solutions for your business.</p></div><a className="button button-secondary" href="/services">Explore all services <Icon name="arrow" size={15}/></a></div>
-          <a className="home-services-feature" href="/services"><img src="/course-hero.png" alt="Software developer working with digital tools across multiple screens"/><span className="home-services-overlay"/><span className="home-services-copy"><span className="eyebrow">WEBSITE DESIGN / E-COMMERCE / WEB APPLICATIONS</span><strong>Build a better digital experience for your business.</strong><span className="button button-primary">Discover our services <Icon name="arrow" size={15}/></span></span></a>
+          <a className="home-services-feature" href="/services"><img src="/theme00.jfif" alt="Digital workspace for building business experiences"/><span className="home-services-overlay"/><span className="home-services-copy"><span className="eyebrow">WEBSITE DESIGN / E-COMMERCE / WEB APPLICATIONS</span><strong>Build a better digital experience for your business.</strong><span className="button button-primary">Discover our services <Icon name="arrow" size={15}/></span></span></a>
           <div className="home-services-tiles">
-            <a href="/services"><img src="/service-websites.svg" alt="Website layout preview showing a clear landing page design"/><strong>Websites & landing pages</strong><span>Clear paths from first visit to action</span></a>
-            <a href="/services"><img src="/service-commerce.svg" alt="Online shop interface with products and a checkout flow"/><strong>Commerce & custom apps</strong><span>Digital tools designed around your work</span></a>
-            <a href="/services"><img src="/service-integrations.svg" alt="Connected software services represented as an integration workflow"/><strong>Integrations & support</strong><span>Connect systems and keep them improving</span></a>
+            <a href="/services"><img src="/theme01.jfif" alt="Website design project"/><strong>Websites & landing pages</strong><span>Clear paths from first visit to action</span></a>
+            <a href="/services"><img src="/theme02.jfif" alt="Commerce and custom application project"/><strong>Commerce & custom apps</strong><span>Digital tools designed around your work</span></a>
+            <a href="/services"><img src="/theme03.jfif" alt="Software integrations and support project"/><strong>Integrations & support</strong><span>Connect systems and keep them improving</span></a>
           </div>
         </section>
 
