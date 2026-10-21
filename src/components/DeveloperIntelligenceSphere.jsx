@@ -27,6 +27,7 @@ export default function DeveloperIntelligenceSphere() {
     let startedAt = 0
     let width = 1
     let height = 1
+    const entranceDuration = 0.8
     const pointer = new THREE.Vector2()
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     const scene = new THREE.Scene()
@@ -103,7 +104,7 @@ export default function DeveloperIntelligenceSphere() {
     function render(now) {
       if (disposed || !visible) return
       const elapsed = reducedMotion.matches ? 0 : (now - startedAt) / 1000
-      const progress = reducedMotion.matches ? 1 : Math.min(elapsed / 1.4, 1)
+      const progress = reducedMotion.matches ? 1 : Math.min(elapsed / entranceDuration, 1)
       const eased = 1 - ((1 - progress) ** 3)
       // Keep the mesh fixed in size; the entrance is handled by the hero layout.
       root.scale.setScalar(1)
@@ -144,7 +145,7 @@ export default function DeveloperIntelligenceSphere() {
       if (!visible) return
       window.cancelAnimationFrame(frame)
       if (reducedMotion.matches) render(performance.now())
-      else { startedAt = performance.now() - 1400; frame = window.requestAnimationFrame(render) }
+      else { startedAt = performance.now() - entranceDuration * 1000; frame = window.requestAnimationFrame(render) }
     }
     function onContextLost(event) { event.preventDefault(); stop(); host.dataset.fallback = 'true' }
 
