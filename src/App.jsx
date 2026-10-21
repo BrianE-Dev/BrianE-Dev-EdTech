@@ -182,15 +182,16 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
 
         <section id="preview" className="course-preview-section section-wrap section-block" aria-labelledby="course-preview-title">
           <div className="course-preview-copy">
-            <span className="eyebrow">START HERE / FREE COURSE PREVIEW</span>
-            <h2 id="course-preview-title">See how the course teaches.</h2>
-            <p>Open the free Chapter 1 preview to read a real lesson and try its narration controls before enrolling.</p>
-            <a className="text-link" href="/course/ai-powered-developer-productivity">Explore the Course <Icon name="arrow" size={15}/></a>
+            <span className="eyebrow"><span className="preview-live-dot"/> YOUR FIRST LESSON IS FREE</span>
+            <h2 id="course-preview-title">Meet your new AI pair programmer.</h2>
+            <p>See how thoughtful engineers use AI without handing over the thinking. Read the opening lesson, explore a practical workflow, and try the narration controls.</p>
+            <div className="course-preview-proof"><span><Icon name="check" size={14}/> Real lesson, no signup</span><span><Icon name="headphones" size={14}/> Read or listen</span></div>
+            <a className="text-link" href="/course/ai-powered-developer-productivity">Explore the full course <Icon name="arrow" size={15}/></a>
           </div>
-          <a className="course-preview-card" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">
-            <span className="course-preview-card-label"><Icon name="book" size={14}/> CHAPTER 1 / FREE PREVIEW</span>
-            <strong>The AI-Assisted Developer</strong>
-            <span>Open Chapter 1 and try narration <Icon name="arrow" size={14}/></span>
+          <a className="course-preview-card" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer" aria-label="Open the free preview: The AI-Assisted Developer">
+            <span className="course-preview-card-top"><span className="course-preview-card-label"><Icon name="book" size={14}/> CHAPTER 01</span><span className="course-preview-free">FREE</span></span>
+            <span className="course-preview-window"><span className="course-preview-window-bar"><i/><i/><i/><span>BRIANE-DEV / COURSE PLAYER</span></span><span className="course-preview-window-content"><span className="eyebrow">AI-POWERED DEVELOPER PRODUCTIVITY</span><strong>The AI-Assisted Developer</strong><span className="course-preview-play"><Icon name="play" size={19}/></span></span><span className="course-preview-progress"><i/></span></span>
+            <span className="course-preview-card-action">Step inside the lesson <Icon name="arrow" size={14}/></span>
           </a>
         </section>
 
