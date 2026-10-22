@@ -19,23 +19,41 @@ export function getMailConfiguration() {
   return { configured: missing.length === 0, missing }
 }
 
+export function safeSmtpDiagnostic(error) {
+  const code = /^[A-Z0-9_]{1,40}$/.test(error?.code || '') ? error.code : ''
+  const responseCode = Number.isInteger(Number(error?.responseCode)) ? Number(error.responseCode) : undefined
+  const command = typeof error?.command === 'string' && /^[A-Z][A-Z0-9_ ]{0,39}$/i.test(error.command) ? error.command : undefined
+  // SMTP responses can echo addresses or server details; keep diagnostics bounded and scrub address-like values.
+  const message = String(error?.message || 'SMTP operation failed')
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[address]')
+    .replace(/(?:password|pass|auth(?:entication)?|token|credential)s?\s*[:=]?\s*[^\s,;]+/gi, '[redacted]')
+    .replace(/\s+/g, ' ').trim().slice(0, 240)
+  return { ...(code ? { errorCode: code } : {}), ...(command ? { command } : {}), ...(responseCode ? { responseCode } : {}), errorMessage: message }
+}
+
+export function smtpTransportOptions(env = process.env) {
+  const port = Number(env.SMTP_PORT || 465)
+  const secure = env.SMTP_SECURE ? env.SMTP_SECURE.toLowerCase() === 'true' : port === 465
+  return {
+    host: env.SMTP_HOST,
+    port,
+    secure,
+    requireTLS: port === 587 && !secure,
+    auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+  }
+}
+
 function getTransport() {
   const config = getMailConfiguration()
   if (!config.configured) return null
-  const port = Number(process.env.SMTP_PORT || 465)
-  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE.toLowerCase() === 'true' : port === 465
+  const options = smtpTransportOptions()
+  const { port, secure } = options
   const key = [process.env.SMTP_HOST, port, secure, process.env.SMTP_USER, process.env.SMTP_PASSWORD].join('|')
   if (!cachedTransport || cachedTransportKey !== key) {
-    cachedTransport = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure,
-      requireTLS: port === 587 && !secure,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 20000,
-    })
+    cachedTransport = nodemailer.createTransport(options)
     cachedTransportKey = key
   }
   return cachedTransport
@@ -80,8 +98,9 @@ export async function sendEmail({ to, subject, html, text, messageId }) {
     const accepted = Array.isArray(result.accepted) && result.accepted.length > 0
     return { state: accepted ? 'accepted' : 'failed', accepted, messageId: result.messageId || '', errorCode: accepted ? '' : 'SMTP_RECIPIENT_REJECTED' }
   } catch (error) {
-    const errorCode = /^[A-Z0-9_]{1,40}$/.test(error?.code || '') ? error.code : 'SMTP_SEND_FAILED'
-    console.error(JSON.stringify({ event: 'transactional_email_failed', errorCode }))
+    const diagnostic = safeSmtpDiagnostic(error)
+    const errorCode = diagnostic.errorCode || 'SMTP_SEND_FAILED'
+    console.error(JSON.stringify({ event: 'transactional_email_failed', ...diagnostic }))
     return { state: 'failed', accepted: false, errorCode }
   }
 }
