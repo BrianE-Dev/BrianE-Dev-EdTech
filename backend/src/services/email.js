@@ -19,6 +19,25 @@ export function getMailConfiguration() {
   return { configured: missing.length === 0, missing }
 }
 
+export function safeMailConfigurationDiagnostic(env = process.env) {
+  const port = Number(env.SMTP_PORT || 465)
+  const secure = env.SMTP_SECURE ? env.SMTP_SECURE.toLowerCase() === 'true' : port === 465
+  const user = env.SMTP_USER?.trim() || ''
+  return {
+    smtpHost: /^[A-Za-z0-9.-]{1,253}$/.test(env.SMTP_HOST || '') ? env.SMTP_HOST : (env.SMTP_HOST ? '[configured]' : ''),
+    smtpPort: Number.isInteger(port) ? port : 'invalid',
+    smtpSecure: secure,
+    hasUser: Boolean(user),
+    hasPassword: Boolean(env.SMTP_PASSWORD?.trim()),
+    sender: senderAddress,
+    userMatchesSender: user.toLowerCase() === senderAddress,
+  }
+}
+
+function logMailConfigurationFailure(event, extra = {}) {
+  console.error(JSON.stringify({ event, ...safeMailConfigurationDiagnostic(), ...extra }))
+}
+
 export function safeSmtpDiagnostic(error) {
   const code = /^[A-Z0-9_]{1,40}$/.test(error?.code || '') ? error.code : ''
   const responseCode = Number.isInteger(Number(error?.responseCode)) ? Number(error.responseCode) : undefined
@@ -84,7 +103,11 @@ export function createSecurityEmailContent(kind, token, name = '') {
 
 export async function sendEmail({ to, subject, html, text, messageId }) {
   const transport = getTransport()
-  if (!transport) return { state: 'not_configured', accepted: false, missing: getMailConfiguration().missing }
+  if (!transport) {
+    const missing = getMailConfiguration().missing
+    logMailConfigurationFailure('transactional_email_not_configured', { missing })
+    return { state: 'not_configured', accepted: false, missing }
+  }
   try {
     const result = await transport.sendMail({
       from: { name: senderName, address: senderAddress },
@@ -96,11 +119,12 @@ export async function sendEmail({ to, subject, html, text, messageId }) {
       ...(messageId ? { messageId } : {}),
     })
     const accepted = Array.isArray(result.accepted) && result.accepted.length > 0
+    if (!accepted) logMailConfigurationFailure('transactional_email_failed', { errorCode: 'SMTP_RECIPIENT_REJECTED' })
     return { state: accepted ? 'accepted' : 'failed', accepted, messageId: result.messageId || '', errorCode: accepted ? '' : 'SMTP_RECIPIENT_REJECTED' }
   } catch (error) {
     const diagnostic = safeSmtpDiagnostic(error)
     const errorCode = diagnostic.errorCode || 'SMTP_SEND_FAILED'
-    console.error(JSON.stringify({ event: 'transactional_email_failed', ...diagnostic }))
+    logMailConfigurationFailure('transactional_email_failed', { ...diagnostic })
     return { state: 'failed', accepted: false, errorCode }
   }
 }
@@ -109,7 +133,10 @@ export async function sendSecurityEmail(user, purpose, token) {
   try {
     const content = createSecurityEmailContent(purpose, token, user.name)
     return await sendEmail({ to: user.email, ...content })
-  } catch {
+  } catch (error) {
+    logMailConfigurationFailure('transactional_email_configuration_failed', {
+      errorCode: error instanceof TypeError ? 'EMAIL_CONFIGURATION_INVALID' : 'EMAIL_CONTENT_FAILED',
+    })
     return { state: 'failed', accepted: false, errorCode: 'EMAIL_CONFIGURATION_INVALID' }
   }
 }
