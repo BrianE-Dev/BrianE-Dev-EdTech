@@ -35,7 +35,7 @@ export default function EmailVerification() {
   return <main className="learner-auth-page"><header><a href="/"><Brand /></a><a href="/learn/login">Sign in</a></header><section className="learner-auth-card">
     <span className="eyebrow">ACCOUNT SECURITY</span>
     <h1>{state === 'checking' ? 'Verifying your email' : state === 'success' ? 'Email verified' : 'Verification link unavailable'}</h1>
-    {state === 'checking' ? <p role="status">Checking your verification link…</p> : <p role={state === 'invalid' ? 'alert' : 'status'}>{message || 'Open the latest verification email, or request a new link below.'}</p>}
+    {state === 'checking' ? <p role="status">Checking your verification link…</p> : <p role={state === 'invalid' ? 'alert' : 'status'}>{message || 'Check your inbox and Spam/Junk folder for the latest verification email, or request a new link below.'}</p>}
     {state !== 'success' && <form onSubmit={resend}><label>Email address<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label><button className="button button-primary" disabled={busy || resent}>{busy ? 'Sending…' : resent ? 'Request received' : 'Send a new verification link'}</button></form>}
     <p className="learner-auth-switch"><a href="/learn/login">Return to sign in</a></p>
   </section></main>

@@ -98,7 +98,10 @@ export function createSecurityEmailContent(kind, token, name = '') {
   const greeting = name ? `Hello ${name},` : 'Hello,'
   const text = `${greeting}\n\n${isVerification ? 'Please verify your email address to activate your BrianE-Dev learner account.' : 'We received a request to reset your BrianE-Dev password.'}\n\n${action}: ${url.href}\n\nThis link expires in ${expiry}. If you did not request this, you can ignore this message.`
   const html = `<div style="margin:0;background:#f3f6fb;padding:32px 12px;font-family:Arial,sans-serif;color:#17283e"><div style="max-width:560px;margin:auto;background:#fff;border:1px solid #dbe4ee;border-radius:8px;padding:30px"><p style="margin:0 0 22px;color:#087f9a;font-weight:700">BRIANE-DEV</p><h1 style="font-size:24px;margin:0 0 16px">${title}</h1><p>${escapeHtml(greeting)}</p><p>${isVerification ? 'Verify your email address to activate your learner account.' : 'We received a request to reset your account password.'}</p><p style="margin:26px 0"><a href="${escapeHtml(url.href)}" style="display:inline-block;padding:13px 18px;background:#06b6d4;color:#04151b;text-decoration:none;border-radius:4px;font-weight:700">${action}</a></p><p>This link expires in ${expiry}. If you did not make this request, you can ignore this email.</p><p style="font-size:12px;color:#64758a">${senderName} · <a href="${base}">briane-dev.online</a></p></div></div>`
-  return { subject: `BrianE-Dev: ${title}`, html, text }
+  const logoUrl = new URL('/branding/briane-dev-logo-light.png', base).href
+  const brandedHeader = `<div style="margin:0 0 22px;padding:0 0 16px;text-align:center;border-bottom:3px solid #7c3aed"><a href="${escapeHtml(base)}" style="display:inline-block;text-decoration:none"><img src="${escapeHtml(logoUrl)}" width="110" alt="BrianE-Dev" style="display:block;width:110px;height:auto;border:0"></a></div>`
+  const brandedHtml = html.replace('<p style="margin:0 0 22px;color:#087f9a;font-weight:700">BRIANE-DEV</p>', brandedHeader)
+  return { subject: `BrianE-Dev: ${title}`, html: brandedHtml, text }
 }
 
 export async function sendEmail({ to, subject, html, text, messageId }) {

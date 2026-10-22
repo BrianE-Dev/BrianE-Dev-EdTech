@@ -236,10 +236,10 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   const registrationStatus = registrationNotice && <div className="payment-message" role="status">
     <strong>Account request received{registrationNotice.email ? ` for ${registrationNotice.email}` : ''}.</strong>
     <p>{registrationNotice.delivery === 'accepted'
-      ? 'The mail server accepted the verification email for processing. Check your inbox and spam folder; this does not confirm inbox delivery. Verify your address, then sign in here to complete payment.'
+      ? 'The mail server accepted the verification email for processing. Check your inbox and Spam/Junk folder; this does not confirm inbox delivery. Verify your address, then sign in here to complete payment.'
       : registrationNotice.delivery === 'failed' || registrationNotice.delivery === 'not_configured'
         ? 'Email verification could not be sent. Check your mail configuration and request a new verification link below.'
-        : 'If this address is eligible for a new account, check its inbox for a verification link. After verification, sign in here to complete payment.'}</p>
+        : 'If this address is eligible for a new account, check its inbox and Spam/Junk folder for a verification link. After verification, sign in here to complete payment.'}</p>
     {registrationNotice.email && registrationNotice.delivery !== 'accepted' && <button type="button" className="button button-secondary" disabled={verificationResending} onClick={resendRegistrationVerification}>{verificationResending ? 'Sending…' : 'Resend verification email'}</button>}
     {verificationResent && <p>{verificationResent}</p>}
   </div>

@@ -318,6 +318,7 @@ h1,h2,h3 { font-family: var(--display); }
 .learner-auth-switch { margin-top: 20px; text-align: center; }
 .learner-auth-switch a,.learner-text-link { color: var(--cyan); }
 .learner-error,.reader-error { padding: 11px 13px; border: 1px solid rgba(239,119,119,.45); border-radius: 4px; color: #ffb7b7!important; background: rgba(156,39,39,.12); font-size: 12px; }
+.learner-error .learner-verification-hint { color: #b9e6e8!important; }
 .learner-header { width: 100%; min-height: 66px; padding: 10px max(20px,calc((100vw - 1180px)/2)); border-bottom: 1px solid var(--line); background: color-mix(in srgb,var(--surface) 88%,transparent); }
 .learner-header > div { display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 12px; }
 .learner-header button { padding: 7px 10px; border: 1px solid var(--line-bright); border-radius: 4px; background: var(--surface-raised); color: var(--text); cursor: pointer; }

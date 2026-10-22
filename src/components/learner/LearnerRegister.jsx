@@ -52,10 +52,10 @@ export default function LearnerRegister() {
       {registration ? <div className="payment-message" role="status">
         <strong>Account created for {registration.email}.</strong>
         <p>{registration.delivery === 'accepted'
-          ? 'The mail server accepted the verification email for processing. Check your inbox and spam folder; this does not confirm inbox delivery.'
+          ? 'The mail server accepted the verification email for processing. Check your inbox and Spam/Junk folder; this does not confirm inbox delivery.'
           : registration.delivery === 'failed' || registration.delivery === 'not_configured'
             ? 'Your account was created, but the verification email could not be sent. You do not need to register again; use the button below to request another link.'
-            : 'Your account request was received, but the email status was unclear. Check your inbox and spam folder, or request another link below.'}</p>
+            : 'Your account request was received, but the email status was unclear. Check your inbox and Spam/Junk folder, or request another link below.'}</p>
         <button className="button button-secondary" type="button" onClick={resendVerification} disabled={resending}>{resending ? 'Requesting…' : 'Resend verification email'}</button>
         {resendMessage && <p>{resendMessage}</p>}
         <p><a href="/learn/login">Continue to sign in</a></p>
