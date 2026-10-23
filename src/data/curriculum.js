@@ -148,7 +148,7 @@ export const curriculum = {
     { title: 'AI prompts and workflows', description: 'Review approaches for using AI to support development tasks.' },
     { title: 'Explanations', description: 'Understand the reasoning behind tools, decisions, and AI-assisted approaches.' },
     { title: 'Practical demonstrations', description: 'Follow demonstrations of AI use in software development contexts.' },
-    { title: 'TTS audio narration', description: 'Listen to lesson content while reviewing developer workflows.' },
+    { title: 'Audio narration', description: 'Listen to lesson content while reviewing developer workflows.' },
   ],
 }
 

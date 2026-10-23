@@ -120,7 +120,7 @@ export default function LessonTts({ fallbackMessage = '', onRetryGemini }) {
   }
 
   return <section className="reader-tts" aria-label="Lesson narration">
-    <div><strong>{fallbackMessage ? 'Browser narration' : 'Listen to this lesson'}</strong><span>{fallbackMessage || 'Audio is optional and does not affect completion.'}</span></div>
+    <div><strong>{fallbackMessage ? 'Audio narration' : 'Listen to this lesson'}</strong><span>{fallbackMessage || 'Audio is optional and does not affect completion.'}</span></div>
     {voices.length > 0 && <label className="reader-tts-voice">Voice
       <select value={selectedVoiceId} onChange={(event) => setSelectedVoiceId(event.target.value)} aria-label="Narration voice">
         <option value="">Choose a voice</option>
@@ -129,7 +129,7 @@ export default function LessonTts({ fallbackMessage = '', onRetryGemini }) {
     </label>}
     {state === 'playing' ? <button type="button" onClick={pause} aria-label="Pause narration">Pause</button> : <button type="button" onClick={play}>{state === 'paused' ? 'Resume' : 'Play'}</button>}
     {state !== 'idle' && <button className="reader-tts-stop" type="button" onClick={stop}>Stop</button>}
-    {onRetryGemini && <button type="button" onClick={onRetryGemini}>Try Gemini audio again</button>}
+    {onRetryGemini && <button type="button" onClick={onRetryGemini}>Try lesson audio again</button>}
     {voiceMessage && <span className="reader-tts-message" role="status">{voiceMessage}</span>}
     <span className="sr-only" aria-live="polite">{state === 'playing' ? 'Narration playing' : state === 'paused' ? 'Narration paused' : ''}</span>
   </section>
