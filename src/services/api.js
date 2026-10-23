@@ -40,22 +40,7 @@ export const getCourse = (slug) => api(`/courses/${encodeURIComponent(slug)}`)
 export const getCourseProgress = (courseId) => api(`/courses/${encodeURIComponent(courseId)}/progress`)
 export const getLesson = (courseId, chapterId) => api(`/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}`)
 export const getLessonPreview = (courseSlug, chapterId) => api(`/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(chapterId)}/preview`)
-export const getLessonAudioStatus = (courseId, chapterId) => api(
-  `/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/audio/status`,
-  { signal: AbortSignal.timeout(15000) },
-)
-export async function getLessonAudio(courseId, chapterId) {
-  const response = await fetch(`${API_URL}/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/audio`, { credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(90000) })
-  if (!response.ok) {
-    const body = await responseJson(response)
-    const error = new Error(typeof body?.error === 'string' ? body.error : 'Lesson audio could not be loaded')
-    error.status = response.status
-    error.code = body?.code
-    error.storageIssue = body?.storageIssue
-    throw error
-  }
-  return response.blob()
-}
+export const getLessonAudioUrl = (courseId, chapterId) => `${API_URL}/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/audio`
 export const updateLessonProgress = (courseId, chapterId, status) => api(
   `/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/progress`,
   { method: 'POST', body: jsonBody({ status }) },
