@@ -41,7 +41,7 @@ function getVisibleLessonText() {
   return text.split(/\n+/).map((line) => line.trim()).filter(Boolean).join('. ')
 }
 
-export default function LessonTts({ fallbackMessage = '' }) {
+export default function LessonTts({ fallbackMessage = '', onRetryGemini }) {
   const [state, setState] = useState('idle')
   const [voices, setVoices] = useState([])
   const [selectedVoiceId, setSelectedVoiceId] = useState('')
@@ -129,6 +129,7 @@ export default function LessonTts({ fallbackMessage = '' }) {
     </label>}
     {state === 'playing' ? <button type="button" onClick={pause} aria-label="Pause narration">Pause</button> : <button type="button" onClick={play}>{state === 'paused' ? 'Resume' : 'Play'}</button>}
     {state !== 'idle' && <button className="reader-tts-stop" type="button" onClick={stop}>Stop</button>}
+    {onRetryGemini && <button type="button" onClick={onRetryGemini}>Try Gemini audio again</button>}
     {voiceMessage && <span className="reader-tts-message" role="status">{voiceMessage}</span>}
     <span className="sr-only" aria-live="polite">{state === 'playing' ? 'Narration playing' : state === 'paused' ? 'Narration paused' : ''}</span>
   </section>

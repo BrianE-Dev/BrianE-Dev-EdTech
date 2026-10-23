@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getLessonAudio, getLessonAudioStatus } from '../../services/api.js'
+import { getLessonAudio } from '../../services/api.js'
 import LessonTts from './LessonTts.jsx'
 
 const playbackRates = [0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -12,7 +12,7 @@ function formatTime(seconds) {
 
 export default function LessonAudioPlayer({ courseId, chapterId }) {
   const audioRef = useRef(null)
-  const [status, setStatus] = useState('checking')
+  const [status, setStatus] = useState('ready')
   const [message, setMessage] = useState('')
   const [audioUrl, setAudioUrl] = useState('')
   const [playWhenReady, setPlayWhenReady] = useState(false)
@@ -21,19 +21,6 @@ export default function LessonAudioPlayer({ courseId, chapterId }) {
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(1)
   const [rate, setRate] = useState(1)
-
-  useEffect(() => {
-    let active = true
-    getLessonAudioStatus(courseId, chapterId).then((result) => {
-      if (active) setStatus(result.available ? 'ready' : 'missing')
-    }).catch((error) => {
-      if (active) {
-        setStatus('unavailable')
-        setMessage(error.status === 401 || error.status === 403 ? 'Sign in with course access to listen to lesson audio.' : error.message)
-      }
-    })
-    return () => { active = false }
-  }, [courseId, chapterId])
 
   useEffect(() => {
     if (!audioUrl || !playWhenReady || !audioRef.current) return
@@ -60,7 +47,9 @@ export default function LessonAudioPlayer({ courseId, chapterId }) {
       setPlayWhenReady(true)
     } catch (error) {
       setStatus(error.code === 'AUDIO_NOT_GENERATED' ? 'missing' : 'error')
-      setMessage(error.message)
+      setMessage(error.name === 'TimeoutError' || error.name === 'AbortError'
+        ? 'Loading saved Gemini audio took too long.'
+        : error.message)
     }
   }
 
@@ -68,10 +57,20 @@ export default function LessonAudioPlayer({ courseId, chapterId }) {
     audioRef.current?.pause()
   }
 
-  if (status === 'checking') return <section className="reader-audio-player" aria-label="Lesson audio"><span>Checking lesson audio…</span></section>
+  function retryGemini() {
+    audioRef.current?.pause()
+    setAudioUrl('')
+    setPlayWhenReady(false)
+    setPlaying(false)
+    setCurrentTime(0)
+    setDuration(0)
+    setMessage('')
+    setStatus('ready')
+  }
+
   if (status === 'unavailable' || status === 'missing' || status === 'error') return <LessonTts fallbackMessage={status === 'missing'
     ? 'Gemini narration is not ready for this chapter yet. Using browser speech.'
-    : `Saved Gemini audio could not be played${message ? `: ${message}` : ''}. Using browser speech.`} />
+    : `Saved Gemini audio could not be played${message ? `: ${message}` : ''}. Using browser speech.`} onRetryGemini={retryGemini} />
 
   const percent = duration ? (currentTime / duration) * 100 : 0
   return <section className="reader-audio-player" aria-label="Lesson audio player">
