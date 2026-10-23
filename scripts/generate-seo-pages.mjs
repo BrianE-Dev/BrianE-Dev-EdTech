@@ -69,8 +69,18 @@ export function renderAboutHtml(html) {
     isPartOf: { '@id': 'https://briane-dev.online/#website' },
     about: { '@id': 'https://briane-dev.online/#organization' },
     mainEntity: { '@id': 'https://briane-dev.online/#organization' },
+    author: { '@id': 'https://briane-dev.online/about#founder' },
   }
-  return page.replace('</head>', `    <script type="application/ld+json" id="about-page-structured-data">${JSON.stringify(schema)}</script>\n  </head>`)
+  const founder = {
+    '@type': 'Person',
+    '@id': 'https://briane-dev.online/about#founder',
+    name: 'Chukwuemeka Brian Nkama',
+    url: 'https://briane-dev.online/about#founder',
+    sameAs: ['https://www.linkedin.com/in/briane-dev'],
+    jobTitle: 'Founder',
+    founder: { '@id': 'https://briane-dev.online/#organization' },
+  }
+  return page.replace('</head>', `    <script type="application/ld+json" id="about-page-structured-data">${JSON.stringify(schema)}</script>\n    <script type="application/ld+json" id="about-founder-structured-data">${JSON.stringify(founder)}</script>\n  </head>`)
 }
 
 export function renderCourseHtml(html) {

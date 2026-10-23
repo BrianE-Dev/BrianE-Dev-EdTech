@@ -105,12 +105,12 @@ certificateSchema.index({ user: 1, course: 1 }, { unique: true })
 
 const certificateTemplateSchema = new Schema({
   key: { type: String, unique: true, default: 'global' },
-  brandName: { type: String, trim: true, maxlength: 80, default: 'BRIANE-DEV' },
+  brandName: { type: String, trim: true, maxlength: 80, default: '' },
   heading: { type: String, trim: true, maxlength: 100, default: 'CERTIFICATE OF COMPLETION' },
   introduction: { type: String, trim: true, maxlength: 180, default: 'This certificate is presented to' },
   courseLead: { type: String, trim: true, maxlength: 120, default: 'for completing the course' },
   recognitionText: { type: String, trim: true, maxlength: 240, default: 'and completing the prescribed learning curriculum in AI-assisted software development and developer productivity.' },
-  signatoryName: { type: String, trim: true, maxlength: 120, default: 'BrianE-Dev' },
+  signatoryName: { type: String, trim: true, maxlength: 120, default: '' },
   signatureDataUrl: { type: String, default: '' },
   footer: { type: String, trim: true, maxlength: 180, default: 'Certificate of successful course completion' },
 }, timestamps)

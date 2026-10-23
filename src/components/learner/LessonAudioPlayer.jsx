@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getLessonAudioUrl } from '../../services/api.js'
+import { getLessonAudioUrl, getLessonPreviewAudioUrl } from '../../services/api.js'
 import LessonTts from './LessonTts.jsx'
 
 const playbackRates = [0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -10,7 +10,7 @@ function formatTime(seconds) {
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`
 }
 
-export default function LessonAudioPlayer({ courseId, chapterId }) {
+export default function LessonAudioPlayer({ courseId, courseSlug, chapterId, preview = false }) {
   const audioRef = useRef(null)
   const loadTimeoutRef = useRef(null)
   const [status, setStatus] = useState('ready')
@@ -64,7 +64,8 @@ export default function LessonAudioPlayer({ courseId, chapterId }) {
     : `Audio narration could not be played${message ? `: ${message}` : ''}. Using browser speech.`} onRetryGemini={retryGemini} />
 
   const percent = duration ? (currentTime / duration) * 100 : 0
-  const audioUrl = `${getLessonAudioUrl(courseId, chapterId)}${retryCount ? `?retry=${retryCount}` : ''}`
+  const baseAudioUrl = preview ? getLessonPreviewAudioUrl(courseSlug, chapterId) : getLessonAudioUrl(courseId, chapterId)
+  const audioUrl = `${baseAudioUrl}${retryCount ? `?retry=${retryCount}` : ''}`
   return <section className="reader-audio-player" aria-label="Lesson audio player">
     <audio ref={audioRef} src={audioUrl} crossOrigin="use-credentials" preload="none" onPlay={() => { window.clearTimeout(loadTimeoutRef.current); setStatus('ready'); setPlaying(true) }} onPause={() => setPlaying(false)} onCanPlay={() => { window.clearTimeout(loadTimeoutRef.current); setStatus('ready') }} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onDurationChange={(event) => setDuration(event.currentTarget.duration)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={() => setPlaying(false)} onError={(event) => { window.clearTimeout(loadTimeoutRef.current); const code = event.currentTarget.error?.code; const reason = ({ 1: 'playback was aborted', 2: 'the audio request failed', 3: 'the WAV data could not be decoded', 4: 'the browser does not support this audio format' })[code] || 'the saved audio could not be played'; setStatus('error'); setMessage(`Audio playback error ${code || 'unknown'}: ${reason}.`) }}/>
     <div className="reader-audio-heading"><div><strong>Audio narration</strong><span>Course lesson audio</span></div>{status === 'loading' ? <span role="status">Loading audio…</span> : <button type="button" onClick={playing ? pause : play} disabled={status === 'loading'}>{playing ? 'Pause' : 'Play narration'}</button>}</div>

@@ -56,7 +56,7 @@ export default function CertificateAdmin({ courses }) {
       <label>Presentation line<input name="introduction" maxLength="180" value={template.introduction} onChange={update} required/></label>
       <label>Course completion line<input name="courseLead" maxLength="120" value={template.courseLead} onChange={update} required/></label>
       <label>Curriculum recognition<input name="recognitionText" maxLength="240" value={template.recognitionText} onChange={update} required/></label>
-      <label>Sole signatory name<input name="signatoryName" maxLength="120" value={template.signatoryName} onChange={update} required/></label>
+      <label>Sole signatory name (optional)<input name="signatoryName" maxLength="120" value={template.signatoryName} onChange={update}/></label>
       <label>Footer text<input name="footer" maxLength="180" value={template.footer} onChange={update}/></label>
       <label>Upload signature (PNG or JPEG)<input type="file" accept="image/png,image/jpeg" onChange={uploadSignature}/></label>
       {template.signatureDataUrl && <div className="admin-signature-actions"><img src={template.signatureDataUrl} alt="Uploaded signatory signature"/><button className="button button-secondary" type="button" onClick={() => setTemplate((current) => ({ ...current, signatureDataUrl: '' }))}>Remove signature</button></div>}

@@ -111,34 +111,36 @@ export function createCertificatePdf(certificate, verificationUrl, template = {}
     'q /Watermark gs 330 0 0 330 256 132 cm /Logo Do Q',
     textCommand(`GLOBAL REGISTRY REF: BDEV-REG-${certificate.certificateId}`, 24, 576, 6.8, 'F1', muted),
     textCommand(`CERTIFICATE NO: ${certificate.certificateId} / ARCHIVAL RECORD`, PAGE_WIDTH - 24, 576, 6.8, 'F1', muted, 'right'),
-    'q 70 0 0 70 34 490 cm /Logo Do Q',
-    textCommand(template.heading || 'CERTIFICATE OF COMPLETION', PAGE_WIDTH / 2, 482, 23, 'F4', navy, 'center'),
-    `${teal} RG 1.3 w 372 480 m 470 480 l S`,
-    textCommand(template.introduction || 'This certificate is awarded to', PAGE_WIDTH / 2, 438, 10, 'F3', ink, 'center'),
+    ...(template.brandName ? ['q 48 0 0 48 34 503 cm /Logo Do Q', textCommand(template.brandName, 92, 520, 9, 'F2', navy)] : []),
+    textCommand(template.heading || 'CERTIFICATE OF COMPLETION', PAGE_WIDTH / 2, 468, 19, 'F4', navy, 'center'),
+    `${teal} RG 1.3 w 372 456 m 470 456 l S`,
+    textCommand(template.introduction || 'This certificate is awarded to', PAGE_WIDTH / 2, 431, 9, 'F3', ink, 'center'),
   ]
   const recipientName = safeText(certificate.recipientName || 'Learner').trim()
-  const nameLines = [recipientName || 'Learner']
-  const nameSize = nameLines[0].length > 38 ? 16 : nameLines[0].length > 30 ? 18 : nameLines[0].length > 22 ? 20 : 22
+  const nameLines = wrapName(recipientName || 'Learner', 38).slice(0, 2)
+  const nameSize = nameLines[0].length > 30 ? 17 : nameLines[0].length > 22 ? 19 : 21
   nameLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, 393 - index * 27, nameSize, 'F4', ink, 'center')))
-  const ornamentY = nameLines.length > 1 ? 330 : 350
-  const courseTop = nameLines.length > 1 ? 305 : 325
+  const ornamentY = nameLines.length > 1 ? 344 : 363
+  const courseTop = nameLines.length > 1 ? 322 : 341
   operations.push(`${teal} RG 0.8 w 319 ${ornamentY} m 362 ${ornamentY} l S 480 ${ornamentY} m 523 ${ornamentY} l S`, `${teal} rg 372 ${ornamentY} 7 7 re f`, `${teal} rg 463 ${ornamentY} 7 7 re f`)
   const courseLines = wrapName(certificate.courseTitle || 'AI-Powered Developer Productivity for Software Engineers', 48)
   const leadLines = wrapName(template.courseLead || 'in recognition of successfully completing the course', 94)
   const recognitionLines = wrapName(template.recognitionText || 'and completing the prescribed learning curriculum in AI-assisted software development and developer productivity.', 94)
   leadLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, courseTop - index * 14, 9, 'F1', ink, 'center')))
-  const titleStartY = courseTop - 35
-  courseLines.forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, titleStartY - index * 18, 14, 'F4', navy, 'center')))
-  const recognitionStartY = titleStartY - courseLines.length * 18 - 15
-  recognitionLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, recognitionStartY - index * 11, 7.5, 'F1', ink, 'center')))
+  const titleSize = courseLines.some((line) => line.length > 44) ? 11 : 13
+  const titleStartY = courseTop - 25
+  courseLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, titleStartY - index * 16, titleSize, 'F4', navy, 'center')))
+  const recognitionStartY = titleStartY - Math.min(courseLines.length, 2) * 16 - 9
+  recognitionLines.slice(0, 2).forEach((line, index) => operations.push(textCommand(line, PAGE_WIDTH / 2, recognitionStartY - index * 10, 7, 'F1', ink, 'center')))
   const issueDate = new Date(certificate.issueDate || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
   const signature = template.signatureDataUrl?.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/)
   const signatureBytes = signature ? Buffer.from(signature[1], 'base64') : null
   if (signatureBytes?.length > 2_000_000) throw new Error('Certificate signature is too large')
-  if (signatureBytes) operations.push('q 120 0 0 27 361 61 cm /Signature Do Q')
+  operations.push(`${muted} RG 0.6 w 335 72 m 507 72 l S`)
+  if (signatureBytes) operations.push('q 120 0 0 35 361 75 cm /Signature Do Q')
   operations.push(
-    textCommand(template.signatoryName || 'BrianE-Dev', PAGE_WIDTH / 2, 48, 8, 'F2', ink, 'center'),
-    textCommand(template.footer || '', PAGE_WIDTH / 2, 36, 7, 'F3', muted, 'center'),
+    ...(template.signatoryName ? [textCommand(template.signatoryName, PAGE_WIDTH / 2, 57, 8, 'F2', ink, 'center')] : []),
+    ...(template.footer ? [textCommand(template.footer, PAGE_WIDTH / 2, 44, 7, 'F3', muted, 'center')] : []),
     textCommand(`Issue date: ${issueDate}`, 34, 38, 7, 'F1', muted),
     textCommand(`Certificate ID: ${certificate.certificateId}`, PAGE_WIDTH - 34, 38, 5.8, 'F1', muted, 'right'),
     textCommand(`VERIFICATION URL: ${verificationUrl}`, PAGE_WIDTH / 2, 24, 5.8, 'F1', muted, 'center'),

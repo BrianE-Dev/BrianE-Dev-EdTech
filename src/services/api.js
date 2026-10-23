@@ -41,6 +41,7 @@ export const getCourseProgress = (courseId) => api(`/courses/${encodeURIComponen
 export const getLesson = (courseId, chapterId) => api(`/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}`)
 export const getLessonPreview = (courseSlug, chapterId) => api(`/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(chapterId)}/preview`)
 export const getLessonAudioUrl = (courseId, chapterId) => `${API_URL}/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/audio`
+export const getLessonPreviewAudioUrl = (courseSlug, chapterId) => `${API_URL}/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(chapterId)}/preview/audio`
 export const updateLessonProgress = (courseId, chapterId, status) => api(
   `/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(chapterId)}/progress`,
   { method: 'POST', body: jsonBody({ status }) },

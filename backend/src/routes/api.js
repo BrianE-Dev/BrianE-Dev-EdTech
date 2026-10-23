@@ -468,6 +468,23 @@ router.get('/courses/:slug/lessons/:chapterId/preview', authenticateOptional, as
   } catch (error) { next(error) }
 })
 
+router.get('/courses/:slug/lessons/:chapterId/preview/audio', authenticateOptional, async (req, res, next) => {
+  try {
+    if (req.params.chapterId !== 'chapter-ai-assisted-developer') {
+      return apiFailure(res, 403, 'Audio is available for the public preview only.', 'COURSE_PURCHASE_REQUIRED')
+    }
+    const course = await Course.findOne({ slug: req.params.slug, published: true }).select('_id').lean()
+    if (!course) return apiFailure(res, 404, 'Course not found', 'COURSE_NOT_FOUND')
+    const lesson = await loadCanonicalLesson(req.params.chapterId, res)
+    if (!lesson) return
+    if (!lesson.preview) return apiFailure(res, 403, 'Audio is available for the public preview only.', 'COURSE_PURCHASE_REQUIRED')
+    const audio = await loadReadyChapterAudio(String(course._id), lesson)
+    if (!audio) return apiFailure(res, 404, 'Preview audio has not been generated yet.', 'AUDIO_NOT_GENERATED')
+    res.set({ 'Content-Type': audio.mimeType, 'Content-Length': String(audio.buffer.length), 'Cache-Control': 'public, max-age=3600' })
+    res.send(audio.buffer)
+  } catch (error) { next(error) }
+})
+
 router.get('/courses/:courseId/lessons/:chapterId/audio/status', authenticate, async (req, res, next) => {
   try {
     const course = await getPaidCourse(req, res)
@@ -805,11 +822,14 @@ const certificateTemplateDefaults = {
   brandName: '', heading: 'CERTIFICATE OF COMPLETION',
   introduction: 'This certificate is awarded to', courseLead: 'in recognition of successfully completing the course',
   recognitionText: 'and completing the prescribed learning curriculum in AI-assisted software development and developer productivity.',
-  signatoryName: 'BrianE-Dev', signatureDataUrl: '', footer: 'Certificate of successful course completion',
+  signatoryName: '', signatureDataUrl: '', footer: 'Certificate of successful course completion',
 }
 async function getCertificateTemplate() {
   const saved = await CertificateTemplate.findOne({ key: 'global' }).lean()
-  return Object.fromEntries(Object.keys(certificateTemplateDefaults).map((key) => [key, saved?.[key] ?? certificateTemplateDefaults[key]]))
+  const result = Object.fromEntries(Object.keys(certificateTemplateDefaults).map((key) => [key, saved?.[key] ?? certificateTemplateDefaults[key]]))
+  if (result.brandName === 'BRIANE-DEV') result.brandName = ''
+  if (result.signatoryName === 'BrianE-Dev') result.signatoryName = ''
+  return result
 }
 router.get('/certificates/template', authenticate, async (_req, res) => res.json(await getCertificateTemplate()))
 router.get('/admin/certificate-template', authenticate, requireAdmin, async (_req, res) => res.json(await getCertificateTemplate()))
@@ -818,7 +838,7 @@ router.put('/admin/certificate-template', authenticate, requireAdmin, async (req
     brandName: z.string().trim().max(80), heading: z.string().trim().min(1).max(100),
     introduction: z.string().trim().min(1).max(180), courseLead: z.string().trim().min(1).max(120),
     recognitionText: z.string().trim().min(1).max(240),
-    signatoryName: z.string().trim().min(1).max(120), footer: z.string().trim().max(180),
+    signatoryName: z.string().trim().max(120), footer: z.string().trim().max(180),
     signatureDataUrl: z.string().max(2_800_000).refine((value) => !value || /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(value), 'Upload a JPEG signature image.'),
   }).strict()
   const input = schema.parse(req.body)
