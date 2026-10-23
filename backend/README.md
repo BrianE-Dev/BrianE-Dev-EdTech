@@ -123,7 +123,7 @@ For local development only, `TTS_STORAGE_PROVIDER=local` stores audio under the 
 
 ### Upload manual chapter recordings
 
-In **Super Admin → Course audio**, choose **Record Edge tab audio** beside a chapter, select the browser tab displaying that chapter, and enable tab audio sharing. Switch to the chapter tab, start Edge Read Aloud, then return to Super Admin and choose **Stop and save tab audio**. The recording is uploaded directly to the selected chapter. Browser tab capture requires HTTPS or localhost and a browser that offers tab audio sharing; if capture is unavailable, record externally and upload an MP3, WAV, M4A, AAC, OGG, or WebM file up to 50 MB. The backend stores audio in configured object storage (Cloudflare R2 in production) and saves metadata and the storage key in MongoDB. The learner's existing chapter player streams the recording through the authenticated audio endpoint. Both recording and upload require the authenticated Super Admin session.
+In **Super Admin → Course audio**, use the batch or per-chapter Gemini controls to generate narration and review chapter audio status. Generated audio is stored in configured object storage (Cloudflare R2 in production); metadata and storage keys are saved in MongoDB. The learner's chapter player streams available audio through the authenticated audio endpoint.
 
 ### Generate and monitor course audio
 

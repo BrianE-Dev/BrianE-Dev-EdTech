@@ -82,7 +82,7 @@ router.get('/diagnostics/hostinger-network', async (req, res) => {
 })
 
 router.post('/auth/register', async (req, res) => {
-  const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()), password: z.string().min(10).max(128) })
+  const schema = z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().toLowerCase().pipe(z.email()), password: z.string().min(8).max(128), confirmPassword: z.string().min(8).max(128) }).refine((value) => value.password === value.confirmPassword, { path: ['confirmPassword'], message: 'Passwords do not match' })
   const input = schema.parse(req.body)
   const existingUser = await User.findOne({ email: input.email }).select('_id emailVerified')
   if (existingUser) return res.status(202).json({ verificationRequired: true, emailDelivery: mailStatus(), message: 'If an eligible account needs verification, instructions can be requested from the sign-in page.' })

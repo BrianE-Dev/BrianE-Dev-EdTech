@@ -21,7 +21,13 @@ export default function LearnerRegister() {
     const form = new FormData(event.currentTarget)
     try {
       const email = String(form.get('email') || '').trim().toLowerCase()
-      const result = await registerLearner(form.get('name'), email, form.get('password'))
+      const password = String(form.get('password') || '')
+      const confirmPassword = String(form.get('confirmPassword') || '')
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.')
+        return
+      }
+      const result = await registerLearner(form.get('name'), email, password, confirmPassword)
       const delivery = ['accepted', 'failed', 'not_configured'].includes(result?.emailDelivery?.state) ? result.emailDelivery.state : 'unknown'
       setRegistration({ email, delivery })
       try { sessionStorage.setItem('briane-dev-registration-notice', JSON.stringify({ email, delivery })) } catch { /* Registration confirmation remains visible on this page. */ }
@@ -52,7 +58,7 @@ export default function LearnerRegister() {
       {registration ? <div className="payment-message" role="status">
         <strong>Account created for {registration.email}.</strong>
         <p>{registration.delivery === 'accepted'
-          ? 'The mail server accepted the verification email for processing. Check your inbox and Spam/Junk folder; this does not confirm inbox delivery.'
+          ? 'Your verification email is on its way. Check your inbox and Spam/Junk folder; delivery may take a few minutes.'
           : registration.delivery === 'failed' || registration.delivery === 'not_configured'
             ? 'Your account was created, but the verification email could not be sent. You do not need to register again; use the button below to request another link.'
             : 'Your account request was received, but the email status was unclear. Check your inbox and Spam/Junk folder, or request another link below.'}</p>
@@ -63,7 +69,8 @@ export default function LearnerRegister() {
       {!registration && <form onSubmit={submit}>
         <label>Name<input type="text" name="name" autoComplete="name" minLength="2" maxLength="120" required /></label>
         <label>Email address<input type="email" name="email" autoComplete="email" required /></label>
-        <label>Password<input type="password" name="password" autoComplete="new-password" minLength="10" maxLength="128" required /></label>
+        <label>Password<input type="password" name="password" autoComplete="new-password" minLength="8" maxLength="128" required /></label>
+        <label>Confirm password<input type="password" name="confirmPassword" autoComplete="new-password" minLength="8" maxLength="128" required /></label>
         {error && <p className="learner-error" role="alert">{error}</p>}
         <button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
       </form>}
