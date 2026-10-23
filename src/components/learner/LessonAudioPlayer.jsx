@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getLessonAudio, getLessonAudioStatus } from '../../services/api.js'
+import LessonTts from './LessonTts.jsx'
 
 const playbackRates = [0.75, 1, 1.25, 1.5, 1.75, 2]
 
@@ -68,8 +69,9 @@ export default function LessonAudioPlayer({ courseId, chapterId }) {
   }
 
   if (status === 'checking') return <section className="reader-audio-player" aria-label="Lesson audio"><span>Checking lesson audio…</span></section>
-  if (status === 'unavailable') return <section className="reader-audio-player" aria-label="Lesson audio"><strong>Lesson audio</strong><span role="status">{message || 'Audio is unavailable for this account.'}</span></section>
-  if (status === 'missing' && !audioUrl) return <section className="reader-audio-player" aria-label="Lesson audio"><strong>Lesson audio</strong><span role="status">No audio recording is available for this chapter yet.</span></section>
+  if (status === 'unavailable' || status === 'missing' || status === 'error') return <LessonTts fallbackMessage={status === 'missing'
+    ? 'Gemini narration is not ready for this chapter yet. Using browser speech.'
+    : `Saved Gemini audio could not be played${message ? `: ${message}` : ''}. Using browser speech.`} />
 
   const percent = duration ? (currentTime / duration) * 100 : 0
   return <section className="reader-audio-player" aria-label="Lesson audio player">

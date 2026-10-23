@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const excludedNarrationContent = '.reader-tts, .reader-completion, .reader-chapter-navigation, button, input, select, textarea, .sr-only'
+const excludedNarrationContent = '.reader-tts, .reader-audio-player, .reader-completion, .reader-chapter-navigation, button, input, select, textarea, .sr-only'
 const preferredFemaleVoice = /\b(samantha|ava|aria|jenny|zira|salli|joanna|kendra|kimberly|ivy|serena|sonia|libby)\b|google us english|english.*female|female/i
 
 function voiceId(voice) {
@@ -41,7 +41,7 @@ function getVisibleLessonText() {
   return text.split(/\n+/).map((line) => line.trim()).filter(Boolean).join('. ')
 }
 
-export default function LessonTts() {
+export default function LessonTts({ fallbackMessage = '' }) {
   const [state, setState] = useState('idle')
   const [voices, setVoices] = useState([])
   const [selectedVoiceId, setSelectedVoiceId] = useState('')
@@ -120,7 +120,7 @@ export default function LessonTts() {
   }
 
   return <section className="reader-tts" aria-label="Lesson narration">
-    <div><strong>Listen to this lesson</strong><span>Audio is optional and does not affect completion.</span></div>
+    <div><strong>{fallbackMessage ? 'Browser narration' : 'Listen to this lesson'}</strong><span>{fallbackMessage || 'Audio is optional and does not affect completion.'}</span></div>
     {voices.length > 0 && <label className="reader-tts-voice">Voice
       <select value={selectedVoiceId} onChange={(event) => setSelectedVoiceId(event.target.value)} aria-label="Narration voice">
         <option value="">Choose a voice</option>
