@@ -5,8 +5,8 @@ import { courseStructuredData } from '../src/data/structuredData.js'
 
 export const publicPageMetadata = {
   '/about': {
-    title: 'About BrianE-Dev | Our Mission, Technology & Founder',
-    description: 'Meet BrianE-Dev, a technology brand building digital solutions and practical software engineering resources, founded by Chukwuemeka Brian Nkama.',
+    title: 'About BrianE-Dev | Technology for Better Digital Work',
+    description: 'Meet BrianE-Dev, a technology brand founded by Chukwuemeka Brian Nkama, building digital solutions, developer resources, and practical AI-assisted engineering education.',
     url: 'https://briane-dev.online/about',
   },
   '/quote': {
@@ -70,6 +70,7 @@ export function renderAboutHtml(html) {
     about: { '@id': 'https://briane-dev.online/#organization' },
     mainEntity: { '@id': 'https://briane-dev.online/#organization' },
     author: { '@id': 'https://briane-dev.online/about#founder' },
+    primaryImageOfPage: { '@type': 'ImageObject', url: 'https://briane-dev.online/branding/briane-dev-social.png' },
   }
   const founder = {
     '@type': 'Person',
@@ -77,10 +78,13 @@ export function renderAboutHtml(html) {
     name: 'Chukwuemeka Brian Nkama',
     url: 'https://briane-dev.online/about#founder',
     sameAs: ['https://www.linkedin.com/in/briane-dev'],
+    image: 'https://briane-dev.online/brian-profile.jpeg',
     jobTitle: 'Founder',
     founder: { '@id': 'https://briane-dev.online/#organization' },
+    worksFor: { '@id': 'https://briane-dev.online/#organization' },
   }
-  return page.replace('</head>', `    <script type="application/ld+json" id="about-page-structured-data">${JSON.stringify(schema)}</script>\n    <script type="application/ld+json" id="about-founder-structured-data">${JSON.stringify(founder)}</script>\n  </head>`)
+  const founderScript = `<script type="application/ld+json" id="about-founder-structured-data">${JSON.stringify({ '@context': 'https://schema.org', ...founder })}</script>`
+  return page.replace('</head>', `    <script type="application/ld+json" id="about-page-structured-data">${JSON.stringify(schema)}</script>\n    ${founderScript}\n  </head>`)
 }
 
 export function renderCourseHtml(html) {

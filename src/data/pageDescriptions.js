@@ -3,7 +3,7 @@ export const pageDescriptions = {
     'BrianE-Dev | Digital Technology & Developer Productivity',
     'BrianE-Dev is a technology brand focused on digital solutions, developer productivity, and practical software engineering resources.',
   ],
-  '/about': ['About BrianE-Dev | Our Mission, Technology & Founder', 'Meet BrianE-Dev, a technology brand building digital solutions and practical software engineering resources, founded by Chukwuemeka Brian Nkama.'],
+  '/about': ['About BrianE-Dev | Technology for Better Digital Work', 'Meet BrianE-Dev, a technology brand founded by Chukwuemeka Brian Nkama, building digital solutions, developer resources, and practical AI-assisted engineering education.'],
   '/contact': ['Contact BrianE-Dev | Project and Business Enquiries', 'Contact BrianE-Dev about a digital project, software question, or business enquiry.'],
   '/quote': ['Request a Project Quote | BrianE-Dev', 'Share your website, commerce, or custom software project requirements with BrianE-Dev.'],
   '/privacy': ['BrianE-Dev Privacy Policy', 'Learn how BrianE-Dev handles learner account, course, payment, progress, certificate, and enquiry information.'],
