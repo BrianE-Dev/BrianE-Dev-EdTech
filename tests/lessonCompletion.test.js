@@ -287,6 +287,15 @@ test('assessment rejects unknown question and option identifiers', async () => {
   assert.equal(AssessmentAttemptModel.attempts.length, 0)
 })
 
+test('assessment submission rejects oversized answer collections before persistence', async () => {
+  const AssessmentAttemptModel = assessmentModel()
+  const answers = Array.from({ length: 101 }, (_, index) => ({ questionId: `assessment-${index}`, optionId: 'option-wrong' }))
+  await assert.rejects(submitLessonAssessment({
+    user, course, lesson, body: { answers }, AssessmentAttemptModel,
+  }), /malformed/)
+  assert.equal(AssessmentAttemptModel.attempts.length, 0)
+})
+
 test('chapters with no required activities complete through the server progress action', async () => {
   const ProgressModel = progressModel()
   const noRequirements = { chapterId: chapter.id, exercises: [], assessments: [] }

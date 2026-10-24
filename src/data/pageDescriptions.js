@@ -10,4 +10,5 @@ export const pageDescriptions = {
   '/services': ['Digital Services | BrianE-Dev', 'Explore BrianE-Dev website, e-commerce, web application, and integration services.'],
   '/pricing': ['Course Pricing | BrianE-Dev', 'Review BrianE-Dev course pricing, create and verify your learner account, and purchase full course access.'],
   '/course/ai-powered-developer-productivity': ['AI-Powered Developer Productivity Course | BrianE-Dev', 'Learn AI-powered developer workflows, coding with AI, debugging strategies and practical techniques to improve software engineering productivity with BrianE-Dev.'],
+  '/insights': ['Developer Insights on AI and Software Engineering | BrianE-Dev', 'Practical guidance for using AI thoughtfully in software development, from codebase exploration and debugging to testing and responsible use.'],
 }

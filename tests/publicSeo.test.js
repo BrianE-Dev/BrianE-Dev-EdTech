@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { publicPageMetadata, renderAboutHtml, renderCourseHtml, renderPublicPageHtml } from '../scripts/generate-seo-pages.mjs'
+import { publicPageMetadata, renderAboutHtml, renderCourseHtml, renderPublicPageHtml, renderInsightHtml, renderInsightsListingHtml } from '../scripts/generate-seo-pages.mjs'
+import { insightsArticles } from '../src/data/insights.js'
 import { courseStructuredData } from '../src/data/structuredData.js'
 
 const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8')
@@ -113,6 +114,10 @@ test('sitemap includes public canonical pages and excludes restricted routes', (
     'https://briane-dev.online/services',
     'https://briane-dev.online/pricing',
     'https://briane-dev.online/privacy',
+    'https://briane-dev.online/insights',
+    'https://briane-dev.online/insights/using-ai-effectively-in-software-development',
+    'https://briane-dev.online/insights/when-not-to-use-ai-for-coding',
+    'https://briane-dev.online/insights/ai-assisted-development-workflows-for-junior-developers',
   ])
   assert.doesNotMatch(sitemap, /\/admin|\/super-admin|\/learn|\/courses\/.*\/learn/)
 })
@@ -121,4 +126,20 @@ test('robots rules allow public pages and point crawlers to the sitemap', () => 
   assert.match(robots, /User-agent: \*\s+Allow: \/\s/)
   assert.match(robots, /Sitemap: https:\/\/briane-dev\.online\/sitemap\.xml/)
   assert.doesNotMatch(robots, /Disallow: \/(?:$|about(?:\/|$)|course(?:\/|$)|services(?:\/|$)|privacy(?:\/|$))/m)
+})
+
+test('insights listing and articles provide crawler readable content and unique canonical metadata', () => {
+  const listing = renderInsightsListingHtml(indexHtml)
+  assert.match(listing, /<h1>Practical insight/)
+  for (const article of insightsArticles) {
+    const html = renderInsightHtml(indexHtml, article)
+    assert.match(html, new RegExp(`<title>${article.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\| BrianE-Dev</title>`))
+    assert.ok(html.includes(`https://briane-dev.online/insights/${article.slug}`))
+    assert.ok(html.includes(article.sections[0].paragraphs[0]))
+    assert.match(html, /application\/ld\+json/)
+    assert.match(html, /chapter-ai-assisted-developer/)
+  }
+  assert.match(sitemap, /\/insights\/using-ai-effectively-in-software-development/)
+  assert.match(sitemap, /\/insights\/when-not-to-use-ai-for-coding/)
+  assert.match(sitemap, /\/insights\/ai-assisted-development-workflows-for-junior-developers/)
 })

@@ -50,6 +50,16 @@ test('liveness stays healthy while readiness and database-dependent routes repor
   assert.equal(logout.status, 200)
 })
 
+test('JSON parser rejects request bodies above its configured 1 MB limit', async () => {
+  const oversized = JSON.stringify({ payload: 'x'.repeat(1024 * 1024) })
+  const response = await fetch(`${baseUrl}/api/auth/logout`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: oversized,
+  })
+  assert.equal(response.status, 413)
+})
+
 test('readiness and existing database-backed routes recover when the database is ready', async () => {
   mongoose.connection.readyState = 1
   Course.find = () => ({

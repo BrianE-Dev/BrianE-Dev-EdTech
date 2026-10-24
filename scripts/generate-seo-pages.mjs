@@ -2,6 +2,13 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { courseStructuredData } from '../src/data/structuredData.js'
+import { insightsArticles } from '../src/data/insights.js'
+
+const insightsListingMetadata = {
+  title: 'Developer Insights on AI and Software Engineering | BrianE-Dev',
+  description: 'Practical guidance for using AI thoughtfully in software development, from codebase exploration and debugging to testing and responsible use.',
+  url: 'https://briane-dev.online/insights',
+}
 
 export const publicPageMetadata = {
   '/about': {
@@ -93,6 +100,30 @@ export function renderCourseHtml(html) {
   return page.replace('</head>', `    ${script}\n  </head>`)
 }
 
+function escapeHtml(value) {
+  return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+}
+
+export function renderInsightHtml(html, article) {
+  const metadata = { title: `${article.title} | BrianE-Dev`, description: article.description, url: `https://briane-dev.online/insights/${article.slug}` }
+  const page = renderPublicPageHtml(html, metadata)
+  const body = `<div class="business-page"><main class="article-main"><a class="article-back" href="/insights">← All insights</a><article><header class="article-header"><span class="eyebrow">${escapeHtml(article.category)} / ${article.readingTime} MIN READ</span><h1>${escapeHtml(article.title)}</h1><p class="article-deck">${escapeHtml(article.excerpt)}</p><div class="article-byline"><span>By BrianE-Dev</span><time datetime="${article.date}">Published ${article.date}</time></div></header><div class="article-content">${article.sections.map((section) => `<section><h2>${escapeHtml(section.heading)}</h2>${(section.paragraphs || []).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}${section.bullets ? `<ul>${section.bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}</section>`).join('')}<section><h2>Keep learning</h2><p>Explore the <a href="/course/ai-powered-developer-productivity">AI-Powered Developer Productivity course</a> or <a href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">read the free chapter preview</a>.</p></section></div></article></main></div>`
+  const schema = { '@context': 'https://schema.org', '@type': 'Article', headline: article.title, description: article.description, datePublished: article.date, dateModified: article.date, author: { '@type': 'Organization', name: 'BrianE-Dev', url: 'https://briane-dev.online/about' }, publisher: { '@type': 'Organization', name: 'BrianE-Dev', url: 'https://briane-dev.online/' }, mainEntityOfPage: metadata.url, url: metadata.url }
+  const breadcrumb = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Home', item: 'https://briane-dev.online/' }, { '@type': 'ListItem', position: 2, name: 'Insights', item: insightsListingMetadata.url }, { '@type': 'ListItem', position: 3, name: article.title, item: metadata.url }] }
+  return page.replace('<div id="root"></div>', `${body}<div id="root"></div>`).replace('</head>', `<script type="application/ld+json">${JSON.stringify(schema)}</script><script type="application/ld+json">${JSON.stringify(breadcrumb)}</script></head>`)
+}
+
+export function renderInsightsListingHtml(html) {
+  const page = renderPublicPageHtml(html, insightsListingMetadata)
+  const body = `<div class="business-page"><main class="insights-main"><header class="insights-intro"><h1>Practical insight for thoughtful AI assisted development</h1><p>Guides for using AI effectively and responsibly in real software engineering work.</p></header><section class="insights-grid">${insightsArticles.map((article) => `<article class="insight-card"><div class="insight-meta"><span>${escapeHtml(article.category)}</span><span>${article.readingTime} min read</span></div><h2><a href="/insights/${article.slug}">${escapeHtml(article.title)}</a></h2><p>${escapeHtml(article.excerpt)}</p><div class="insight-card-footer"><time datetime="${article.date}">${article.date}</time><a href="/insights/${article.slug}">Read article</a></div></article>`).join('')}</section></main></div>`
+  return page.replace('<div id="root"></div>', `${body}<div id="root"></div>`)
+}
+
+export function renderInsightsNotFoundHtml(html) {
+  const page = renderPublicPageHtml(html, { title: 'Insight Not Found | BrianE-Dev', description: 'This insight could not be found.', url: 'https://briane-dev.online/insights/not-found' })
+  return page.replace('<div id="root"></div>', '<main class="business-page"><section class="business-hero compact"><span class="eyebrow">BRIANE-DEV / 404</span><h1>Insight not found.</h1><p>This article may have moved or the address may be incorrect.</p><a href="/insights">Browse Insights</a></section></main><div id="root"></div>')
+}
+
 async function generate() {
   const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const html = await readFile(resolve(projectRoot, 'dist/index.html'), 'utf8')
@@ -106,6 +137,17 @@ async function generate() {
         : renderPublicPageHtml(html, metadata)
     await writeFile(output, page)
   }
+  const listing = resolve(projectRoot, 'dist/insights/index.html')
+  await mkdir(dirname(listing), { recursive: true })
+  await writeFile(listing, renderInsightsListingHtml(html))
+  for (const article of insightsArticles) {
+    const output = resolve(projectRoot, 'dist/insights', article.slug, 'index.html')
+    await mkdir(dirname(output), { recursive: true })
+    await writeFile(output, renderInsightHtml(html, article))
+  }
+  await writeFile(resolve(projectRoot, 'dist/insights/404.html'), renderInsightsNotFoundHtml(html))
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://briane-dev.online/</loc></url>\n  <url><loc>https://briane-dev.online/about</loc></url>\n  <url><loc>https://briane-dev.online/course/ai-powered-developer-productivity</loc></url>\n  <url><loc>https://briane-dev.online/services</loc></url>\n  <url><loc>https://briane-dev.online/pricing</loc></url>\n  <url><loc>https://briane-dev.online/privacy</loc></url>\n  <url><loc>${insightsListingMetadata.url}</loc><lastmod>2026-10-24</lastmod></url>\n${insightsArticles.map((article) => `  <url><loc>https://briane-dev.online/insights/${article.slug}</loc><lastmod>${article.date}</lastmod></url>`).join('\n')}\n</urlset>\n`
+  await writeFile(resolve(projectRoot, 'dist/sitemap.xml'), sitemap)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

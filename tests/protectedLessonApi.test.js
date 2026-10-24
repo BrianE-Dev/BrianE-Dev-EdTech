@@ -715,7 +715,7 @@ test('learner login, invalid credentials, registration role isolation, and admin
   assert.equal((await me.json()).user.role, 'user')
 
   const paymentCountBeforeRegistration = paymentRows.size
-  const unpaidSignup = await apiJson('/auth/register', { method: 'POST', headers: { 'x-forwarded-for': '192.0.2.88' }, body: { name: 'Unpaid Learner', email: 'unpaid@example.test', password: 'unpaid-learner-password' } })
+  const unpaidSignup = await apiJson('/auth/register', { method: 'POST', headers: { 'x-forwarded-for': '192.0.2.88' }, body: { name: 'Unpaid Learner', email: 'unpaid@example.test', password: 'unpaid-learner-password', confirmPassword: 'unpaid-learner-password' } })
   assert.equal(unpaidSignup.status, 201)
   const unpaidAccount = [...userRows.values()].find((user) => user.email === 'unpaid@example.test')
   assert.equal(unpaidAccount.emailVerified, false)
@@ -723,7 +723,7 @@ test('learner login, invalid credentials, registration role isolation, and admin
   paid = true
   const registration = await apiJson('/auth/register', {
     method: 'POST',
-    body: { name: 'New Learner', email: 'new@example.test', password: 'new-learner-password', role: 'super_admin' },
+    body: { name: 'New Learner', email: 'new@example.test', password: 'new-learner-password', confirmPassword: 'new-learner-password', role: 'super_admin' },
   })
   assert.equal(registration.status, 201)
   const registered = await registration.json()
@@ -805,7 +805,7 @@ test('authentication handles normalized emails, admin credentials, malformed has
   const registered = await apiJson('/auth/register', {
     method: 'POST',
     userId: null,
-    body: { name: 'Normalized User', email: '  New.User@Example.Test  ', password: 'normalized-password', role: 'super_admin' },
+    body: { name: 'Normalized User', email: '  New.User@Example.Test  ', password: 'normalized-password', confirmPassword: 'normalized-password', role: 'super_admin' },
   })
   assert.equal(registered.status, 201)
   const body = await registered.json()
@@ -839,7 +839,7 @@ test('authentication handles normalized emails, admin credentials, malformed has
   const reusedReset = await apiJson('/auth/reset-password', { method: 'POST', userId: null, body: { token: resetToken, password: 'another-normalized-password', confirmPassword: 'another-normalized-password' } })
   assert.equal(reusedReset.status, 400)
 
-  const duplicate = await apiJson('/auth/register', { method: 'POST', userId: null, body: { name: 'Duplicate', email: 'NEW.USER@example.test', password: 'duplicate-password' } })
+  const duplicate = await apiJson('/auth/register', { method: 'POST', userId: null, body: { name: 'Duplicate', email: 'NEW.USER@example.test', password: 'duplicate-password', confirmPassword: 'duplicate-password' } })
   assert.equal(duplicate.status, 202)
 
   userRows.set('bad-hash', { id: 'bad-hash', name: 'Bad Hash', email: 'bad-hash@example.test', passwordHash: 'not-a-bcrypt-hash', role: 'user' })

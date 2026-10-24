@@ -26,6 +26,7 @@ import DeveloperIntelligenceSphere from './components/DeveloperIntelligenceSpher
 import CurriculumAssembly from './components/CurriculumAssembly.jsx'
 import { getPromotionDateRange } from './utils/promotionDates.js'
 import './App.css'
+import { insightsArticles } from './data/insights.js'
 
 function readRegistrationNotice() {
   if (new URLSearchParams(window.location.search).get('registered') !== '1') return null
@@ -443,7 +444,9 @@ function MotionPage({ children }) {
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
   let page
-  if (path === '/super-admin') page = <AdminLogin />
+  if (path === '/insights') page = <InsightsPage />
+  else if (path.startsWith('/insights/')) page = <InsightArticlePage slug={path.slice('/insights/'.length)} />
+  else if (path === '/super-admin') page = <AdminLogin />
   else if (path === '/about') page = <><PublicPageMetadata path={path}/><BusinessPages page="about" /></>
   else if (path === '/services') page = <><PublicPageMetadata path={path}/><BusinessPages page="services" /></>
   else if (path === '/privacy') page = <><PublicPageMetadata path={path}/><BusinessPages page="privacy" /></>
@@ -463,6 +466,19 @@ function App() {
   else page = <NotFoundPage />
   return <MotionPage>{page}</MotionPage>
 }
+
+function InsightsPage() {
+  return <div className="business-page"><SiteNavigation/><main className="insights-main"><header className="insights-intro"><span className="eyebrow">BRIANE-DEV / INSIGHTS</span><h1>Practical insight for thoughtful AI assisted development</h1><p>Guides for using AI effectively and responsibly in real software engineering work, from understanding a codebase to validating a change.</p></header><section className="insights-grid" aria-label="Published insights">{insightsArticles.map((article) => <article className="insight-card" key={article.slug}><div className="insight-meta"><span>{article.category}</span><span>{article.readingTime} min read</span></div><h2><a href={`/insights/${article.slug}`}>{article.title}</a></h2><p>{article.excerpt}</p><div className="insight-card-footer"><time dateTime={article.date}>{new Date(`${article.date}T00:00:00Z`).toLocaleDateString('en', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</time><a href={`/insights/${article.slug}`}>Read article <span aria-hidden="true">→</span></a></div></article>)}</section><aside className="insights-cta"><span className="eyebrow">LEARN THE WORKFLOW</span><h2>Build a more considered AI development practice.</h2><p>Explore the AI-Powered Developer Productivity for Software Engineers course and its free chapter preview.</p><div className="hero-actions"><a className="button button-primary" href="/course/ai-powered-developer-productivity">Explore the course</a><a className="button button-secondary" href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">Open free preview</a></div></aside></main><SiteFooter/></div>
+}
+
+function InsightArticlePage({ slug }) {
+  const article = insightsArticles.find((item) => item.slug === slug)
+  if (!article) return <NotFoundPage />
+  const related = insightsArticles.filter((item) => item.slug !== slug)
+  return <div className="business-page"><SiteNavigation/><main className="article-main"><a className="article-back" href="/insights">← All insights</a><article><header className="article-header"><span className="eyebrow">{article.category} / {article.readingTime} MIN READ</span><h1>{article.title}</h1><p className="article-deck">{article.excerpt}</p><div className="article-byline"><span>By BrianE-Dev</span><time dateTime={article.date}>Published {new Date(`${article.date}T00:00:00Z`).toLocaleDateString('en', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</time></div></header><div className="article-content">{article.sections.map((section) => <section key={section.heading}><h2>{section.heading}</h2>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}{section.bullets && <ul>{section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>}</section>)}<section><h2>Keep learning</h2><p>For a guided approach to planning, coding, debugging and reviewing with AI, <a href="/course/ai-powered-developer-productivity">explore the AI-Powered Developer Productivity course</a> or <a href="/courses/ai-powered-developer-productivity/learn/chapter-ai-assisted-developer">read the free chapter preview</a>.</p></section></div><nav className="related-insights" aria-label="Related articles"><h2>Related insights</h2>{related.map((item) => <a key={item.slug} href={`/insights/${item.slug}`}>{item.title} <span aria-hidden="true">→</span></a>)}</nav></article></main><SiteFooter/></div>
+}
+
+function SiteFooter() { return <footer className="site-footer section-wrap"><Brand compact/><span>Technology for Better Digital Work.</span><div><a href="/about">ABOUT</a><a href="/insights">INSIGHTS</a><a href="/course/ai-powered-developer-productivity">COURSE</a><a href="/contact">CONTACT</a><a href="/privacy">PRIVACY</a></div><span>© 2026 BRIANE-DEV</span></footer> }
 
 function NotFoundPage() {
   useEffect(() => {

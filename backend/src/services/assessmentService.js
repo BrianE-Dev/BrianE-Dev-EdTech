@@ -6,7 +6,7 @@ const submissionSchema = z.object({
   answers: z.array(z.object({
     questionId: z.string().min(1),
     optionId: z.string().min(1),
-  }).strict()).min(1),
+  }).strict()).min(1).max(100),
 }).strict()
 
 export class InvalidAssessmentSubmissionError extends Error {
