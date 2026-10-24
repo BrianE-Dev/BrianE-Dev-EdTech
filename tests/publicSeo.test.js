@@ -157,4 +157,5 @@ test('Insights article UI has working theme controls and numbered article pagina
   assert.match(app, /aria-label="Article pages"/)
   assert.match(app, /Page \{pageIndex \+ 1\} of \{pageCount\}/)
   assert.match(app, /aria-current=\{pageIndex === index \? 'page' : undefined\}/)
+  assert.match(app, /const sectionsPerPage = 4/)
 })

@@ -478,7 +478,7 @@ function InsightArticlePage({ slug }) {
   const article = insightsArticles.find((item) => item.slug === slug)
   if (!article) return <NotFoundPage />
   const related = insightsArticles.filter((item) => item.slug !== slug)
-  const sectionsPerPage = 2
+  const sectionsPerPage = 4
   const contentPageCount = Math.ceil(article.sections.length / sectionsPerPage)
   const pageCount = contentPageCount + 1
   const visibleSections = article.sections.slice(pageIndex * sectionsPerPage, (pageIndex + 1) * sectionsPerPage)

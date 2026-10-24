@@ -70,7 +70,11 @@
 *::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
 *::-webkit-scrollbar-thumb:active { background-color: var(--scrollbar-thumb-active); }
 html { min-width: 320px; scroll-behavior: smooth; scroll-padding-top: 78px; }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
+body { position: relative; isolation: isolate; margin: 0; min-width: 320px; min-height: 100vh; }
+body::before { position: fixed; z-index: -1; inset: -12%; background:radial-gradient(ellipse at 12% 14%,rgba(6,182,212,.2),transparent 38%),radial-gradient(ellipse at 86% 34%,rgba(79,70,229,.16),transparent 42%),radial-gradient(ellipse at 48% 90%,rgba(8,145,178,.14),transparent 44%); content:""; pointer-events:none; animation:site-background-drift 28s ease-in-out infinite alternate; }
+@keyframes site-background-drift { 0% { transform:scale(1) translate3d(-1%,0,0); filter:hue-rotate(0deg); } 50% { transform:scale(1.08) translate3d(1%,1%,0); filter:hue-rotate(18deg); } 100% { transform:scale(1.02) translate3d(0,-1%,0); filter:hue-rotate(-12deg); } }
+:root[data-theme='light'] body::before { background:radial-gradient(ellipse at 12% 14%,rgba(6,182,212,.13),transparent 38%),radial-gradient(ellipse at 86% 34%,rgba(99,102,241,.1),transparent 42%),radial-gradient(ellipse at 48% 90%,rgba(8,145,178,.09),transparent 44%); }
+@media(prefers-reduced-motion:reduce){body::before{animation:none}}
 :root[data-theme='light'] body { color: var(--text); background: var(--canvas); }
 body, button, a { font-family: 'DM Sans', Inter, ui-sans-serif, system-ui, sans-serif; }
 button, a { -webkit-tap-highlight-color: transparent; }
