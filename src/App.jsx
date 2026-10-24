@@ -174,6 +174,25 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   }, [metadataPath])
 
   useEffect(() => {
+    if (metadataPath !== '/' || isCourseLanding || isPricingPage) return undefined
+    const sections = Array.from(document.querySelectorAll('.home-page-shell main#top > section'))
+    const glowColors = ['rgba(6,182,212,.24)', 'rgba(99,102,241,.22)', 'rgba(31,154,125,.2)', 'rgba(168,85,247,.2)', 'rgba(234,130,61,.18)', 'rgba(59,130,246,.2)']
+    sections.forEach((section, index) => {
+      const wash = document.createElement('span')
+      wash.className = 'home-section-wash'
+      wash.setAttribute('aria-hidden', 'true')
+      section.prepend(wash)
+      section.style.setProperty('--home-section-glow', glowColors[index % glowColors.length])
+      section.style.setProperty('--home-wash-delay', `${index * -2.4}s`)
+    })
+    return () => sections.forEach((section) => {
+      section.querySelector(':scope > .home-section-wash')?.remove()
+      section.style.removeProperty('--home-section-glow')
+      section.style.removeProperty('--home-wash-delay')
+    })
+  }, [metadataPath, isCourseLanding, isPricingPage])
+
+  useEffect(() => {
     api('/pricing').then(setPricing).catch((error) => setPricingError(error.message))
     api('/auth/me').then(({ user }) => {
       setIsAdmin(user.role === 'super_admin')
@@ -312,7 +331,7 @@ function LandingPage({ children = null, metadataPath = '/', isCourseLanding = fa
   </div>
 
   return (
-    <div className="site-shell" data-theme={theme}>
+    <div className="site-shell home-page-shell" data-theme={theme}>
       <SiteNavigation theme={theme} onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} isAdmin={isAdmin}/>
 
       <main id="top">
