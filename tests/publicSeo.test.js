@@ -140,6 +140,11 @@ test('insights listing and articles provide crawler readable content and unique 
     assert.ok(html.indexOf('<div id="root">') < html.indexOf('<h1>'))
     assert.match(html, /application\/ld\+json/)
     assert.match(html, /chapter-ai-assisted-developer/)
+    if (article.slug === 'ai-assisted-development-workflows-for-junior-developers') {
+      assert.match(html, /src="\/insights\/ai-assisted-development-junior\.png"/)
+      assert.match(html, /class="article-feature-image"/)
+      assert.doesNotMatch(html, /Made with AI/)
+    }
   }
   assert.match(sitemap, /\/insights\/using-ai-effectively-in-software-development/)
   assert.match(sitemap, /\/insights\/when-not-to-use-ai-for-coding/)
