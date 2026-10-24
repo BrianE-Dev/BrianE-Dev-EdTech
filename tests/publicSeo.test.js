@@ -136,10 +136,20 @@ test('insights listing and articles provide crawler readable content and unique 
     assert.match(html, new RegExp(`<title>${article.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\| BrianE-Dev</title>`))
     assert.ok(html.includes(`https://briane-dev.online/insights/${article.slug}`))
     assert.ok(html.includes(article.sections[0].paragraphs[0]))
+    assert.equal((html.match(/<h1>/g) || []).length, 1)
+    assert.ok(html.indexOf('<div id="root">') < html.indexOf('<h1>'))
     assert.match(html, /application\/ld\+json/)
     assert.match(html, /chapter-ai-assisted-developer/)
   }
   assert.match(sitemap, /\/insights\/using-ai-effectively-in-software-development/)
   assert.match(sitemap, /\/insights\/when-not-to-use-ai-for-coding/)
   assert.match(sitemap, /\/insights\/ai-assisted-development-workflows-for-junior-developers/)
+})
+
+test('Insights article UI has working theme controls and numbered article pagination', () => {
+  assert.match(app, /useInsightsTheme\(\)/)
+  assert.match(app, /onThemeToggle=\{toggleTheme\}/)
+  assert.match(app, /aria-label="Article pages"/)
+  assert.match(app, /Page \{pageIndex \+ 1\} of \{pageCount\}/)
+  assert.match(app, /aria-current=\{pageIndex === index \? 'page' : undefined\}/)
 })
