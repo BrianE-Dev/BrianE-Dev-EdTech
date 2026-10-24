@@ -15,7 +15,7 @@
 .home-page-shell::before { display:none; }
 .home-page-shell main#top > section { isolation:isolate; }
 .home-page-shell main#top > section > .home-section-wash { position:absolute; z-index:0; inset:-8% -16%; background:radial-gradient(ellipse at 20% 20%,var(--home-section-glow),transparent 58%),radial-gradient(ellipse at 80% 78%,var(--home-section-glow),transparent 52%); filter:blur(26px); opacity:.82; transform-origin:center; animation:home-section-color-drift 24s ease-in-out var(--home-wash-delay,0s) infinite alternate; pointer-events:none; }
-.home-page-shell main#top > section > :not(.home-section-wash) { position:relative; z-index:1; }
+.home-page-shell main#top > section > :not(.home-section-wash):not(.hero-pointer-square) { position:relative; z-index:1; }
 @keyframes home-section-color-drift { 0% { transform:scale(.96) translate3d(-1%,0,0); filter:blur(26px) hue-rotate(0deg); } 50% { transform:scale(1.06) translate3d(1%,1%,0); filter:blur(30px) hue-rotate(22deg); } 100% { transform:scale(1) translate3d(0,-1%,0); filter:blur(24px) hue-rotate(-14deg); } }
 :root[data-theme='light'] .home-page-shell main#top > section > .home-section-wash { opacity:.48; }
 .course-ad { display:grid; grid-template-columns:minmax(0,1fr) minmax(360px,.92fr); align-items:center; gap:clamp(30px,6vw,82px); padding-block:56px; border-bottom:1px solid rgba(47,66,89,.44); }
