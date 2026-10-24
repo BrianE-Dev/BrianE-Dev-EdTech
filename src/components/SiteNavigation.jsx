@@ -15,7 +15,6 @@ export default function SiteNavigation({ theme = 'dark', onThemeToggle, isAdmin 
       <a href="/about" onClick={closeMenu}>About</a>
       <a href="/insights" onClick={closeMenu}>Insights</a>
       <a href={isCoursePage ? '#curriculum' : '/#curriculum'} onClick={closeMenu}>Curriculum</a>
-      <a href={isCoursePage ? '#course-overview' : '/course/ai-powered-developer-productivity'} onClick={closeMenu}>Course</a>
       <a href={previewUrl} onClick={closeMenu}>Free Preview</a>
       <a href="/pricing" onClick={closeMenu}>Pricing</a>
       <a href="/services" onClick={closeMenu}>Services</a>
