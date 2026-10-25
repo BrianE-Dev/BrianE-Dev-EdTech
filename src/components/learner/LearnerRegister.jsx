@@ -50,7 +50,7 @@ export default function LearnerRegister() {
   return <main className="learner-auth-page">
     <header>
       <a href="/" aria-label="BrianE-Dev homepage"><Brand /></a>
-      <a href="/super-admin">Super Admin sign in</a>
+      <a className="learner-home-link" href="/">Back to homepage</a>
     </header>
     <section className="learner-auth-card">
       <span className="eyebrow">BRIANE-DEV / LEARNER ACCESS</span>
@@ -75,6 +75,7 @@ export default function LearnerRegister() {
         <button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
       </form>}
       <p className="learner-auth-switch">Already registered? <a href={`/learn/login?returnTo=${encodeURIComponent(returnTo)}`}>Sign in</a></p>
+      <a className="learner-home-button button button-secondary" href="/">Back to homepage</a>
     </section>
   </main>
 }

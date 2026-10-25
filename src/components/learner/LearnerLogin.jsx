@@ -40,7 +40,7 @@ export default function LearnerLogin() {
   }
 
   return <main className="learner-auth-page">
-    <header><a href="/" aria-label="BrianE-Dev homepage"><Brand /></a><a href="/super-admin">Super Admin sign in</a></header>
+    <header><a href="/" aria-label="BrianE-Dev homepage"><Brand /></a><a className="learner-home-link" href="/">Back to homepage</a></header>
     <section className="learner-auth-card">
       <span className="eyebrow">BRIANE-DEV / LEARNER ACCESS</span>
       <h1>Welcome back</h1>
@@ -55,7 +55,7 @@ export default function LearnerLogin() {
       </form>
       <p className="learner-auth-switch"><a href="/learn/forgot-password">Forgot your password?</a></p>
       <p className="learner-auth-switch">New to BrianE-Dev? <a href={`/learn/register?returnTo=${encodeURIComponent(returnTo)}`}>Create your learner account</a></p>
-      <a className="admin-back-link" href="/">Back to BrianE-Dev</a>
+      <a className="learner-home-button button button-secondary" href="/">Back to homepage</a>
     </section>
   </main>
 }
